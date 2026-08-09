@@ -229,6 +229,7 @@ high_code:
 ; Stage 2+3: Phase C + Cuts A–O production ON; diagnostic smokes D–O ON
 ; (Cut M smoke expects unsigned ADD+JA clamp 1/1, not signed 39/9).
 ; Cut D EDX trampoline is production-required; do not alter rust_strncmp for ABI.
+; Cut P Step 4+: is_region_userspace smoke ON (Rust trampoline; production switch=1).
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -248,6 +249,7 @@ high_code:
         call    tcp_xmit_timer_rust_smoke_test
         call    anti_aliasing_rust_smoke_test
         call    test_app_header_rust_smoke_test
+        call    is_region_userspace_rust_smoke_test
 
 
         mov     ecx, pg_data.mutex
@@ -4465,6 +4467,34 @@ align 4
 ; @param len Length of region
 ; @return ZF = 1 if region in userspace memory,
 ;         ZF = 0 otherwise
+;
+; Cut P: USE_RUST_IS_REGION_USERSPACE=1 routes through Rust
+; rust_is_region_userspace (see rust/is_region_userspace.inc).
+; Production ON (Cut P complete). Set =0 to restore the original FASM body.
+
+USE_RUST_IS_REGION_USERSPACE = 1
+
+if USE_RUST_IS_REGION_USERSPACE
+
+; Compatibility trampoline: existing stdcall ZF-out ABI → Rust stdcall scalar.
+; Proven caller requirements (audit): preserve EAX, ECX, EDX; ZF = FASM result
+; including overflow-to-zero quirk; DF unchanged; ret 8.
+; Sequence verified: cmp sets ZF; pop does not modify EFLAGS.
+proc is_region_userspace stdcall, base:dword, len:dword
+        push    ecx
+        push    edx
+        push    eax
+        stdcall rust_is_region_userspace, [base], [len]
+        cmp     eax, 1          ; ZF=1 iff Rust returned 1 (legacy ZF=1)
+        pop     eax             ; restore caller EAX; flags unchanged
+        pop     edx
+        pop     ecx
+        ret
+endp
+
+else
+
+; --- original FASM implementation (rollback) ---
 proc is_region_userspace stdcall, base:dword, len:dword
         push    eax
         mov     eax, [base]
@@ -4482,6 +4512,8 @@ proc is_region_userspace stdcall, base:dword, len:dword
         pop     eax
         ret
 endp
+
+end if
 
 align 4
 ; @brief Check whether given string lays in userspace memory, i.e. below OS_BASE

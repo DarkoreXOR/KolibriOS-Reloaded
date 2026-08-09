@@ -109,6 +109,8 @@ include "rust/tcp_xmit_timer.inc"
 include "rust/anti_aliasing.inc"
 ; Cut O: test_app_header — Rust blob + smoke (see docs/migration/cut-o-plan.md)
 include "rust/test_app_header.inc"
+; Cut P: is_region_userspace — Rust blob + prepared smoke (switch OFF by default)
+include "rust/is_region_userspace.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

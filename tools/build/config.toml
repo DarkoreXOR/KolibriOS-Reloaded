@@ -5,7 +5,7 @@
 # Do not put secrets here.
 
 # ---------------------------------------------------------------------------
-# Rust freestanding components (Cuts A–O Strategy A+C blobs)
+# Rust freestanding components (Cuts A–P Strategy A+C blobs)
 # ---------------------------------------------------------------------------
 [rust]
 # Cargo workspace containing `kolibri_utils`.
@@ -35,8 +35,15 @@ python = "python"
 generic_script = "rust_kernel/kolibri_utils/scripts/extract_reloc_free_text.py"
 probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 
-# Blobs currently required by the hybrid kernel (Cuts A–O). Order is extraction
+# Blobs currently required by the hybrid kernel (Cuts A–P). Order is extraction
 # order only; FASM embeds whichever files `kernel/rust/*.inc` reference.
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_is_region_userspace"
+symbol = "rust_is_region_userspace"
+expect_ret_imm = 8
+out = "rust_is_region_userspace.bin"
+
 [[rust.blobs]]
 kind = "generic"
 section = ".text.rust_test_app_header"

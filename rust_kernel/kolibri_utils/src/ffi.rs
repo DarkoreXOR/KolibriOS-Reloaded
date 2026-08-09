@@ -20,6 +20,7 @@ use crate::string::strncmp;
 use crate::tcp::tcp_xmit_timer_ptr;
 use crate::time::fs_calculate_time_ptr;
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
+use crate::userspace::is_region_userspace;
 use crate::PHASE_C_PROBE_MAGIC;
 
 /// `stdcall` rust_phase_c_probe() -> eax == [`PHASE_C_PROBE_MAGIC`].
@@ -331,4 +332,19 @@ pub unsafe extern "stdcall" fn rust_test_app_header(
 ) -> u32 {
     // SAFETY: kernel trampoline passes EAX/EBX → valid image + APP_HDR.
     unsafe { test_app_header_ptr(header, app_hdr, pages_free) }
+}
+
+/// `stdcall` rust_is_region_userspace(base, len) -> EAX ∈ {0,1}.
+///
+/// Cut P: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`).
+///
+/// Return `1` = legacy FASM `ZF=1` (accept / overflow-to-zero quirk);
+/// `0` = legacy FASM `ZF=0` (reject). The FASM trampoline reconstructs ZF
+/// via `cmp eax, 1` and restores caller EAX/ECX/EDX with flag-neutral pops.
+#[no_mangle]
+#[link_section = ".text.rust_is_region_userspace"]
+pub extern "stdcall" fn rust_is_region_userspace(base: u32, len: u32) -> u32 {
+    is_region_userspace(base, len)
 }
