@@ -8,6 +8,7 @@
 
 use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::crc::crc32_update;
+use crate::string::strncmp;
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
 use crate::PHASE_C_PROBE_MAGIC;
 
@@ -120,4 +121,19 @@ pub extern "stdcall" fn rust_cp866_to_upper(ch: u32) -> u32 {
 #[link_section = ".text.rust_utf16_to_upper"]
 pub extern "stdcall" fn rust_utf16_to_upper(ch: u32) -> u32 {
     u32::from(utf16_to_upper(ch as u16))
+}
+
+/// `stdcall` rust_strncmp(s1, s2, n) -> EAX ∈ {−1, 0, +1}.
+///
+/// Cut D: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`), matching FASM `proc strncmp stdcall`.
+///
+/// # Safety
+/// `s1` and `s2` must be readable for the bytes actually compared.
+#[no_mangle]
+#[link_section = ".text.rust_strncmp"]
+pub unsafe extern "stdcall" fn rust_strncmp(s1: *const u8, s2: *const u8, n: u32) -> i32 {
+    // SAFETY: kernel callers pass valid C-string regions for this compare.
+    unsafe { strncmp(s1, s2, n) }
 }

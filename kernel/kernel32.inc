@@ -86,6 +86,8 @@ include "rust/utf8.inc"
 include "rust/cp866_upper.inc"
 ; Cut C: UTF-16 uppercase — Rust blob + smoke (see docs/migration/cut-c-plan.md)
 include "rust/utf16_upper.inc"
+; Cut D: strncmp — Rust blob + smoke (see docs/migration/cut-d-plan.md)
+include "rust/strncmp.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

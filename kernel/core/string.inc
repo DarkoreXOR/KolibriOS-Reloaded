@@ -55,6 +55,24 @@ proc strncat stdcall, s1:dword, s2:dword, n:dword
 endp
 
 align 4
+; strncmp migration: USE_RUST_STRNCMP=1 routes through Rust
+; rust_strncmp (see rust/strncmp.inc).
+; Set USE_RUST_STRNCMP=0 to restore the original FASM body without deleting it.
+
+USE_RUST_STRNCMP = 1
+
+if USE_RUST_STRNCMP
+
+; Compatibility trampoline: existing stdcall ABI → Rust stdcall.
+; Callers keep `stdcall strncmp, s1, s2, n` / manual push+call with ret 12.
+proc strncmp stdcall, s1:dword, s2:dword, n:dword
+        stdcall rust_strncmp, [s1], [s2], [n]
+        ret
+endp
+
+else
+
+; --- original FASM implementation (rollback) ---
 proc strncmp stdcall, s1:dword, s2:dword, n:dword
 
         push    esi
@@ -82,6 +100,8 @@ proc strncmp stdcall, s1:dword, s2:dword, n:dword
         pop     esi
         ret
 endp
+
+end if
 
 align 4
 proc strncpy stdcall, s1:dword, s2:dword, n:dword
