@@ -20,6 +20,7 @@ Evidence policy: [`../_meta/evidence-policy.md`](../_meta/evidence-policy.md).
 | UTF-8 decode Rust | ✓ |
 | Cut A audit / reproducibility | ✓ |
 | Cut B (`cp866toUpper`) | ✓ — see [`cut-b-implementation.md`](cut-b-implementation.md) |
+| Cut C (`utf16toUpper`) | ✓ — see [`cut-c-implementation.md`](cut-c-implementation.md) |
 | Next cut | **not started** |
 | Phase D (remove FASM bodies) | **not started** — originals kept under `USE_RUST_*=0` |
 

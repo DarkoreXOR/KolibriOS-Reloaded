@@ -131,6 +131,23 @@ cp866toUpper:
 
 end if
 
+; UTF-16 uppercase migration: USE_RUST_UTF16_UPPER=1 routes through Rust
+; rust_utf16_to_upper (see rust/utf16_upper.inc).
+; Set USE_RUST_UTF16_UPPER=0 to restore the original FASM body without deleting it.
+
+USE_RUST_UTF16_UPPER = 1
+
+if USE_RUST_UTF16_UPPER
+
+; Compatibility trampoline: existing AX/EAX in/out ABI → Rust stdcall.
+; Callers keep `call utf16toUpper` with the UTF-16 character in AX.
+utf16toUpper:
+        stdcall rust_utf16_to_upper, eax
+        ret
+
+else
+
+; --- original FASM implementation (rollback) ---
 utf16toUpper:
 ; convert UTF-16 character in ax to uppercase
         cmp     ax, 'a'
@@ -150,6 +167,8 @@ utf16toUpper:
 @@:
         sub     eax, 32
         ret
+
+end if
 
 uni2ansi_char:
 ; convert UNICODE character in ax to ANSI character in al using cp866 encoding

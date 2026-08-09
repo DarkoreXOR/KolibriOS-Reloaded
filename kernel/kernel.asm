@@ -238,6 +238,8 @@ high_code:
         call    utf8_rust_smoke_test
 ; Cut B smoke: FASM cp866toUpper trampoline → Rust (hangs on mismatch).
         call    cp866_upper_rust_smoke_test
+; Cut C smoke: FASM utf16toUpper trampoline → Rust (hangs on mismatch).
+        call    utf16_upper_rust_smoke_test
 
 
         mov     ecx, pg_data.mutex
