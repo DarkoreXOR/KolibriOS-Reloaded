@@ -1,8 +1,8 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P utilities: CRC32, Unicode, casefold, string, checksum,
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q utilities: CRC32, Unicode, casefold, string, checksum,
 //! filesystem calendar, video geometry, NTFS MCB decode, NTFS USA restore, FAT
 //! 8.3 short-name collision, HID mouse acceleration, TCP RTT estimator, GUI
-//! font anti-aliasing, MENUET app-header validation, and syscall userspace
-//! region gate helpers for KolibriOS hybrid migration.
+//! font anti-aliasing, MENUET app-header validation, syscall userspace
+//! region gate, and UTF-16→UTF-8 streaming encode helpers for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -28,6 +28,7 @@ mod tcp;
 mod time;
 mod unicode;
 mod userspace;
+mod utf16_to_8;
 
 #[cfg(target_arch = "x86")]
 mod ffi;
@@ -53,6 +54,10 @@ pub use time::{fs_calculate_time, BdfeTime};
 pub use unicode::{cp866_encode, utf16_encode, utf8_decode};
 pub use userspace::{
     is_region_userspace, trampoline_zf_from_rust_return, IS_REGION_USERSPACE_PRNG_SEED,
+};
+pub use utf16_to_8::{
+    pack_sf_eax, trampoline_eax_from_packed, trampoline_sf_from_packed, unpack_sf_eax, utf16_to_8,
+    utf16_to_8_ptr, Utf16To8Result, UTF16_TO_8_PRNG_SEED,
 };
 
 /// Phase C probe magic (must match FASM `PHASE_C_PROBE_MAGIC` and freestanding FFI).

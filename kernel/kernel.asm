@@ -226,10 +226,11 @@ high_code:
         mov     eax, cr3
         mov     cr3, eax          ; flush TLB
 
-; Stage 2+3: Phase C + Cuts A–O production ON; diagnostic smokes D–O ON
+; Stage 2+3: Phase C + Cuts A–Q production ON; diagnostic smokes D–Q ON
 ; (Cut M smoke expects unsigned ADD+JA clamp 1/1, not signed 39/9).
 ; Cut D EDX trampoline is production-required; do not alter rust_strncmp for ABI.
-; Cut P Step 4+: is_region_userspace smoke ON (Rust trampoline; production switch=1).
+; Cut P: is_region_userspace smoke ON (Rust trampoline; production switch=1).
+; Cut Q: UTF16to8 smoke ON (Rust trampoline; USE_RUST_UTF16_TO_8=1).
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -250,6 +251,7 @@ high_code:
         call    anti_aliasing_rust_smoke_test
         call    test_app_header_rust_smoke_test
         call    is_region_userspace_rust_smoke_test
+        call    utf16_to_8_rust_smoke_test
 
 
         mov     ecx, pg_data.mutex

@@ -111,6 +111,8 @@ include "rust/anti_aliasing.inc"
 include "rust/test_app_header.inc"
 ; Cut P: is_region_userspace — Rust blob + prepared smoke (switch OFF by default)
 include "rust/is_region_userspace.inc"
+; Cut Q: UTF16to8 — Rust blob + smoke (USE_RUST_UTF16_TO_8=1; production ON)
+include "rust/utf16_to_8.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

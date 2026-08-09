@@ -289,6 +289,57 @@ UTF16to8_string:
 @@:
         ret
 
+; Cut Q: USE_RUST_UTF16_TO_8=1 routes through Rust rust_utf16_to_8
+; (see rust/utf16_to_8.inc). Set USE_RUST_UTF16_TO_8=0 to restore the
+; original FASM body without deleting it. Independent of Cuts A–P.
+; Production ON (Cut Q complete). Set =0 to restore the original FASM body.
+
+USE_RUST_UTF16_TO_8 = 1
+
+if USE_RUST_UTF16_TO_8
+
+; Compatibility trampoline: register ABI → Rust stdcall → SF/EAX/EDI/ECX.
+; Callers keep `call UTF16to8` with AX/EDI/ECX; plain ret.
+; Proven requirements: EBX/EDX/ESI/EBP untouched; DF unchanged;
+; SF = packed bit 31; EAX = residue; ECX/EDI = Rust finals (incl. INT_MIN).
+; Flag rule: reconstruct SF with `test` AFTER residue extract; pops are
+; flag-neutral; use `lea esp` not `add esp` for slot cleanup.
+align 4
+UTF16to8:
+;   in:
+; ax = UTF-16 char
+; edi -> buffer for UTF-8 char (increasing)
+; ecx = byte counter (decreasing)
+        push    ebx
+        push    edx
+        push    esi
+
+        push    ecx                     ; [esp+4] ecx_inout storage
+        push    edi                     ; [esp]   dest_inout storage
+
+        movzx   eax, ax
+        lea     edx, [esp]              ; &dest
+        lea     ecx, [esp+4]            ; &ecx
+        stdcall rust_utf16_to_8, eax, edx, ecx
+        ; EAX = (SF << 31) | residue
+
+        mov     edi, [esp]
+        mov     ecx, [esp+4]
+        lea     esp, [esp+8]            ; flag-neutral drop slots
+
+        mov     ebx, eax                ; ebx = packed (caller EBX on stack)
+        and     eax, 0x7FFFFFFF         ; EAX = residue (flags clobbered)
+        test    ebx, ebx                ; SF = bit 31 of packed
+
+        pop     esi                     ; flag-neutral restore
+        pop     edx
+        pop     ebx
+        ret
+
+else
+
+; --- original FASM implementation (rollback) ---
+align 4
 UTF16to8:
 ;   in:
 ; ax = UTF-16 char
@@ -329,6 +380,8 @@ UTF16to8:
         shr     eax, 8
         stosw
         ret
+
+end if
 
 utf8to16:
 ; in: esi -> UTF-8 char (increasing)

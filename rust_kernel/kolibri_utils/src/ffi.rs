@@ -21,6 +21,7 @@ use crate::tcp::tcp_xmit_timer_ptr;
 use crate::time::fs_calculate_time_ptr;
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
 use crate::userspace::is_region_userspace;
+use crate::utf16_to_8::utf16_to_8_ptr;
 use crate::PHASE_C_PROBE_MAGIC;
 
 /// `stdcall` rust_phase_c_probe() -> eax == [`PHASE_C_PROBE_MAGIC`].
@@ -347,4 +348,30 @@ pub unsafe extern "stdcall" fn rust_test_app_header(
 #[link_section = ".text.rust_is_region_userspace"]
 pub extern "stdcall" fn rust_is_region_userspace(base: u32, len: u32) -> u32 {
     is_region_userspace(base, len)
+}
+
+/// `stdcall` rust_utf16_to_8(ch, dest_inout, ecx_inout) -> packed (SF<<31)|EAX.
+///
+/// Cut Q: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`).
+///
+/// Updates `*ecx_inout` to the final FASM `ECX` bit pattern and advances
+/// `*dest_inout` by the FASM `EDI` delta (0 on fail). Return dword packs
+/// legacy SF sense in bit 31 and `EAX` residue in bits 30..0 (residues fit
+/// in low 16). A future FASM trampoline reconstructs architectural SF and
+/// restores the register ABI; production still uses the FASM leaf.
+///
+/// # Safety
+/// `dest_inout` / `ecx_inout` must be valid; `*dest_inout` writable for up
+/// to 3 bytes on success paths.
+#[no_mangle]
+#[link_section = ".text.rust_utf16_to_8"]
+pub unsafe extern "stdcall" fn rust_utf16_to_8(
+    ch: u32,
+    dest_inout: *mut *mut u8,
+    ecx_inout: *mut u32,
+) -> u32 {
+    // SAFETY: future kernel trampoline passes valid EDI/ECX slots.
+    unsafe { utf16_to_8_ptr(ch, dest_inout, ecx_inout) }
 }
