@@ -29,7 +29,7 @@ pub struct RustConfig {
     pub clear_rustflags: bool,
     pub extract: ExtractConfig,
     pub blobs: Vec<BlobSpec>,
-    /// Completed Cuts A–AE: blob ↔ `USE_RUST_*` gate ↔ kernel include mapping.
+    /// Completed Cuts A–AF: blob ↔ `USE_RUST_*` gate ↔ kernel include mapping.
     #[serde(default)]
     pub migrations: Vec<MigrationSpec>,
 }
@@ -157,7 +157,7 @@ impl Config {
         }
 
         if self.rust.migrations.is_empty() {
-            bail!("config [rust.migrations] is empty — register Cuts A–AE gates");
+            bail!("config [rust.migrations] is empty — register Cuts A–AF gates");
         }
 
         let mut mig_blobs = HashSet::new();

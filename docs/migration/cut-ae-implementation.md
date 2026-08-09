@@ -173,8 +173,8 @@ Rollback: `USE_RUST_NTFS_DATETIME_TO_BDFE = 0` (or `enabled = false` in `tools/b
 ## Known limitations
 
 * Blob is larger than the FASM leaf because it inlines `fs_time2bdfe` calendar; functionally reloc-free.
-* Does not migrate `ntfsCalculateTime` (inverse twin — natural later Path B).
 * Does not migrate `ntfs_test_bootsec` / dirent enumeration.
 * Stock-image NTFS FILETIME soak not claimed.
 * `memmove` / Stage-4 VA→PA / `socket_check` remain deferred.
 * Cluster migration remains premature after AE.
+* Cut AF (`ntfsCalculateTime`) completes the FILETIME twin as a later Path B.

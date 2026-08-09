@@ -23,7 +23,7 @@ use crate::partition::{is_partition_table_entry_ptr, is_protective_mbr_ptr};
 use crate::pid_to_slot::pid_to_slot_ptr;
 use crate::string::strncmp;
 use crate::tcp::{tcp_set_persist_ptr, tcp_xmit_timer_ptr};
-use crate::time::{fs_calculate_time_ptr, fs_time2bdfe_ptr, ntfs_datetime_to_bdfe_ptr};
+use crate::time::{fs_calculate_time_ptr, fs_time2bdfe_ptr, ntfs_calculate_time_ptr, ntfs_datetime_to_bdfe_ptr};
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
 use crate::userspace::is_region_userspace;
 use crate::utf16_to_8::utf16_to_8_ptr;
@@ -241,6 +241,25 @@ pub unsafe extern "stdcall" fn rust_ntfs_datetime_to_bdfe(
 ) {
     // SAFETY: kernel trampoline passes EDI → valid BDFE out block.
     unsafe { ntfs_datetime_to_bdfe_ptr(filetime_lo, filetime_hi, out) }
+}
+
+/// `stdcall` rust_ntfs_calculate_time(block) -> EDX:EAX FILETIME.
+///
+/// Cut AF: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 4 bytes (`ret 4`). FASM trampoline passes ESI.
+///
+/// Returns `u64` in `EDX:EAX` = `(hi << 32) | lo` matching FASM
+/// `ntfsCalculateTime` FILETIME output (composes Cut G + AE bias constants).
+///
+/// # Safety
+/// `block` must point to a readable 8-byte BDFE datetime (kernel `ESI`).
+#[no_mangle]
+#[link_section = ".text.rust_ntfs_calculate_time"]
+pub unsafe extern "stdcall" fn rust_ntfs_calculate_time(block: *const u8) -> u64 {
+    // SAFETY: kernel trampoline passes ESI → valid BDFE block.
+    let (lo, hi) = unsafe { ntfs_calculate_time_ptr(block) };
+    ((hi as u64) << 32) | (lo as u64)
 }
 
 /// `stdcall` rust_block_clip(clip, rect) -> EAX = 0 draw / 1 reject.

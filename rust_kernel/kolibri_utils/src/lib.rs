@@ -1,5 +1,5 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE utilities: CRC32, Unicode, casefold, string, checksum,
-//! filesystem calendar (BDFE↔secs), NTFS FILETIME→BDFE, video geometry, NTFS MCB decode, NTFS USA restore, FAT
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF utilities: CRC32, Unicode, casefold, string, checksum,
+//! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, video geometry, NTFS MCB decode, NTFS USA restore, FAT
 //! 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator +
 //! persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall userspace
 //! region gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS extent unpack +
@@ -95,7 +95,8 @@ pub use tcp::{
 };
 pub use time::{
     filetime_from_secs_2001, fs_calculate_time, fs_time2bdfe, fs_time2bdfe_ptr,
-    ntfs_datetime_to_bdfe, ntfs_datetime_to_bdfe_ptr, ntfs_filetime_to_secs, pack_filetime, BdfeTime,
+    ntfs_calculate_time, ntfs_calculate_time_ptr, ntfs_datetime_to_bdfe, ntfs_datetime_to_bdfe_ptr,
+    ntfs_filetime_to_secs, pack_filetime, BdfeTime, NTFS_CALCULATE_TIME_PRNG_SEED,
     NTFS_DATETIME_TO_BDFE_PRNG_SEED, NTFS_FILETIME_BIAS_HI, NTFS_FILETIME_BIAS_LO,
     NTFS_FILETIME_PER_SEC,
 };

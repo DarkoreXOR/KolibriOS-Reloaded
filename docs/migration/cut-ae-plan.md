@@ -6,7 +6,7 @@
 
 > **Nomenclature:** **Cut AE** migrates NTFS FILETIME → BDFE conversion —
 > `ntfs_datetime_to_bdfe` in `ntfs.inc`.  
-> Cuts A–AD remain complete and must not be redone. Do not start Cut AF.
+> Cuts A–AD remain complete and must not be redone. Cut AF follows.
 
 ---
 
