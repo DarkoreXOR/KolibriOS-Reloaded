@@ -13,6 +13,7 @@ use crate::crc::crc32_update;
 use crate::fat_name::{fat_gen_short_name_ptr, fat_next_short_name_ptr};
 use crate::font::anti_aliasing;
 use crate::geometry::block_clip_ptr;
+use crate::io_access::set_io_access_rights_ptr;
 use crate::mouse::mouse_acceleration;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
 use crate::ntfs_usa::ntfs_restore_usa_ptr;
@@ -352,6 +353,29 @@ pub unsafe extern "stdcall" fn rust_tcp_xmit_timer(rtt: u32, socket: *mut u8) {
 pub unsafe extern "stdcall" fn rust_tcp_set_persist(socket: *mut u8) {
     // SAFETY: kernel trampoline passes EAX → valid socket.
     unsafe { tcp_set_persist_ptr(socket) }
+}
+
+/// `stdcall` rust_set_io_access_rights(port, clear_access, io_map) -> void.
+///
+/// Cut X: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). FASM trampoline injects
+/// `tss._io_map_0` and preserves EAX/ECX/EDX/EDI/EBP around the call.
+///
+/// `clear_access == 0` → BTR (enable I/O); nonzero → BTS (disable I/O).
+///
+/// # Safety
+/// `io_map` must be writable for the byte containing bit `port`
+/// (production: full 8 KiB TSS I/O map; callers keep `port < 65536`).
+#[no_mangle]
+#[link_section = ".text.rust_set_io_access_rights"]
+pub unsafe extern "stdcall" fn rust_set_io_access_rights(
+    port: u32,
+    clear_access: u32,
+    io_map: *mut u8,
+) {
+    // SAFETY: kernel trampoline passes EAX/EBP + tss._io_map_0.
+    unsafe { set_io_access_rights_ptr(port, clear_access, io_map) }
 }
 
 /// `stdcall` rust_anti_aliasing(fg, bg) -> EAX blended RGB.

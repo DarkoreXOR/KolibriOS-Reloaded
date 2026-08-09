@@ -236,6 +236,7 @@ high_code:
 ; Cut U: fat_gen_short_name smoke ON when USE_RUST_FAT_GEN_SHORT_NAME=1.
 ; Cut V: tcp_set_persist smoke ON when USE_RUST_TCP_SET_PERSIST=1.
 ; Cut W: xfs._.get_addr_by_hash smoke ON when USE_RUST_XFS_GET_ADDR_BY_HASH=1.
+; Cut X: set_io_access_rights smoke ON when USE_RUST_SET_IO_ACCESS_RIGHTS=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -269,6 +270,7 @@ high_code:
         call    tcp_set_persist_rust_smoke_test
         ; Cut W: xfs._.get_addr_by_hash smoke (Rust when USE_RUST_XFS_GET_ADDR_BY_HASH=1).
         call    xfs_get_addr_by_hash_rust_smoke_test
+        ; Cut X smoke deferred until tss._io_map_0 is mapped/filled (below).
 
 
         mov     ecx, pg_data.mutex
@@ -439,6 +441,9 @@ high_code:
 
         mov     ax, tss0
         ltr     ax
+
+        ; Cut X: set_io_access_rights smoke — requires live tss._io_map_0.
+        call    set_io_access_rights_rust_smoke_test
 
         mov     eax, sys_proc
         list_init eax
@@ -3285,6 +3290,39 @@ align 4
 ;          0 - set access
 ;          1 - clear access
 ; out: not return value
+; Cut X: USE_RUST_SET_IO_ACCESS_RIGHTS=1 routes through Rust
+; rust_set_io_access_rights (see rust/set_io_access_rights.inc).
+; Set USE_RUST_SET_IO_ACCESS_RIGHTS=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–W.
+
+USE_RUST_SET_IO_ACCESS_RIGHTS = 1
+
+if USE_RUST_SET_IO_ACCESS_RIGHTS
+
+; Compatibility trampoline: register ABI → Rust stdcall.
+; Callers keep `call set_io_access_rights` with EAX=port, EBP=0/≠0.
+; EAX/EDX/EBP must survive (r_f_port_area loops on them).
+; EDI preserved to match legacy push/pop; ECX saved defensively.
+align 4
+set_io_access_rights:
+        push    edi
+        push    eax
+        push    ecx
+        push    edx
+        push    ebp
+        push    tss._io_map_0           ; io_map (explicit → reloc-free Rust)
+        push    ebp                     ; clear_access
+        push    eax                     ; port
+        call    rust_set_io_access_rights ; ret 12
+        pop     ebp
+        pop     edx
+        pop     ecx
+        pop     eax
+        pop     edi
+        ret
+
+else
+
 align 4
 set_io_access_rights:
         push    edi eax
@@ -3301,6 +3339,7 @@ set_io_access_rights:
         pop     eax edi
         ret
 
+end if
 align 4
 ; @brief ReservePortArea and FreePortArea
 ; @param edx number end arrea of ports (include last number of port)

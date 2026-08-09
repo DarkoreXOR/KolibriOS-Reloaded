@@ -125,6 +125,8 @@ include "rust/fat_gen_short_name.inc"
 include "rust/tcp_set_persist.inc"
 ; Cut W: xfs._.get_addr_by_hash — Rust blob + smoke (USE_RUST_XFS_GET_ADDR_BY_HASH)
 include "rust/xfs_get_addr_by_hash.inc"
+; Cut X: set_io_access_rights — Rust blob + smoke (USE_RUST_SET_IO_ACCESS_RIGHTS)
+include "rust/set_io_access_rights.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 
