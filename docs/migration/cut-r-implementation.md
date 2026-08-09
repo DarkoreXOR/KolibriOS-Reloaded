@@ -175,7 +175,7 @@ restores the original FASM body. Rust blob remains embedded via `rust/xfs_extent
 
 * Other XFS leaves  
 * XFS image generation pipeline  
-* Cut S  
+* Cut T  
 
 ---
 

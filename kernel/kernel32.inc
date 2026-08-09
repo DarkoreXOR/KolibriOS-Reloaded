@@ -115,6 +115,8 @@ include "rust/is_region_userspace.inc"
 include "rust/utf16_to_8.inc"
 ; Cut R: xfs._.extent_unpack — Rust blob + smoke (USE_RUST_XFS_EXTENT_UNPACK)
 include "rust/xfs_extent_unpack.inc"
+; Cut S: window._.check_window_position — Rust blob + smoke (USE_RUST_CHECK_WINDOW_POSITION)
+include "rust/check_window_position.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

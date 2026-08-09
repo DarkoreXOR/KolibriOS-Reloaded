@@ -1,9 +1,9 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R utilities: CRC32, Unicode, casefold, string, checksum,
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S utilities: CRC32, Unicode, casefold, string, checksum,
 //! filesystem calendar, video geometry, NTFS MCB decode, NTFS USA restore, FAT
 //! 8.3 short-name collision, HID mouse acceleration, TCP RTT estimator, GUI
 //! font anti-aliasing, MENUET app-header validation, syscall userspace
-//! region gate, UTF-16→UTF-8 streaming encode, and XFS extent unpack helpers
-//! for KolibriOS hybrid migration.
+//! region gate, UTF-16→UTF-8 streaming encode, XFS extent unpack, and window
+//! screen-fit helpers for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -30,6 +30,7 @@ mod time;
 mod unicode;
 mod userspace;
 mod utf16_to_8;
+mod window;
 mod xfs_extent;
 
 #[cfg(target_arch = "x86")]
@@ -60,6 +61,9 @@ pub use userspace::{
 pub use utf16_to_8::{
     pack_sf_eax, trampoline_eax_from_packed, trampoline_sf_from_packed, unpack_sf_eax, utf16_to_8,
     utf16_to_8_ptr, Utf16To8Result, UTF16_TO_8_PRNG_SEED,
+};
+pub use window::{
+    check_window_position, check_window_position_ptr, WindowBox, CHECK_WINDOW_POSITION_PRNG_SEED,
 };
 pub use xfs_extent::{
     read_xfs_bmbt_irec, write_xfs_bmbt_irec, xfs_extent_unpack, xfs_extent_unpack_into,

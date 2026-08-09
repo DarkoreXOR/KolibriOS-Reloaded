@@ -48,7 +48,7 @@ Usage:
   kolibri_img ls <image.img> [--path DIR]
   kolibri_img cow <readonly-source.img> <dest-copy.img>
   kolibri_img extract <image.img> <FAT-NAME> <out-file>
-  kolibri_img delete <writable-image.img> <FAT-NAME>
+  kolibri_img delete <writable-image.img> <FAT-NAME-OR-PATH>
   kolibri_img replace <writable-image.img> <FAT-NAME> <host-file>
 
 Rules:
@@ -56,6 +56,7 @@ Rules:
   - Use `cow` (or any explicit copy) before modify/replace/delete.
   - `delete` / `replace` refuse known reference image filenames.
   - Delete disposable copies under tmp_images/ when done.
+  - `delete` accepts root 8.3 names or nested paths (e.g. DEVELOP/FASM).
 "
     );
 }
@@ -207,10 +208,9 @@ fn cmd_delete(args: &[String]) -> Result<(), BoxError> {
     let name = args.get(1).ok_or("delete requires <image.img> <NAME>")?;
     refuse_reference_image(img_path)?;
     let mut img = Image::open_mut(img_path)?;
-    let fat_name = to_fat_83(name)?;
     let (offset, entry) = img
-        .find_root_file_mut(&fat_name)?
-        .ok_or_else(|| format!("file not found in root: {name}"))?;
+        .find_file_path(name)?
+        .ok_or_else(|| format!("file not found: {name}"))?;
     if entry.is_dir() {
         return Err("refusing to delete a directory (not implemented)".into());
     }
@@ -514,6 +514,76 @@ impl Image {
             off += 32;
         }
         None
+    }
+
+    /// Locate a file by root 8.3 name or nested path (`DEVELOP/FASM`, `/games/dino`).
+    /// Returns absolute image offset of the 32-byte dirent plus the parsed entry.
+    fn find_file_path(&self, path: &str) -> Result<Option<(usize, DirEntry)>, BoxError> {
+        let components: Vec<&str> = path
+            .split(|c| c == '/' || c == '\\')
+            .filter(|s| !s.is_empty() && *s != ".")
+            .collect();
+        if components.is_empty() {
+            return Err("empty path".into());
+        }
+        if components.len() == 1 {
+            let fat = to_fat_83(components[0])?;
+            return Ok(self.find_root_file_offset(&fat));
+        }
+        // Walk parent directories from root; last component is the file.
+        let mut parent_start: Option<u16> = None;
+        let mut walk = self.list_root()?;
+        for component in &components[..components.len() - 1] {
+            let fat = to_fat_83(component)?;
+            let dir = walk
+                .into_iter()
+                .find(|e| !e.is_deleted() && !e.is_lfn() && e.is_dir() && e.fat_name() == fat)
+                .ok_or_else(|| format!("directory not found: {component}"))?;
+            parent_start = Some(dir.start_cluster);
+            let bytes = self.read_clusters(dir.start_cluster, None)?;
+            walk = self.parse_dir_region_bytes(&bytes)?;
+        }
+        let file_fat = to_fat_83(components[components.len() - 1])?;
+        let start = parent_start.ok_or("internal: missing parent cluster")?;
+        self.find_in_cluster_dir(start, &file_fat)
+    }
+
+    fn find_in_cluster_dir(
+        &self,
+        start: u16,
+        fat_name_11: &str,
+    ) -> Result<Option<(usize, DirEntry)>, BoxError> {
+        let want = fat_name_11.as_bytes();
+        let cluster_size = self.bpb.cluster_size();
+        let mut cluster = start as u32;
+        let mut guard = 0u32;
+        while cluster >= 2 && !self.is_eoc(cluster) {
+            let base = self.cluster_offset(cluster)?;
+            let mut off = 0usize;
+            while off + 32 <= cluster_size {
+                let abs = base + off;
+                let chunk = &self.data[abs..abs + 32];
+                if chunk[0] == 0x00 {
+                    return Ok(None);
+                }
+                if let Some(e) = DirEntry::parse(chunk) {
+                    if !e.is_deleted()
+                        && !e.is_lfn()
+                        && !e.is_volume_label()
+                        && e.raw_name.as_ref() == want
+                    {
+                        return Ok(Some((abs, e)));
+                    }
+                }
+                off += 32;
+            }
+            cluster = self.fat_next(cluster)?;
+            guard += 1;
+            if guard > 1_000_000 {
+                return Err("FAT chain too long / loop detected".into());
+            }
+        }
+        Ok(None)
     }
 
     fn list_path(&self, path: &str) -> Result<Vec<DirEntry>, BoxError> {

@@ -22,6 +22,7 @@ use crate::time::fs_calculate_time_ptr;
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
 use crate::userspace::is_region_userspace;
 use crate::utf16_to_8::utf16_to_8_ptr;
+use crate::window::check_window_position_ptr;
 use crate::xfs_extent::xfs_extent_unpack_ptr;
 use crate::PHASE_C_PROBE_MAGIC;
 
@@ -397,4 +398,26 @@ pub unsafe extern "stdcall" fn rust_xfs_extent_unpack(
 ) {
     // SAFETY: kernel trampoline passes extent record + &XFS.extent.
     unsafe { xfs_extent_unpack_ptr(extent_data, extent_out) }
+}
+
+/// `stdcall` rust_check_window_position(box, display_width, display_height).
+///
+/// Cut S: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`).
+///
+/// `box` → writable 16-byte `BOX` / `WDATA.box`. Display dimensions are
+/// explicit so the Rust blob never references `_display` iglobals.
+///
+/// # Safety
+/// `box` must be readable/writable for 16 bytes.
+#[no_mangle]
+#[link_section = ".text.rust_check_window_position"]
+pub unsafe extern "stdcall" fn rust_check_window_position(
+    box_ptr: *mut u8,
+    display_width: i32,
+    display_height: i32,
+) {
+    // SAFETY: kernel trampoline passes EDI → WDATA.box + display dims.
+    unsafe { check_window_position_ptr(box_ptr, display_width, display_height) }
 }

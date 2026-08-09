@@ -1,0 +1,91 @@
+---
+description: Permanent rules for protecting the read-only source image and cleaning writable test images
+alwaysApply: true
+---
+
+# Image Handling Rules
+
+## Read-only source image is immutable
+
+The project contains a read-only source/reference image and one or more writable
+test images used for kernel development and testing.
+
+The read-only source/reference image is strictly immutable.
+
+NEVER:
+
+- delete files or directories from the read-only source/reference image;
+- modify files inside the read-only source/reference image;
+- overwrite, recreate, truncate, or otherwise alter the read-only source/reference image;
+- use the read-only source/reference image as a writable workspace;
+- mount or manipulate the read-only source/reference image in a way that can
+  modify its contents.
+
+Preserve the read-only source/reference image exactly as provided.
+
+## Writable test images
+
+Kernel development, testing, packaging, and temporary cleanup may be performed
+on writable test images.
+
+When additional free space is required in a writable test image for the kernel,
+the following paths are explicitly authorized for deletion:
+
+- `/docpack`
+- `/develop/fasm`
+- `/3d/view3ds`
+- `/games/dino`
+
+These paths may be deleted only from the writable test image currently being
+used for kernel testing.
+
+Their deletion is intentional and authorized by the user.
+
+## Deletion restrictions
+
+The authorization above is limited to exactly these three paths:
+
+- `/docpack`
+- `/develop/fasm`
+- `/3d/view3ds`
+- `/games/dino`
+
+Do NOT delete any other files or directories from a test image unless the user
+explicitly authorizes them.
+
+Do NOT interpret the authorization as permission to recursively clean arbitrary
+unused files.
+
+Do NOT delete any of the approved paths from the read-only source/reference
+image.
+
+## Before deleting anything
+
+Before performing a deletion, determine which image is being modified.
+
+The agent MUST verify that:
+
+1. the target is the writable test image;
+2. the target is not the read-only source/reference image;
+3. the path being deleted is one of the explicitly authorized paths above.
+
+If there is any uncertainty about which image is mounted or being modified,
+STOP and ask the user before deleting anything.
+
+## Purpose
+
+The purpose of deleting the approved paths is to reclaim space in writable test
+images so that the kernel and its test artifacts can be built, packaged, and
+tested.
+
+This rule does not authorize any changes to the project's source tree merely to
+free image space.
+
+## Priority
+
+These rules apply to all Cursor Agent work in this repository and should be
+followed in every session.
+
+If a future user instruction explicitly changes or supersedes these rules, follow
+the newer explicit instruction, while continuing to protect the read-only
+source/reference image unless the user explicitly authorizes modification of it.

@@ -5,7 +5,7 @@
 # Do not put secrets here.
 
 # ---------------------------------------------------------------------------
-# Rust freestanding components (Cuts A–R Strategy A+C blobs)
+# Rust freestanding components (Cuts A–S Strategy A+C blobs)
 # ---------------------------------------------------------------------------
 [rust]
 # Cargo workspace containing `kolibri_utils`.
@@ -35,8 +35,15 @@ python = "python"
 generic_script = "rust_kernel/kolibri_utils/scripts/extract_reloc_free_text.py"
 probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 
-# Blobs currently required by the hybrid kernel (Cuts A–R). Order is extraction
+# Blobs currently required by the hybrid kernel (Cuts A–S). Order is extraction
 # order only; FASM embeds whichever files `kernel/rust/*.inc` reference.
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_check_window_position"
+symbol = "rust_check_window_position"
+expect_ret_imm = 12
+out = "rust_check_window_position.bin"
+
 [[rust.blobs]]
 kind = "generic"
 section = ".text.rust_xfs_extent_unpack"
@@ -218,8 +225,15 @@ base_image = "kolibrios-0.7.7.0-9160-g944d74f01-en_US.img"
 output_dir = "build/test"
 # Filename pattern. `{timestamp}` → local YYYYMMDD-HHMMSS.
 filename_pattern = "kernel-{timestamp}.img"
-# Root FAT 8.3 names deleted on the CoW copy before replace (frees clusters).
-delete_before_replace = ["DOCPACK"]
+# FAT paths deleted on the CoW copy before replace (frees clusters).
+# Authorized by `.cursor/rules/image-handling.mdc` — do not add other paths.
+# Nested paths require path-aware `kolibri_img delete` (DEVELOP/FASM etc.).
+delete_before_replace = [
+  "DOCPACK",
+  "DEVELOP/FASM",
+  "3D/VIEW3DS",
+  "GAMES/DINO",
+]
 # Destination name inside the image for the newly built kernel.
 kernel_fat_name = "KERNEL.MNT"
 

@@ -1696,6 +1696,30 @@ align 4
 ;------------------------------------------------------------------------------
 
 
+; Cut S: USE_RUST_CHECK_WINDOW_POSITION=1 routes through Rust
+; rust_check_window_position (see rust/check_window_position.inc).
+; Set USE_RUST_CHECK_WINDOW_POSITION=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–R.
+
+USE_RUST_CHECK_WINDOW_POSITION = 1
+
+if USE_RUST_CHECK_WINDOW_POSITION
+
+; Compatibility trampoline: register ABI → Rust stdcall.
+; Callers keep `call window._.check_window_position` with EDI → WDATA*.
+; EAX/EBX/ECX/EDX/ESI preserved (matches original FASM push/pop).
+; Display dims stay in FASM globals so the Rust blob remains reloc-free.
+align 4
+;? Check if window is inside screen area
+;> edi = pointer to WDATA
+window._.check_window_position:
+        push    eax ebx ecx edx esi
+        stdcall rust_check_window_position, edi, [_display.width], [_display.height]
+        pop     esi edx ecx ebx eax
+        ret
+
+else
+
 align 4
 ;? Check if window is inside screen area
 ;> edi = pointer to WDATA
@@ -1779,6 +1803,8 @@ align 4
         dec     ebx
         mov     [edi + WDATA.box.top], ebx
         jmp     .exit
+
+end if
 ;------------------------------------------------------------------------------
 
 
