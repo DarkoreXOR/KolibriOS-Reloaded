@@ -255,6 +255,8 @@ high_code:
         call    ntfs_restore_usa_rust_smoke_test
 ; Cut K smoke: FASM fat_next_short_name trampoline → Rust (hangs on mismatch).
         call    fat_next_short_name_rust_smoke_test
+; Cut L smoke: FASM mouse_acceleration trampoline → Rust (hangs on mismatch).
+        call    mouse_acceleration_rust_smoke_test
 
 
         mov     ecx, pg_data.mutex

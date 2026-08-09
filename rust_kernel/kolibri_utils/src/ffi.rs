@@ -11,6 +11,7 @@ use crate::checksum::{checksum_1, checksum_2};
 use crate::crc::crc32_update;
 use crate::fat_name::fat_next_short_name_ptr;
 use crate::geometry::block_clip_ptr;
+use crate::mouse::mouse_acceleration;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
 use crate::ntfs_usa::ntfs_restore_usa_ptr;
 use crate::string::strncmp;
@@ -261,4 +262,20 @@ pub unsafe extern "stdcall" fn rust_ntfs_restore_usa(record: *mut u8, size: u32)
 pub unsafe extern "stdcall" fn rust_fat_next_short_name(name: *mut u8) -> u32 {
     // SAFETY: kernel trampoline passes EDI → valid 11-byte name.
     unsafe { fat_next_short_name_ptr(name) }
+}
+
+/// `stdcall` rust_mouse_acceleration(delta, delay, speed_factor) -> EAX.
+///
+/// Cut L: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). FASM trampoline loads
+/// `[mouse_delay]` / `[mouse_speed_factor]` and passes them with `EAX`.
+#[no_mangle]
+#[link_section = ".text.rust_mouse_acceleration"]
+pub extern "stdcall" fn rust_mouse_acceleration(
+    delta: u32,
+    delay: u32,
+    speed_factor: u32,
+) -> u32 {
+    mouse_acceleration(delta, delay as u8, speed_factor as u16)
 }

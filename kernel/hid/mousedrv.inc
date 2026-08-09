@@ -268,6 +268,28 @@ proc set_mouse_data stdcall uses ecx edx, BtnState:dword, XMoving:dword, YMoving
 endp
 
 ;-----------------------------------------------------------------------------
+; Cut L: USE_RUST_MOUSE_ACCELERATION=1 routes through Rust
+; rust_mouse_acceleration (see rust/mouse_acceleration.inc).
+; Set USE_RUST_MOUSE_ACCELERATION=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–K.
+
+USE_RUST_MOUSE_ACCELERATION = 1
+
+if USE_RUST_MOUSE_ACCELERATION
+
+; Compatibility trampoline: register ABI → Rust stdcall → EAX.
+; Callers keep `call mouse_acceleration` with EAX delta in/out.
+; CX may be clobbered (matches original FASM body loading speed factor).
+; Tunables stay in FASM globals so the Rust blob remains reloc-free.
+align 4
+mouse_acceleration:
+        movzx   ecx, byte [mouse_delay]
+        movzx   edx, word [mouse_speed_factor]
+        stdcall rust_mouse_acceleration, eax, ecx, edx
+        ret
+
+else
+
 mouse_acceleration:
         neg     ax
         jl      mouse_acceleration
@@ -282,3 +304,5 @@ mouse_acceleration:
         neg     ax
 @@:
         ret
+
+end if
