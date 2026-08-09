@@ -518,6 +518,42 @@ get_pid:
         mov     eax, [eax + APPDATA.tid]
         ret
 
+;Input:
+;  eax - pid of process
+;Output:
+;  eax - slot of process or 0 if process don't exists
+;Search process by PID.
+; Cut AA: USE_RUST_PID_TO_SLOT=1 routes through Rust
+; rust_pid_to_slot (see rust/pid_to_slot.inc).
+; Set USE_RUST_PID_TO_SLOT=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–Z.
+
+USE_RUST_PID_TO_SLOT = 1
+
+if USE_RUST_PID_TO_SLOT
+
+; Compatibility trampoline: register ABI → Rust stdcall → EAX.
+; Callers: EAX=TID → EAX=slot/0; EBX/ECX explicitly preserved by legacy;
+; EDX/ESI/EDI/EBP de facto preserved (untouched) — trampoline keeps them.
+align 4
+pid_to_slot:
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    edi
+        push    ebp
+        stdcall rust_pid_to_slot, eax, SLOT_BASE, [thread_count]
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
 pid_to_slot:
 ;Input:
 ;  eax - pid of process
@@ -554,6 +590,8 @@ pid_to_slot:
         pop     ecx
         pop     ebx
         ret
+
+end if
 
 
 align 4

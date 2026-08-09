@@ -131,6 +131,8 @@ include "rust/set_io_access_rights.inc"
 include "rust/fix_coff_relocs.inc"
 ; Cut Z: is_partition_table_entry — Rust blob + smoke (USE_RUST_IS_PARTITION_TABLE_ENTRY)
 include "rust/is_partition_table_entry.inc"
+; Cut AA: pid_to_slot — Rust blob + smoke (USE_RUST_PID_TO_SLOT)
+include "rust/pid_to_slot.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

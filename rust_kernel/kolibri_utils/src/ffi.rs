@@ -19,6 +19,7 @@ use crate::mouse::mouse_acceleration;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
 use crate::ntfs_usa::ntfs_restore_usa_ptr;
 use crate::partition::is_partition_table_entry_ptr;
+use crate::pid_to_slot::pid_to_slot_ptr;
 use crate::string::strncmp;
 use crate::tcp::{tcp_set_persist_ptr, tcp_xmit_timer_ptr};
 use crate::time::{fs_calculate_time_ptr, fs_time2bdfe_ptr};
@@ -420,6 +421,27 @@ pub unsafe extern "stdcall" fn rust_is_partition_table_entry(
 ) -> u32 {
     // SAFETY: kernel trampoline passes ECX→entry + capacity from DISK.
     unsafe { is_partition_table_entry_ptr(entry, ebp_base, capacity_lo, capacity_hi) }
+}
+
+/// `stdcall` rust_pid_to_slot(pid, slot_base, thread_count) -> EAX.
+///
+/// Cut AA: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). Returns slot index or `0`;
+/// FASM trampoline injects `SLOT_BASE` / `[thread_count]` and preserves
+/// EBX/ECX/EDX/ESI/EDI/EBP.
+///
+/// # Safety
+/// `slot_base` must be a readable APPDATA table for the scanned range.
+#[no_mangle]
+#[link_section = ".text.rust_pid_to_slot"]
+pub unsafe extern "stdcall" fn rust_pid_to_slot(
+    pid: u32,
+    slot_base: *const u8,
+    thread_count: u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes live SLOT_BASE + thread_count.
+    unsafe { pid_to_slot_ptr(pid, slot_base, thread_count) }
 }
 
 /// `stdcall` rust_anti_aliasing(fg, bg) -> EAX blended RGB.

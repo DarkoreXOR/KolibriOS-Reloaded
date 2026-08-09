@@ -239,6 +239,7 @@ high_code:
 ; Cut X: set_io_access_rights smoke ON when USE_RUST_SET_IO_ACCESS_RIGHTS=1.
 ; Cut Y: fix_coff_relocs smoke ON when USE_RUST_FIX_COFF_RELOCS=1.
 ; Cut Z: is_partition_table_entry smoke ON when USE_RUST_IS_PARTITION_TABLE_ENTRY=1.
+; Cut AA: pid_to_slot smoke ON when USE_RUST_PID_TO_SLOT=1 (after SLOT_BASE setup).
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -614,6 +615,9 @@ high_code:
         mov     [current_slot_idx], 2
         mov     [thread_count], 2
         mov     [current_slot], SLOT_BASE + sizeof.APPDATA*2
+
+        ; Cut AA: pid_to_slot smoke — requires live SLOT_BASE + thread_count.
+        call    pid_to_slot_rust_smoke_test
 
 ; Move other CPUs to deep sleep, if it is useful
 uglobal
