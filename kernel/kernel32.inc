@@ -113,6 +113,8 @@ include "rust/test_app_header.inc"
 include "rust/is_region_userspace.inc"
 ; Cut Q: UTF16to8 — Rust blob + smoke (USE_RUST_UTF16_TO_8=1; production ON)
 include "rust/utf16_to_8.inc"
+; Cut R: xfs._.extent_unpack — Rust blob + smoke (USE_RUST_XFS_EXTENT_UNPACK)
+include "rust/xfs_extent_unpack.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

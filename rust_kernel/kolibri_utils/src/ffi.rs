@@ -22,6 +22,7 @@ use crate::time::fs_calculate_time_ptr;
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
 use crate::userspace::is_region_userspace;
 use crate::utf16_to_8::utf16_to_8_ptr;
+use crate::xfs_extent::xfs_extent_unpack_ptr;
 use crate::PHASE_C_PROBE_MAGIC;
 
 /// `stdcall` rust_phase_c_probe() -> eax == [`PHASE_C_PROBE_MAGIC`].
@@ -374,4 +375,26 @@ pub unsafe extern "stdcall" fn rust_utf16_to_8(
 ) -> u32 {
     // SAFETY: future kernel trampoline passes valid EDI/ECX slots.
     unsafe { utf16_to_8_ptr(ch, dest_inout, ecx_inout) }
+}
+
+/// `stdcall` rust_xfs_extent_unpack(extent_data, extent_out).
+///
+/// Cut R: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`).
+///
+/// `extent_data` → 16-byte big-endian `xfs_bmbt_rec`.
+/// `extent_out` → writable 24-byte `xfs_bmbt_irec` (typically `&XFS.extent`
+/// derived from the caller's EBP by the omit-frame-pointer trampoline).
+///
+/// # Safety
+/// `extent_data` readable for 16 bytes; `extent_out` writable for 24 bytes.
+#[no_mangle]
+#[link_section = ".text.rust_xfs_extent_unpack"]
+pub unsafe extern "stdcall" fn rust_xfs_extent_unpack(
+    extent_data: *const u8,
+    extent_out: *mut u8,
+) {
+    // SAFETY: kernel trampoline passes extent record + &XFS.extent.
+    unsafe { xfs_extent_unpack_ptr(extent_data, extent_out) }
 }

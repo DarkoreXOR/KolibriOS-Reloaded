@@ -23,7 +23,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 
 - Cut A from boundaries.
 - **Risk:** low.
-- **Status (2026-08-09):** **COMPLETE** — Phase C + Cuts A–Q production-validated (desktop + network). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–Q re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
+- **Status (2026-08-09):** **COMPLETE** — Phase C + Cuts A–R production-validated (desktop + network). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–R re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
 - **Done:** Phase C probe + CRC32 + UTF-16 + CP866 + UTF-8. Baseline: [`cut-a-final-architecture.md`](cut-a-final-architecture.md).
 - **Cut B (pure util, not allocator):** `cp866toUpper` — **done** 2026-08-09 ([`cut-b-plan.md`](cut-b-plan.md), [`cut-b-implementation.md`](cut-b-implementation.md)).
 - **Cut C:** `utf16toUpper` — **done** ([`cut-c-implementation.md`](cut-c-implementation.md)).
@@ -40,7 +40,8 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut N:** `antiAliasing` — **done** 2026-08-09 ([`cut-n-plan.md`](cut-n-plan.md), [`cut-n-implementation.md`](cut-n-implementation.md)).
 - **Cut O:** `test_app_header` — **done** 2026-08-09 ([`cut-o-plan.md`](cut-o-plan.md), [`cut-o-implementation.md`](cut-o-implementation.md)).
 - **Cut P:** `is_region_userspace` — **done** 2026-08-09 ([`cut-p-plan.md`](cut-p-plan.md), [`cut-p-implementation.md`](cut-p-implementation.md)). ZF-out syscall gate; EAX/ECX/EDX preserve; overflow-to-zero quirk retained.
-- **Cut Q:** `UTF16to8` — **done** 2026-08-09 ([`cut-q-plan.md`](cut-q-plan.md), [`cut-q-implementation.md`](cut-q-implementation.md)). SF-out streaming encode; ECX burn-down / INT_MIN / surrogates preserved. **Stop; do not start Cut R.**
+- **Cut Q:** `UTF16to8` — **done** 2026-08-09 ([`cut-q-plan.md`](cut-q-plan.md), [`cut-q-implementation.md`](cut-q-implementation.md)). SF-out streaming encode; ECX burn-down / INT_MIN / surrogates preserved.
+- **Cut R:** `xfs._.extent_unpack` — **done** 2026-08-09 ([`cut-r-plan.md`](cut-r-plan.md), [`cut-r-implementation.md`](cut-r-implementation.md)). Omit-FP stdcall; EBP→XFS preserved; MOVBE BE bitfield unpack. **Stop; do not start Cut S.**
 
 ### Stage 3 — Compat syscall façade (selected)
 

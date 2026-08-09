@@ -252,6 +252,8 @@ high_code:
         call    test_app_header_rust_smoke_test
         call    is_region_userspace_rust_smoke_test
         call    utf16_to_8_rust_smoke_test
+        ; Cut R: xfs._.extent_unpack smoke (Rust trampoline when USE_RUST_XFS_EXTENT_UNPACK=1).
+        call    xfs_extent_unpack_rust_smoke_test
 
 
         mov     ecx, pg_data.mutex

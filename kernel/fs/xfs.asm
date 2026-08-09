@@ -1462,6 +1462,40 @@ proc xfs_get_inode_info uses ebx esi edi, _src, _dst
 endp
 
 
+
+; Cut R: USE_RUST_XFS_EXTENT_UNPACK=1 routes through Rust
+; rust_xfs_extent_unpack (see rust/xfs_extent_unpack.inc).
+; Set USE_RUST_XFS_EXTENT_UNPACK=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–Q.
+; Critical ABI: omit-frame-pointer stdcall; EBP must remain XFS.
+
+USE_RUST_XFS_EXTENT_UNPACK = 1
+
+if USE_RUST_XFS_EXTENT_UNPACK
+
+; Compatibility trampoline: stack extent_data + EBP->XFS -> Rust stdcall.
+; Must NOT introduce push ebp / mov ebp, esp (would break EBP-as-object).
+; Preserves EAX/EBX/ECX/EDX like FASM uses; cleans one stdcall arg (retn 4).
+align 4
+xfs._.extent_unpack:
+        push    eax
+        push    ebx
+        push    ecx
+        push    edx
+        ; stack: edx, ecx, ebx, eax, retaddr, _extent_data
+        mov     eax, [esp+20]           ; _extent_data
+        lea     ecx, [ebp+XFS.extent]   ; extent_out (EBP is XFS)
+        push    ecx                     ; arg2: extent_out
+        push    eax                     ; arg1: extent_data
+        call    rust_xfs_extent_unpack  ; ret 8
+        pop     edx
+        pop     ecx
+        pop     ebx
+        pop     eax
+        retn    4
+
+else
+
 proc xfs._.extent_unpack uses eax ebx ecx edx, _extent_data
         ; extents come as packed 128bit bitfields
         ; unpack them to access internal fields
@@ -1495,6 +1529,8 @@ proc xfs._.extent_unpack uses eax ebx ecx edx, _extent_data
         mov     [ebp+XFS.extent.br_blockcount], eax
         ret
 endp
+
+end if
 
 
 proc xfs_hashname uses ecx esi, _name, _len
