@@ -202,6 +202,26 @@ proc fs_execute
         ret
 endp
 
+; Cut O: USE_RUST_TEST_APP_HEADER=1 routes through Rust
+; rust_test_app_header (see rust/test_app_header.inc).
+; Set USE_RUST_TEST_APP_HEADER=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–N.
+
+USE_RUST_TEST_APP_HEADER = 1
+
+if USE_RUST_TEST_APP_HEADER
+
+; Compatibility trampoline: register ABI → Rust stdcall → EAX.
+; Callers keep `call test_app_header` with EAX=image, EBX=APP_HDR.
+; pages_free stays a FASM global so the Rust blob remains reloc-free.
+align 4
+test_app_header:
+        mov     ecx, [pg_data.pages_free]
+        stdcall rust_test_app_header, eax, ebx, ecx
+        ret
+
+else
+
 align 4
 test_app_header:
        virtual at eax
@@ -248,6 +268,8 @@ test_app_header:
 .fail:
         xor     eax, eax
         ret
+
+end if
 
 align 4
 alloc_thread_slot:

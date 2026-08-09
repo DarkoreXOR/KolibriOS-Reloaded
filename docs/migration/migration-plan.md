@@ -36,7 +36,8 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut K:** `fat_next_short_name` — **done** 2026-08-09 ([`cut-k-plan.md`](cut-k-plan.md), [`cut-k-implementation.md`](cut-k-implementation.md)).
 - **Cut L:** `mouse_acceleration` — **done** 2026-08-09 ([`cut-l-plan.md`](cut-l-plan.md), [`cut-l-implementation.md`](cut-l-implementation.md)).
 - **Cut M:** `tcp_xmit_timer` — **done** 2026-08-09 ([`cut-m-plan.md`](cut-m-plan.md), [`cut-m-implementation.md`](cut-m-implementation.md)).
-- **Cut N:** `antiAliasing` — **done** 2026-08-09 ([`cut-n-plan.md`](cut-n-plan.md), [`cut-n-implementation.md`](cut-n-implementation.md)). **Stop; do not start Cut O.**
+- **Cut N:** `antiAliasing` — **done** 2026-08-09 ([`cut-n-plan.md`](cut-n-plan.md), [`cut-n-implementation.md`](cut-n-implementation.md)).
+- **Cut O:** `test_app_header` — **done** 2026-08-09 ([`cut-o-plan.md`](cut-o-plan.md), [`cut-o-implementation.md`](cut-o-implementation.md)). **Stop; do not start Cut P.**
 
 ### Stage 3 — Compat syscall façade (selected)
 

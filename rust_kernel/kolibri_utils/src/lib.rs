@@ -1,17 +1,19 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N utilities: CRC32, Unicode, casefold, string, checksum,
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O utilities: CRC32, Unicode, casefold, string, checksum,
 //! filesystem calendar, video geometry, NTFS MCB decode, NTFS USA restore, FAT
-//! 8.3 short-name collision, HID mouse acceleration, TCP RTT estimator, and GUI
-//! font anti-aliasing helpers for KolibriOS hybrid migration.
+//! 8.3 short-name collision, HID mouse acceleration, TCP RTT estimator, GUI
+//! font anti-aliasing, and MENUET app-header validation helpers for KolibriOS
+//! hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
 //! See `docs/migration/cut-a-final-architecture.md`, `cut-b-plan.md`, `cut-c-plan.md`,
 //! `cut-d-plan.md`, `cut-e-plan.md`, `cut-f-plan.md`, `cut-g-plan.md`, `cut-h-plan.md`,
 //! `cut-i-plan.md`, `cut-j-plan.md`, `cut-k-plan.md`, `cut-l-plan.md`, `cut-m-plan.md`,
-//! `cut-n-plan.md`.
+//! `cut-n-plan.md`, `cut-o-plan.md`.
 
 #![cfg_attr(target_os = "none", no_std)]
 
+mod app_header;
 mod casefold;
 mod checksum;
 mod crc;
@@ -29,6 +31,10 @@ mod unicode;
 #[cfg(target_arch = "x86")]
 mod ffi;
 
+pub use app_header::{
+    test_app_header, OS_BASE, TEST_APP_HEADER_PRNG_SEED, APP_OFF_CMDLINE, APP_OFF_EDATA,
+    APP_OFF_EIP, APP_OFF_EMEM, APP_OFF_ESP, APP_OFF_PATH,
+};
 pub use casefold::{cp866_to_upper, utf16_to_upper};
 pub use checksum::{checksum_1, checksum_2};
 pub use crc::crc32_update;

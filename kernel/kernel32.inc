@@ -107,6 +107,8 @@ include "rust/mouse_acceleration.inc"
 include "rust/tcp_xmit_timer.inc"
 ; Cut N: antiAliasing — Rust blob + smoke (see docs/migration/cut-n-plan.md)
 include "rust/anti_aliasing.inc"
+; Cut O: test_app_header — Rust blob + smoke (see docs/migration/cut-o-plan.md)
+include "rust/test_app_header.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

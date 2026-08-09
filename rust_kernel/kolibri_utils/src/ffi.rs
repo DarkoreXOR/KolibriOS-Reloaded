@@ -6,6 +6,7 @@
 //! Calling convention: `stdcall` (callee pops args). Partial CRC is an explicit
 //! argument because a Rust prologue must not rely on live `EAX` from FASM.
 
+use crate::app_header::test_app_header_ptr;
 use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
 use crate::crc::crc32_update;
@@ -308,4 +309,26 @@ pub unsafe extern "stdcall" fn rust_tcp_xmit_timer(rtt: u32, socket: *mut u8) {
 #[link_section = ".text.rust_anti_aliasing"]
 pub extern "stdcall" fn rust_anti_aliasing(fg: u32, bg: u32) -> u32 {
     anti_aliasing(fg, bg)
+}
+
+/// `stdcall` rust_test_app_header(header, app_hdr, pages_free) -> EAX.
+///
+/// Cut O: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). FASM trampoline loads
+/// `[pg_data.pages_free]` and passes it with `EAX`/`EBX`.
+/// Returns the header pointer on success, `0` on fail (matches FASM).
+///
+/// # Safety
+/// `header` must be readable through the MENUET header; `app_hdr` writable
+/// through `APP_HDR._emem`.
+#[no_mangle]
+#[link_section = ".text.rust_test_app_header"]
+pub unsafe extern "stdcall" fn rust_test_app_header(
+    header: *const u8,
+    app_hdr: *mut u8,
+    pages_free: u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes EAX/EBX → valid image + APP_HDR.
+    unsafe { test_app_header_ptr(header, app_hdr, pages_free) }
 }
