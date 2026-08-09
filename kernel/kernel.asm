@@ -235,6 +235,7 @@ high_code:
 ; Cut T: fsTime2bdfe smoke ON when USE_RUST_FS_TIME2BDFE=1.
 ; Cut U: fat_gen_short_name smoke ON when USE_RUST_FAT_GEN_SHORT_NAME=1.
 ; Cut V: tcp_set_persist smoke ON when USE_RUST_TCP_SET_PERSIST=1.
+; Cut W: xfs._.get_addr_by_hash smoke ON when USE_RUST_XFS_GET_ADDR_BY_HASH=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -266,6 +267,8 @@ high_code:
         call    fat_gen_short_name_rust_smoke_test
         ; Cut V: tcp_set_persist smoke (Rust when USE_RUST_TCP_SET_PERSIST=1).
         call    tcp_set_persist_rust_smoke_test
+        ; Cut W: xfs._.get_addr_by_hash smoke (Rust when USE_RUST_XFS_GET_ADDR_BY_HASH=1).
+        call    xfs_get_addr_by_hash_rust_smoke_test
 
 
         mov     ecx, pg_data.mutex

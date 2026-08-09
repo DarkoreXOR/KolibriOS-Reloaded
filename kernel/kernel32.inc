@@ -123,6 +123,8 @@ include "rust/fs_time2bdfe.inc"
 include "rust/fat_gen_short_name.inc"
 ; Cut V: tcp_set_persist — Rust blob + smoke (USE_RUST_TCP_SET_PERSIST)
 include "rust/tcp_set_persist.inc"
+; Cut W: xfs._.get_addr_by_hash — Rust blob + smoke (USE_RUST_XFS_GET_ADDR_BY_HASH)
+include "rust/xfs_get_addr_by_hash.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

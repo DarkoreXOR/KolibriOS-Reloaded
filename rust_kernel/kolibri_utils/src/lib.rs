@@ -1,8 +1,8 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V utilities: CRC32, Unicode, casefold, string, checksum,
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W utilities: CRC32, Unicode, casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), video geometry, NTFS MCB decode, NTFS USA restore, FAT
 //! 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator +
 //! persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall userspace
-//! region gate, UTF-16→UTF-8 streaming encode, XFS extent unpack, and window
+//! region gate, UTF-16→UTF-8 streaming encode, XFS extent unpack + dir hash binary search, and window
 //! screen-fit helpers for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
@@ -32,6 +32,7 @@ mod userspace;
 mod utf16_to_8;
 mod window;
 mod xfs_extent;
+mod xfs_hash_lookup;
 
 #[cfg(target_arch = "x86")]
 mod ffi;
@@ -75,6 +76,11 @@ pub use xfs_extent::{
     read_xfs_bmbt_irec, write_xfs_bmbt_irec, xfs_extent_unpack, xfs_extent_unpack_into,
     xfs_extent_unpack_ptr, XfsBmbtIrec, OFF_BLOCKCOUNT, OFF_STARTBLOCK_HI, OFF_STARTBLOCK_LO,
     OFF_STARTOFF_HI, OFF_STARTOFF_LO, OFF_STATE, XFS_BMBT_IREC_SIZE, XFS_EXTENT_UNPACK_PRNG_SEED,
+};
+pub use xfs_hash_lookup::{
+    pack_eax_zf, trampoline_zf_from_flag, unpack_eax_zf, xfs_get_addr_by_hash,
+    xfs_get_addr_by_hash_ptr, XfsHashLookupResult, ERROR_FILE_NOT_FOUND, OFF_ADDRESS, OFF_HASHVAL,
+    XFS_DIR2_LEAF_ENTRY_SIZE, XFS_GET_ADDR_BY_HASH_PRNG_SEED,
 };
 
 /// Phase C probe magic (must match FASM `PHASE_C_PROBE_MAGIC` and freestanding FFI).

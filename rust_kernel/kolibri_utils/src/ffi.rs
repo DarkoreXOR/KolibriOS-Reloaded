@@ -24,6 +24,7 @@ use crate::userspace::is_region_userspace;
 use crate::utf16_to_8::utf16_to_8_ptr;
 use crate::window::check_window_position_ptr;
 use crate::xfs_extent::xfs_extent_unpack_ptr;
+use crate::xfs_hash_lookup::{pack_eax_zf, xfs_get_addr_by_hash_ptr};
 use crate::PHASE_C_PROBE_MAGIC;
 
 /// `stdcall` rust_phase_c_probe() -> eax == [`PHASE_C_PROBE_MAGIC`].
@@ -448,6 +449,31 @@ pub unsafe extern "stdcall" fn rust_xfs_extent_unpack(
 ) {
     // SAFETY: kernel trampoline passes extent record + &XFS.extent.
     unsafe { xfs_extent_unpack_ptr(extent_data, extent_out) }
+}
+
+/// `stdcall` rust_xfs_get_addr_by_hash(hash, base, len) -> EDX:EAX packed.
+///
+/// Cut W: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`).
+///
+/// Returns `u64` in `EDX:EAX` = `(zf << 32) | result`, where `zf` is the
+/// legacy found/miss ZF sense (`1`/`0`) and `result` is the BE address or
+/// `ERROR_FILE_NOT_FOUND`. The FASM trampoline reconstructs ZF via
+/// `cmp edx, 1` then restores EAX with a flag-neutral `pop`.
+///
+/// # Safety
+/// `base` must be readable for `len * 8` bytes when `len > 0`.
+#[no_mangle]
+#[link_section = ".text.rust_xfs_get_addr_by_hash"]
+pub unsafe extern "stdcall" fn rust_xfs_get_addr_by_hash(
+    hash: u32,
+    base: *const u8,
+    len: u32,
+) -> u64 {
+    // SAFETY: kernel trampoline passes leaf-entry table pointer + count.
+    let r = unsafe { xfs_get_addr_by_hash_ptr(hash, base, len) };
+    pack_eax_zf(r.eax, r.zf)
 }
 
 /// `stdcall` rust_check_window_position(box, display_width, display_height).

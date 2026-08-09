@@ -23,7 +23,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 
 - Cut A from boundaries.
 - **Risk:** low.
-- **Status (2026-08-10):** **COMPLETE** — Phase C + Cuts A–V production-validated (desktop + network). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–V re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
+- **Status (2026-08-10):** **COMPLETE** — Phase C + Cuts A–W production-validated (desktop + network). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–W re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
 - **Done:** Phase C probe + CRC32 + UTF-16 + CP866 + UTF-8. Baseline: [`cut-a-final-architecture.md`](cut-a-final-architecture.md).
 - **Cut B (pure util, not allocator):** `cp866toUpper` — **done** 2026-08-09 ([`cut-b-plan.md`](cut-b-plan.md), [`cut-b-implementation.md`](cut-b-implementation.md)).
 - **Cut C:** `utf16toUpper` — **done** ([`cut-c-implementation.md`](cut-c-implementation.md)).
@@ -45,7 +45,8 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut S:** `window._.check_window_position` — **done** 2026-08-09 ([`cut-s-plan.md`](cut-s-plan.md), [`cut-s-implementation.md`](cut-s-implementation.md)). GUI screen-fit; EDI→WDATA.box; display dims via trampoline.
 - **Cut T:** `fsTime2bdfe` — **done** 2026-08-09 ([`cut-t-plan.md`](cut-t-plan.md), [`cut-t-implementation.md`](cut-t-implementation.md)). EDI+=8 calendar inverse; completes G pair.
 - **Cut U:** `fat_gen_short_name` — **done** 2026-08-10 ([`cut-u-plan.md`](cut-u-plan.md), [`cut-u-implementation.md`](cut-u-implementation.md)). UTF-8→8.3 state machine; composes B+K; reloc-free.
-- **Cut V:** `tcp_set_persist` — **done** 2026-08-10 ([`cut-v-plan.md`](cut-v-plan.md), [`cut-v-implementation.md`](cut-v-implementation.md)). Persist-timer arming from SRTT/RTTVAR; reloc-free. **Stop; do not start Cut W.**
+- **Cut V:** `tcp_set_persist` — **done** 2026-08-10 ([`cut-v-plan.md`](cut-v-plan.md), [`cut-v-implementation.md`](cut-v-implementation.md)). Persist-timer arming from SRTT/RTTVAR; reloc-free.
+- **Cut W:** `xfs._.get_addr_by_hash` — **done** 2026-08-10 ([`cut-w-plan.md`](cut-w-plan.md), [`cut-w-implementation.md`](cut-w-implementation.md)). XFS dir leaf binary search; EAX+ZF dual return; reloc-free. **Stop; do not start Cut X.**
 
 ### Stage 3 — Compat syscall façade (selected)
 

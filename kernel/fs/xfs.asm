@@ -1547,6 +1547,44 @@ proc xfs_hashname uses ecx esi, _name, _len
 endp
 
 
+; Cut W: USE_RUST_XFS_GET_ADDR_BY_HASH=1 routes through Rust
+; rust_xfs_get_addr_by_hash (see rust/xfs_get_addr_by_hash.inc).
+; Set USE_RUST_XFS_GET_ADDR_BY_HASH=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–V.
+; Critical ABI: EAX=hash in; EAX=address/error out; ZF found/miss; retn 8.
+
+USE_RUST_XFS_GET_ADDR_BY_HASH = 1
+
+if USE_RUST_XFS_GET_ADDR_BY_HASH
+
+; Compatibility trampoline: register hash + stdcall (_base,_len) → Rust.
+; Must NOT introduce push ebp / mov ebp, esp (XFS omit-FP convention).
+; Reconstructs ZF via cmp edx,1; pop eax is flag-neutral (Cut P pattern).
+; Preserves EBX/ESI like FASM `uses`; also saves ECX/EDX across the call.
+align 4
+xfs._.get_addr_by_hash:
+        push    ebx
+        push    esi
+        push    ecx
+        push    edx
+        ; stack: edx, ecx, esi, ebx, retaddr, _base, _len
+        mov     ecx, [esp+20]           ; _base
+        mov     edx, [esp+24]           ; _len
+        push    edx                     ; arg3: len
+        push    ecx                     ; arg2: base
+        push    eax                     ; arg1: hash
+        call    rust_xfs_get_addr_by_hash ; ret 12; EDX:EAX = zf:result
+        push    eax                     ; save result payload
+        cmp     edx, 1                  ; ZF=1 iff found
+        pop     eax                     ; restore EAX; EFLAGS unchanged
+        pop     edx
+        pop     ecx
+        pop     esi
+        pop     ebx
+        retn    8
+
+else
+
 ; eax -- hash value
 proc xfs._.get_addr_by_hash uses ebx esi, _base, _len
         ; look for the directory entry offset by its file name hash
@@ -1579,6 +1617,8 @@ proc xfs._.get_addr_by_hash uses ebx esi, _base, _len
         test    esp, esp
         ret
 endp
+
+end if
 
 
 ;----------------------------------------------------------------
