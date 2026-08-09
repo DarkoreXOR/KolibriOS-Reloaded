@@ -1019,6 +1019,33 @@ endl
 endp
 
 ; ecx = pointer to partition records array (MBR + 446)
+; Cut AD: USE_RUST_IS_PROTECTIVE_MBR=1 routes through Rust
+; rust_is_protective_mbr (see rust/is_protective_mbr.inc).
+; Set USE_RUST_IS_PROTECTIVE_MBR=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–AC.
+; Production default ON after Cut AD gates.
+
+USE_RUST_IS_PROTECTIVE_MBR = 1
+
+if USE_RUST_IS_PROTECTIVE_MBR
+
+; Compatibility trampoline: register ABI → Rust stdcall → EAX → ZF.
+; Callers: ECX→partition table, ESI→DISK; ZF out; ECX/EDI preserved.
+align 4
+is_protective_mbr:
+        push    ecx
+        push    esi
+        push    edi
+        stdcall rust_is_protective_mbr, ecx, \
+                dword [esi+DISK.MediaInfo.Capacity]
+        pop     edi
+        pop     esi
+        pop     ecx
+        test    eax, eax
+        ret
+
+else
+
 is_protective_mbr:
         push    ecx edi
         xor     eax, eax
@@ -1046,6 +1073,8 @@ is_protective_mbr:
         pop     edi ecx
 ; Return value is ZF
         ret
+
+end if
 
 ; This is an internal function called from disk_scan_partitions. It checks
 ; whether the entry pointed to by ecx is a valid entry of partition table.

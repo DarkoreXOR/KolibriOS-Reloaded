@@ -6,11 +6,11 @@ Put CoW copies and extracted files here. The reference
 Created by `tools/kolibri_img cow …`. Mutate only copies via
 `delete` / `replace`. Delete contents after experiments.
 
-Current production checkpoint (Cut AC):
+Current production checkpoint (Cut AD):
 
 ```text
-tmp_images/cut-ac-final.img
+tmp_images/cut-ad-final.img
 ```
 
-Prior cut finals (`cut-ab-final.img`, `cut-aa-final.img`, …) may remain for
+Prior cut finals (`cut-ac-final.img`, `cut-ab-final.img`, …) may remain for
 bisect; prefer descending new work from the latest final.

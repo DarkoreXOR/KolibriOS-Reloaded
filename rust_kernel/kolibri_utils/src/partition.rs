@@ -1,9 +1,12 @@
 //! Cut Z: `is_partition_table_entry` — MBR/EBR partition-table entry validation.
+//! Cut AD: `is_protective_mbr` — GPT protective-MBR recognition (ZF).
 //!
 //! Matches `kernel/blkdev/disk.inc` FASM leaf semantics:
 //! * Bootable must be `0` or `0x80` (`and al, 7Fh` / `jnz` → invalid)
 //! * `(ebp + FirstAbsSector + Length) / 2 < Capacity` (unsigned 64-bit)
 //!   via `add`/`adc` + `shr`/`rcr` + `sub`/`sbb` / `jnc` → invalid
+//! * Protective MBR: `[pt-2]==0`, entry0 `{boot=0, type=0xEE, first=1,
+//!   length=0xFFFFFFFF | Capacity_lo-1}`, entries 1–3 all zero
 //!
 //! Capacity is passed explicitly so the Rust blob stays reloc-free (no
 //! `DISK` global / GOT). No tables / `.rodata`.
@@ -14,14 +17,26 @@ pub const PARTITION_TABLE_ENTRY_SIZE: usize = 16;
 /// Offset of `.Bootable` within the entry.
 pub const OFF_BOOTABLE: usize = 0;
 
+/// Offset of `.Type` / filesystem ID within the entry.
+pub const OFF_TYPE: usize = 4;
+
 /// Offset of `.FirstAbsSector` (LBA dword).
 pub const OFF_FIRST_ABS_SECTOR: usize = 8;
 
 /// Offset of `.Length` (sectors dword).
 pub const OFF_LENGTH: usize = 12;
 
+/// GPT protective partition type (`0xEE`).
+pub const PROTECTIVE_MBR_TYPE: u8 = 0xEE;
+
+/// Bytes occupied by partition entries 1–3 (must be zero for protective MBR).
+pub const PROTECTIVE_TRAILING_BYTES: usize = 16 * 3;
+
 /// Cut Z differential PRNG seed (`'CUTZ'`).
 pub const IS_PARTITION_TABLE_ENTRY_PRNG_SEED: u32 = 0x4355_545A;
+
+/// Cut AD differential PRNG seed (`'CUTD'`).
+pub const IS_PROTECTIVE_MBR_PRNG_SEED: u32 = 0x4355_5444;
 
 /// FASM-faithful validity check (CF=0 valid / CF=1 invalid).
 ///
@@ -93,9 +108,170 @@ pub fn make_entry(bootable: u8, first_abs: u32, length: u32) -> [u8; PARTITION_T
     e
 }
 
+/// FASM-faithful GPT protective-MBR check (ZF set = protective).
+///
+/// Returns `true` when the MBR is a protective GPT MBR (legacy sets ZF).
+///
+/// `pre_table_word` is the word at `ecx-2` (MBR+0x1BC). Only the **low**
+/// dword of disk capacity participates (legacy reads
+/// `DISK.MediaInfo.Capacity+0` only).
+#[inline(always)]
+pub fn is_protective_mbr(
+    pre_table_word: u16,
+    entry0: &[u8; PARTITION_TABLE_ENTRY_SIZE],
+    entries_1_3: &[u8; PROTECTIVE_TRAILING_BYTES],
+    capacity_lo: u32,
+) -> bool {
+    // cmp [ecx-2], ax  (ax=0)
+    if pre_table_word != 0 {
+        return false;
+    }
+    // cmp [ecx+0], al  (al=0) — bootable must be exactly 0 (not 0x80)
+    if entry0[OFF_BOOTABLE] != 0 {
+        return false;
+    }
+    // cmp byte[ecx+4], 0xEE
+    if entry0[OFF_TYPE] != PROTECTIVE_MBR_TYPE {
+        return false;
+    }
+    // cmp dword[ecx+8], 1
+    let first = u32::from_le_bytes([
+        entry0[OFF_FIRST_ABS_SECTOR],
+        entry0[OFF_FIRST_ABS_SECTOR + 1],
+        entry0[OFF_FIRST_ABS_SECTOR + 2],
+        entry0[OFF_FIRST_ABS_SECTOR + 3],
+    ]);
+    if first != 1 {
+        return false;
+    }
+    // Length == -1 OR Length == (-1 + Capacity_lo)
+    let length = u32::from_le_bytes([
+        entry0[OFF_LENGTH],
+        entry0[OFF_LENGTH + 1],
+        entry0[OFF_LENGTH + 2],
+        entry0[OFF_LENGTH + 3],
+    ]);
+    if length != 0xFFFF_FFFF {
+        let expected = 0xFFFF_FFFFu32.wrapping_add(capacity_lo);
+        if length != expected {
+            return false;
+        }
+    }
+    // repz scasw over entries 1–3 (48 bytes / 24 words)
+    entries_1_3.iter().all(|&b| b == 0)
+}
+
+/// Pointer-form wrapper for the FFI boundary.
+///
+/// Returns `0` = protective (ZF set via `test eax,eax`), `1` = not protective.
+///
+/// `pt` points at the partition-table array (`ecx` / MBR+0x1BE). The word at
+/// `pt-2` must be readable.
+///
+/// # Safety
+/// `pt-2` .. `pt+64` must be readable (pre-word + 4×16-byte entries).
+#[inline(always)]
+pub unsafe fn is_protective_mbr_ptr(pt: *const u8, capacity_lo: u32) -> u32 {
+    let pre = unsafe { read_u16_le(pt.sub(2)) };
+    let mut entry0 = [0u8; PARTITION_TABLE_ENTRY_SIZE];
+    unsafe {
+        core::ptr::copy_nonoverlapping(pt, entry0.as_mut_ptr(), PARTITION_TABLE_ENTRY_SIZE);
+    }
+    let mut trail = [0u8; PROTECTIVE_TRAILING_BYTES];
+    unsafe {
+        core::ptr::copy_nonoverlapping(pt.add(16), trail.as_mut_ptr(), PROTECTIVE_TRAILING_BYTES);
+    }
+    if is_protective_mbr(pre, &entry0, &trail, capacity_lo) {
+        0
+    } else {
+        1
+    }
+}
+
+#[inline(always)]
+unsafe fn read_u16_le(p: *const u8) -> u16 {
+    let b = unsafe { core::slice::from_raw_parts(p, 2) };
+    u16::from_le_bytes([b[0], b[1]])
+}
+
+/// Build a synthetic MBR sector with partition table at `0x1BE` for tests.
+///
+/// Returns `(sector, pt_offset)` where `pt_offset == 0x1BE`.
+#[inline(always)]
+pub fn make_mbr_sector(
+    pre_table_word: u16,
+    entry0: &[u8; PARTITION_TABLE_ENTRY_SIZE],
+    entries_1_3: &[u8; PROTECTIVE_TRAILING_BYTES],
+) -> ([u8; 512], usize) {
+    let mut sector = [0u8; 512];
+    let pt = 0x1BE;
+    sector[pt - 2..pt].copy_from_slice(&pre_table_word.to_le_bytes());
+    sector[pt..pt + 16].copy_from_slice(entry0);
+    sector[pt + 16..pt + 64].copy_from_slice(entries_1_3);
+    sector[0x1FE] = 0x55;
+    sector[0x1FF] = 0xAA;
+    (sector, pt)
+}
+
+/// Canonical protective entry0: boot=0, type=0xEE, first=1, length=0xFFFFFFFF.
+#[inline(always)]
+pub fn make_protective_entry0(length: u32) -> [u8; PARTITION_TABLE_ENTRY_SIZE] {
+    let mut e = [0u8; PARTITION_TABLE_ENTRY_SIZE];
+    e[OFF_BOOTABLE] = 0;
+    e[OFF_TYPE] = PROTECTIVE_MBR_TYPE;
+    e[OFF_FIRST_ABS_SECTOR..OFF_FIRST_ABS_SECTOR + 4].copy_from_slice(&1u32.to_le_bytes());
+    e[OFF_LENGTH..OFF_LENGTH + 4].copy_from_slice(&length.to_le_bytes());
+    e
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Independent FASM-flow oracle for Cut AD (branch order + wrapping length).
+    fn protective_oracle(
+        pre_table_word: u16,
+        entry0: &[u8; PARTITION_TABLE_ENTRY_SIZE],
+        entries_1_3: &[u8; PROTECTIVE_TRAILING_BYTES],
+        capacity_lo: u32,
+    ) -> bool {
+        if pre_table_word != 0 {
+            return false;
+        }
+        if entry0[OFF_BOOTABLE] != 0 {
+            return false;
+        }
+        if entry0[OFF_TYPE] != PROTECTIVE_MBR_TYPE {
+            return false;
+        }
+        let first = u32::from_le_bytes(entry0[OFF_FIRST_ABS_SECTOR..OFF_FIRST_ABS_SECTOR + 4].try_into().unwrap());
+        if first != 1 {
+            return false;
+        }
+        let length = u32::from_le_bytes(entry0[OFF_LENGTH..OFF_LENGTH + 4].try_into().unwrap());
+        if length != 0xFFFF_FFFF {
+            let mut edi = 0xFFFF_FFFFu32;
+            edi = edi.wrapping_add(capacity_lo);
+            if length != edi {
+                return false;
+            }
+        }
+        entries_1_3.iter().all(|&b| b == 0)
+    }
+
+    fn check_protective(
+        pre: u16,
+        entry0: &[u8; PARTITION_TABLE_ENTRY_SIZE],
+        trail: &[u8; PROTECTIVE_TRAILING_BYTES],
+        capacity_lo: u32,
+    ) {
+        let rust = is_protective_mbr(pre, entry0, trail, capacity_lo);
+        let ora = protective_oracle(pre, entry0, trail, capacity_lo);
+        assert_eq!(rust, ora, "pre={pre:#x} cap_lo={capacity_lo:#x} e0={entry0:?}");
+        let (sector, pt) = make_mbr_sector(pre, entry0, trail);
+        let ptr_r = unsafe { is_protective_mbr_ptr(sector.as_ptr().add(pt), capacity_lo) };
+        assert_eq!(ptr_r == 0, rust);
+    }
 
     /// Independent FASM-flow oracle: explicit edx:eax add/adc + shr/rcr + sub/sbb.
     fn oracle(
@@ -274,6 +450,140 @@ mod tests {
             } else {
                 assert!(r, "boot={b:#x} with small part should be valid");
             }
+        }
+    }
+
+    // --- Cut AD: is_protective_mbr ---
+
+    #[test]
+    fn protective_canonical_ffffffff() {
+        let e0 = make_protective_entry0(0xFFFF_FFFF);
+        let trail = [0u8; PROTECTIVE_TRAILING_BYTES];
+        check_protective(0, &e0, &trail, 0);
+        check_protective(0, &e0, &trail, 100);
+        check_protective(0, &e0, &trail, 0xFFFF_FFFF);
+    }
+
+    #[test]
+    fn protective_length_capacity_minus_one() {
+        let cap = 1_000_000u32;
+        let e0 = make_protective_entry0(cap.wrapping_sub(1));
+        let trail = [0u8; PROTECTIVE_TRAILING_BYTES];
+        check_protective(0, &e0, &trail, cap);
+        // Wrong length
+        let bad = make_protective_entry0(cap);
+        check_protective(0, &bad, &trail, cap);
+        assert!(!is_protective_mbr(0, &bad, &trail, cap));
+    }
+
+    #[test]
+    fn protective_capacity_zero_length_wrap() {
+        // -1 + 0 = 0xFFFFFFFF — same as canonical all-ones length
+        let e0 = make_protective_entry0(0xFFFF_FFFF);
+        let trail = [0u8; PROTECTIVE_TRAILING_BYTES];
+        check_protective(0, &e0, &trail, 0);
+        // length 0 with capacity 1 → expected = 0; protective
+        let e0z = make_protective_entry0(0);
+        check_protective(0, &e0z, &trail, 1);
+        assert!(is_protective_mbr(0, &e0z, &trail, 1));
+    }
+
+    #[test]
+    fn protective_rejects_pre_word() {
+        let e0 = make_protective_entry0(0xFFFF_FFFF);
+        let trail = [0u8; PROTECTIVE_TRAILING_BYTES];
+        check_protective(1, &e0, &trail, 100);
+        assert!(!is_protective_mbr(1, &e0, &trail, 100));
+        check_protective(0xAA55, &e0, &trail, 100);
+    }
+
+    #[test]
+    fn protective_rejects_bootable_nonzero() {
+        let mut e0 = make_protective_entry0(0xFFFF_FFFF);
+        let trail = [0u8; PROTECTIVE_TRAILING_BYTES];
+        e0[OFF_BOOTABLE] = 0x80;
+        check_protective(0, &e0, &trail, 100);
+        assert!(!is_protective_mbr(0, &e0, &trail, 100));
+    }
+
+    #[test]
+    fn protective_rejects_wrong_type() {
+        let mut e0 = make_protective_entry0(0xFFFF_FFFF);
+        let trail = [0u8; PROTECTIVE_TRAILING_BYTES];
+        e0[OFF_TYPE] = 0x0B;
+        check_protective(0, &e0, &trail, 100);
+        assert!(!is_protective_mbr(0, &e0, &trail, 100));
+    }
+
+    #[test]
+    fn protective_rejects_wrong_first_lba() {
+        let mut e0 = make_protective_entry0(0xFFFF_FFFF);
+        let trail = [0u8; PROTECTIVE_TRAILING_BYTES];
+        e0[OFF_FIRST_ABS_SECTOR..OFF_FIRST_ABS_SECTOR + 4]
+            .copy_from_slice(&0u32.to_le_bytes());
+        check_protective(0, &e0, &trail, 100);
+        assert!(!is_protective_mbr(0, &e0, &trail, 100));
+        e0[OFF_FIRST_ABS_SECTOR..OFF_FIRST_ABS_SECTOR + 4]
+            .copy_from_slice(&2u32.to_le_bytes());
+        check_protective(0, &e0, &trail, 100);
+    }
+
+    #[test]
+    fn protective_rejects_nonzero_trailing() {
+        let e0 = make_protective_entry0(0xFFFF_FFFF);
+        let mut trail = [0u8; PROTECTIVE_TRAILING_BYTES];
+        trail[0] = 1;
+        check_protective(0, &e0, &trail, 100);
+        assert!(!is_protective_mbr(0, &e0, &trail, 100));
+        trail[0] = 0;
+        trail[47] = 0xFF;
+        check_protective(0, &e0, &trail, 100);
+    }
+
+    #[test]
+    fn protective_ptr_reads_pre_word_and_fields() {
+        let e0 = make_protective_entry0(0xFFFF_FFFF);
+        let trail = [0u8; PROTECTIVE_TRAILING_BYTES];
+        let (mut sector, pt) = make_mbr_sector(0, &e0, &trail);
+        let r = unsafe { is_protective_mbr_ptr(sector.as_ptr().add(pt), 500) };
+        assert_eq!(r, 0);
+        sector[pt - 2] = 1;
+        let r2 = unsafe { is_protective_mbr_ptr(sector.as_ptr().add(pt), 500) };
+        assert_eq!(r2, 1);
+    }
+
+    #[test]
+    fn protective_prng_corpus_50k() {
+        let mut state = IS_PROTECTIVE_MBR_PRNG_SEED;
+        let mut next = || {
+            state = state
+                .wrapping_mul(1664525)
+                .wrapping_add(1013904223);
+            state
+        };
+        for _ in 0..50_000 {
+            let pre = (next() & 0xFFFF) as u16;
+            // Bias toward canonical protective shapes sometimes
+            let (pre, e0, trail, cap) = if next() & 0xF == 0 {
+                let cap = next();
+                let len = if next() & 1 == 0 {
+                    0xFFFF_FFFF
+                } else {
+                    0xFFFF_FFFFu32.wrapping_add(cap)
+                };
+                (0u16, make_protective_entry0(len), [0u8; PROTECTIVE_TRAILING_BYTES], cap)
+            } else {
+                let mut e0 = [0u8; PARTITION_TABLE_ENTRY_SIZE];
+                for b in &mut e0 {
+                    *b = (next() & 0xFF) as u8;
+                }
+                let mut trail = [0u8; PROTECTIVE_TRAILING_BYTES];
+                for b in &mut trail {
+                    *b = (next() & 0xFF) as u8;
+                }
+                (pre, e0, trail, next())
+            };
+            check_protective(pre, &e0, &trail, cap);
         }
     }
 }

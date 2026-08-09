@@ -19,7 +19,7 @@ use crate::ipv4_route::ipv4_route_ptr;
 use crate::mouse::mouse_acceleration;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
 use crate::ntfs_usa::ntfs_restore_usa_ptr;
-use crate::partition::is_partition_table_entry_ptr;
+use crate::partition::{is_partition_table_entry_ptr, is_protective_mbr_ptr};
 use crate::pid_to_slot::pid_to_slot_ptr;
 use crate::string::strncmp;
 use crate::tcp::{tcp_set_persist_ptr, tcp_xmit_timer_ptr};
@@ -423,6 +423,25 @@ pub unsafe extern "stdcall" fn rust_is_partition_table_entry(
 ) -> u32 {
     // SAFETY: kernel trampoline passes ECX→entry + capacity from DISK.
     unsafe { is_partition_table_entry_ptr(entry, ebp_base, capacity_lo, capacity_hi) }
+}
+
+/// `stdcall` rust_is_protective_mbr(pt_array, capacity_lo) -> EAX.
+///
+/// Cut AD: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). Returns `0` protective / `1` not;
+/// FASM trampoline maps EAX→ZF via `test eax,eax` and preserves ECX/ESI/EDI.
+///
+/// # Safety
+/// `pt_array` is MBR+0x1BE; `pt_array-2` .. `pt_array+64` must be readable.
+#[no_mangle]
+#[link_section = ".text.rust_is_protective_mbr"]
+pub unsafe extern "stdcall" fn rust_is_protective_mbr(
+    pt_array: *const u8,
+    capacity_lo: u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes ECX→partition table + Capacity low dword.
+    unsafe { is_protective_mbr_ptr(pt_array, capacity_lo) }
 }
 
 /// `stdcall` rust_pid_to_slot(pid, slot_base, thread_count) -> EAX.

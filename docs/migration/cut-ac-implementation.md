@@ -176,5 +176,5 @@ Rollback: `USE_RUST_IPV4_ROUTE = 0` (or `enabled = false` in `tools/build/config
 * Does not migrate `net_ptr_to_num4` as a separate cut (inlined into the device path only).
 * Does not fix `ipv4_output_raw`’s undocumented register setup.
 * Flags after return are unspecified.
-* `memmove` / Stage-4 VA→PA / `is_protective_mbr` / `ntfs_test_bootsec` remain deferred.
+* `memmove` / Stage-4 VA→PA / `ntfs_test_bootsec` remain deferred.
 * Live packet/connect soak not claimed without a connect stimulus.

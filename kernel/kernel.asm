@@ -242,6 +242,7 @@ high_code:
 ; Cut AA: pid_to_slot smoke ON when USE_RUST_PID_TO_SLOT=1 (after SLOT_BASE setup).
 ; Cut AB: utf8to16 smoke ON when USE_RUST_UTF8TO16=1.
 ; Cut AC: ipv4_route smoke ON (synthetic tables; gate USE_RUST_IPV4_ROUTE).
+; Cut AD: is_protective_mbr smoke ON when USE_RUST_IS_PROTECTIVE_MBR=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -457,6 +458,8 @@ high_code:
         call    set_io_access_rights_rust_smoke_test
         ; Cut Z: is_partition_table_entry smoke — synthetic entry + DISK stub.
         call    is_partition_table_entry_rust_smoke_test
+        ; Cut AD: is_protective_mbr smoke — synthetic protective MBR + DISK stub.
+        call    is_protective_mbr_rust_smoke_test
 
         mov     eax, sys_proc
         list_init eax

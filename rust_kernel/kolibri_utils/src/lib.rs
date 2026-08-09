@@ -1,11 +1,12 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC utilities: CRC32, Unicode, casefold, string, checksum,
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD utilities: CRC32, Unicode, casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), video geometry, NTFS MCB decode, NTFS USA restore, FAT
 //! 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator +
 //! persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall userspace
 //! region gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS extent unpack +
 //! dir hash binary search, window screen-fit helpers, TSS I/O permission bitmap updates, COFF
-//! reloc application, MBR/EBR partition-table entry validation, process TID→slot lookup, and
-//! IPv4 on-link/gateway/broadcast routing for KolibriOS hybrid migration.
+//! reloc application, MBR/EBR partition-table entry validation, GPT protective-MBR recognition,
+//! process TID→slot lookup, and IPv4 on-link/gateway/broadcast routing for KolibriOS hybrid
+//! migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -75,9 +76,11 @@ pub use mouse::mouse_acceleration;
 pub use ntfs_mcb::{ntfs_decode_mcb_entry, McbDecodeResult};
 pub use ntfs_usa::{ntfs_restore_usa, UsaRestoreResult};
 pub use partition::{
-    is_partition_table_entry, is_partition_table_entry_ptr, make_entry,
-    IS_PARTITION_TABLE_ENTRY_PRNG_SEED, OFF_BOOTABLE, OFF_FIRST_ABS_SECTOR, OFF_LENGTH,
-    PARTITION_TABLE_ENTRY_SIZE,
+    is_partition_table_entry, is_partition_table_entry_ptr, is_protective_mbr,
+    is_protective_mbr_ptr, make_entry, make_mbr_sector, make_protective_entry0,
+    IS_PARTITION_TABLE_ENTRY_PRNG_SEED, IS_PROTECTIVE_MBR_PRNG_SEED, OFF_BOOTABLE,
+    OFF_FIRST_ABS_SECTOR, OFF_LENGTH, OFF_TYPE, PARTITION_TABLE_ENTRY_SIZE, PROTECTIVE_MBR_TYPE,
+    PROTECTIVE_TRAILING_BYTES,
 };
 pub use pid_to_slot::{
     pid_to_slot, pid_to_slot_ptr, plant_slot, write_u32_le, APPDATA_SIZE, APPDATA_SIZE_SHIFT,

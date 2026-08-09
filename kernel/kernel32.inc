@@ -137,6 +137,8 @@ include "rust/pid_to_slot.inc"
 include "rust/utf8to16.inc"
 ; Cut AC: ipv4_route — Rust blob + smoke (USE_RUST_IPV4_ROUTE)
 include "rust/ipv4_route.inc"
+; Cut AD: is_protective_mbr — Rust blob + smoke (USE_RUST_IS_PROTECTIVE_MBR)
+include "rust/is_protective_mbr.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 
