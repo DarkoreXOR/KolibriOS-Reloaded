@@ -511,6 +511,31 @@ tcp_set_persist:
 ;  OUT: /                                                         ;
 ;                                                                 ;
 ;-----------------------------------------------------------------;
+; Cut M: USE_RUST_TCP_XMIT_TIMER=1 routes through Rust
+; rust_tcp_xmit_timer (see rust/tcp_xmit_timer.inc).
+; Set USE_RUST_TCP_XMIT_TIMER=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–L.
+
+USE_RUST_TCP_XMIT_TIMER = 1
+
+if USE_RUST_TCP_XMIT_TIMER
+
+; Compatibility trampoline: register ABI → Rust stdcall.
+; Callers keep `call tcp_xmit_timer` with EAX=rtt, EBX=socket.
+; ECX/EDX preserved (tcp_input keeps EDX as TCP header pointer).
+; TCPS_rttupdated stays a FASM global so the Rust blob remains reloc-free.
+align 4
+tcp_xmit_timer:
+        inc     [TCPS_rttupdated]
+        push    ecx
+        push    edx
+        stdcall rust_tcp_xmit_timer, eax, ebx
+        pop     edx
+        pop     ecx
+        ret
+
+else
+
 align 4
 tcp_xmit_timer:
 
@@ -573,6 +598,8 @@ tcp_xmit_timer:
         pop     ecx
 
         ret
+
+end if
 
 
 ;-----------------------------------------------------------------;

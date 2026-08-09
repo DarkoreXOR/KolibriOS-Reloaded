@@ -34,7 +34,8 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut I:** `ntfs_decode_mcb_entry` — **done** 2026-08-09 ([`cut-i-plan.md`](cut-i-plan.md), [`cut-i-implementation.md`](cut-i-implementation.md)).
 - **Cut J:** `ntfs_restore_usa` — **done** 2026-08-09 ([`cut-j-plan.md`](cut-j-plan.md), [`cut-j-implementation.md`](cut-j-implementation.md)).
 - **Cut K:** `fat_next_short_name` — **done** 2026-08-09 ([`cut-k-plan.md`](cut-k-plan.md), [`cut-k-implementation.md`](cut-k-implementation.md)).
-- **Cut L:** `mouse_acceleration` — **done** 2026-08-09 ([`cut-l-plan.md`](cut-l-plan.md), [`cut-l-implementation.md`](cut-l-implementation.md)). **Stop; do not start Cut M.**
+- **Cut L:** `mouse_acceleration` — **done** 2026-08-09 ([`cut-l-plan.md`](cut-l-plan.md), [`cut-l-implementation.md`](cut-l-implementation.md)).
+- **Cut M:** `tcp_xmit_timer` — **done** 2026-08-09 ([`cut-m-plan.md`](cut-m-plan.md), [`cut-m-implementation.md`](cut-m-implementation.md)). **Stop; do not start Cut N.**
 
 ### Stage 3 — Compat syscall façade (selected)
 

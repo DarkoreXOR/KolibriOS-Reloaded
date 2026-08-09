@@ -15,6 +15,7 @@ use crate::mouse::mouse_acceleration;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
 use crate::ntfs_usa::ntfs_restore_usa_ptr;
 use crate::string::strncmp;
+use crate::tcp::tcp_xmit_timer_ptr;
 use crate::time::fs_calculate_time_ptr;
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
 use crate::PHASE_C_PROBE_MAGIC;
@@ -278,4 +279,20 @@ pub extern "stdcall" fn rust_mouse_acceleration(
     speed_factor: u32,
 ) -> u32 {
     mouse_acceleration(delta, delay as u8, speed_factor as u16)
+}
+
+/// `stdcall` rust_tcp_xmit_timer(rtt, socket) -> void.
+///
+/// Cut M: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). FASM trampoline increments
+/// `[TCPS_rttupdated]` and preserves `ECX`/`EDX` around the call.
+///
+/// # Safety
+/// `socket` must point to a writable `TCP_SOCKET` through `t_rttvar`.
+#[no_mangle]
+#[link_section = ".text.rust_tcp_xmit_timer"]
+pub unsafe extern "stdcall" fn rust_tcp_xmit_timer(rtt: u32, socket: *mut u8) {
+    // SAFETY: kernel trampoline passes EAX/EBX → valid rtt + socket.
+    unsafe { tcp_xmit_timer_ptr(rtt, socket) }
 }

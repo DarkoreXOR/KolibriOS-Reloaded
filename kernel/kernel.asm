@@ -257,6 +257,8 @@ high_code:
         call    fat_next_short_name_rust_smoke_test
 ; Cut L smoke: FASM mouse_acceleration trampoline → Rust (hangs on mismatch).
         call    mouse_acceleration_rust_smoke_test
+; Cut M smoke: FASM tcp_xmit_timer trampoline → Rust (hangs on mismatch).
+        call    tcp_xmit_timer_rust_smoke_test
 
 
         mov     ecx, pg_data.mutex

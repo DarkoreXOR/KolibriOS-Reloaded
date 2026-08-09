@@ -103,6 +103,8 @@ include "rust/ntfs_restore_usa.inc"
 include "rust/fat_next_short_name.inc"
 ; Cut L: mouse_acceleration — Rust blob + smoke (see docs/migration/cut-l-plan.md)
 include "rust/mouse_acceleration.inc"
+; Cut M: tcp_xmit_timer — Rust blob + smoke (see docs/migration/cut-m-plan.md)
+include "rust/tcp_xmit_timer.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

@@ -1,13 +1,13 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L utilities: CRC32, Unicode, casefold, string, checksum,
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M utilities: CRC32, Unicode, casefold, string, checksum,
 //! filesystem calendar, video geometry, NTFS MCB decode, NTFS USA restore, FAT
-//! 8.3 short-name collision, and HID mouse acceleration helpers for KolibriOS
-//! hybrid migration.
+//! 8.3 short-name collision, HID mouse acceleration, and TCP RTT estimator helpers
+//! for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
 //! See `docs/migration/cut-a-final-architecture.md`, `cut-b-plan.md`, `cut-c-plan.md`,
 //! `cut-d-plan.md`, `cut-e-plan.md`, `cut-f-plan.md`, `cut-g-plan.md`, `cut-h-plan.md`,
-//! `cut-i-plan.md`, `cut-j-plan.md`, `cut-k-plan.md`, `cut-l-plan.md`.
+//! `cut-i-plan.md`, `cut-j-plan.md`, `cut-k-plan.md`, `cut-l-plan.md`, `cut-m-plan.md`.
 
 #![cfg_attr(target_os = "none", no_std)]
 
@@ -20,6 +20,7 @@ mod mouse;
 mod ntfs_mcb;
 mod ntfs_usa;
 mod string;
+mod tcp;
 mod time;
 mod unicode;
 
@@ -35,6 +36,9 @@ pub use mouse::mouse_acceleration;
 pub use ntfs_mcb::{ntfs_decode_mcb_entry, McbDecodeResult};
 pub use ntfs_usa::{ntfs_restore_usa, UsaRestoreResult};
 pub use string::strncmp;
+pub use tcp::{
+    tcp_xmit_timer, TCP_OFF_T_RTT, TCP_OFF_T_RTTVAR, TCP_OFF_T_SRTT, TCP_XMIT_TIMER_PRNG_SEED,
+};
 pub use time::{fs_calculate_time, BdfeTime};
 pub use unicode::{cp866_encode, utf16_encode, utf8_decode};
 
