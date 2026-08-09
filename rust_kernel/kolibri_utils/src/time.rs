@@ -1,4 +1,5 @@
 //! Cut G: `fsCalculateTime` — BDFE datetime → seconds since 2001-01-01.
+//! Cut T: `fsTime2bdfe` — seconds since 2001-01-01 → BDFE datetime (EDI+=8).
 //!
 //! Matches `kernel/fs/fs_common.inc` FASM leaf semantics for the production
 //! domain (year &lt; 3025 so `BH` pollution after `shr ebx,2` does not apply).
@@ -151,6 +152,98 @@ pub unsafe fn fs_calculate_time_ptr(block: *const u8) -> u32 {
         core::ptr::copy_nonoverlapping(block, b.as_mut_ptr(), 8);
     }
     fs_calculate_time(BdfeTime::from_bytes(&b))
+}
+
+/// Convert seconds since 2001-01-01 to BDFE datetime (FASM `fsTime2bdfe`).
+///
+/// Mirrors `fs_common.inc`: divide chain → leap-day adjust with signed `jns`
+/// after `sub edx, years/4` → month peel over `months`/`months2` using the
+/// 16-bit `DX` (`sub dl` / `dec dh` / `jns`) loop. Production domain: years
+/// where the day-of-year remainder stays within FASM's DX handling.
+#[inline(always)]
+pub fn fs_time2bdfe(secs: u32) -> BdfeTime {
+    // xor edx,edx; mov ecx,60; div; mov [edi],dl
+    let mut eax = secs;
+    let sec = (eax % 60) as u8;
+    eax /= 60;
+    // xor edx,edx; div ecx; mov [edi+1],dl
+    let min = (eax % 60) as u8;
+    eax /= 60;
+    // xor edx,edx; mov cl,24; div; mov [edi+2],dx  (hour as word; pad cleared)
+    let hour = (eax % 24) as u8;
+    eax /= 24;
+    // xor edx,edx; mov cx,365; div
+    let mut edx = eax % 365;
+    eax /= 365;
+    let mut ebx = eax.wrapping_add(2001); // calendar year candidate
+    let leaps = eax >> 2;
+    // sub edx, eax(=leaps); jns → else dec year / add 365 / leap +1
+    let (subbed, _) = edx.overflowing_sub(leaps);
+    if (subbed as i32) < 0 {
+        ebx = ebx.wrapping_sub(1);
+        edx = subbed.wrapping_add(365);
+        if (ebx & 3) == 0 {
+            edx = edx.wrapping_add(1);
+        }
+    } else {
+        edx = subbed;
+    }
+
+    let mut tables = [0u8; 24];
+    materialize_month_tables(&mut tables);
+    // FASM: ecx = months-1; if (year&3)==0 then ecx += 12 (months2)
+    let table_base: usize = if (ebx & 3) == 0 { 12 } else { 0 };
+
+    // Month peel: eax = month counter; DX = day-of-year (16-bit semantics).
+    let mut month: u32 = 0;
+    let mut dx = (edx & 0xffff) as u16;
+    loop {
+        month = month.wrapping_add(1);
+        let idx = table_base.wrapping_add((month as usize).wrapping_sub(1));
+        let mlen = if idx < 24 {
+            // SAFETY: idx verified < 24.
+            unsafe { core::ptr::read_volatile(tables.as_ptr().add(idx)) as u16 }
+        } else {
+            0
+        };
+        // sub dl, [ecx]; jnc @b
+        let (new_dl, borrow) = (dx as u8).overflowing_sub(mlen as u8);
+        if !borrow {
+            dx = (dx & 0xff00) | (new_dl as u16);
+            continue;
+        }
+        // CF set: write new_dl into DL, then dec dh / jns @b
+        let dh = (dx >> 8) as u8;
+        let (new_dh, _) = dh.overflowing_sub(1);
+        dx = ((new_dh as u16) << 8) | (new_dl as u16);
+        if (new_dh as i8) >= 0 {
+            continue;
+        }
+        // Restore oversubtraction; day is 1-based.
+        let day_u8 = new_dl.wrapping_add(mlen as u8).wrapping_add(1);
+        return BdfeTime {
+            sec,
+            min,
+            hour,
+            day: day_u8,
+            month: month as u8,
+            year: ebx as u16,
+        };
+    }
+}
+
+/// Pointer form used by the FFI trampoline — writes 8 BDFE bytes at `out`.
+///
+/// # Safety
+/// `out` must point to a writable 8-byte BDFE datetime block.
+#[inline(always)]
+pub unsafe fn fs_time2bdfe_ptr(secs: u32, out: *mut u8) {
+    let t = fs_time2bdfe(secs);
+    let b = t.to_bytes();
+    // SAFETY: caller guarantees 8 writable bytes (kernel trampoline / tests).
+    unsafe {
+        core::ptr::copy_nonoverlapping(b.as_ptr(), out, 8);
+    }
 }
 
 /// FASM-faithful host oracle — separately coded control-flow mirror of
@@ -399,5 +492,244 @@ mod tests {
         assert_eq!(fs_calculate_time(t(2002, 1, 1, 0, 0, 0)), 365 * 86400);
         // 2005-01-01: years=4; 4*365 + 1 leap day (from shr years/4) = 1461
         assert_eq!(fs_calculate_time(t(2005, 1, 1, 0, 0, 0)), 1461 * 86400);
+    }
+
+    // ----- Cut T: fsTime2bdfe -----
+
+    #[test]
+    fn time2bdfe_epoch_zero() {
+        assert_eq!(fs_time2bdfe(0), t(2001, 1, 1, 0, 0, 0));
+    }
+
+    #[test]
+    fn time2bdfe_one_second() {
+        assert_eq!(fs_time2bdfe(1), t(2001, 1, 1, 0, 0, 1));
+    }
+
+    #[test]
+    fn time2bdfe_one_day() {
+        assert_eq!(fs_time2bdfe(86400), t(2001, 1, 2, 0, 0, 0));
+    }
+
+    #[test]
+    fn time2bdfe_leap_2004_feb_29() {
+        // days = 3*365 + 0 + 31 + 29 - 1 = 1154; secs = 1154 * 86400
+        assert_eq!(fs_time2bdfe(99705600), t(2004, 2, 29, 0, 0, 0));
+    }
+
+    #[test]
+    fn time2bdfe_2010_07_04_noon() {
+        assert_eq!(fs_time2bdfe(299937600), t(2010, 7, 4, 12, 0, 0));
+    }
+
+    #[test]
+    fn time2bdfe_end_of_day() {
+        assert_eq!(fs_time2bdfe(86399), t(2001, 1, 1, 23, 59, 59));
+    }
+
+    #[test]
+    fn time2bdfe_bytes_layout_hour_word_pad() {
+        let mut buf = [0xAAu8; 8];
+        unsafe { fs_time2bdfe_ptr(86399, buf.as_mut_ptr()) };
+        assert_eq!(buf[0], 59);
+        assert_eq!(buf[1], 59);
+        assert_eq!(buf[2], 23);
+        assert_eq!(buf[3], 0); // FASM `mov [edi+2], dx` clears pad
+        assert_eq!(buf[4], 1);
+        assert_eq!(buf[5], 1);
+        assert_eq!(u16::from_le_bytes([buf[6], buf[7]]), 2001);
+    }
+
+    /// Differential: FASM-flow oracle vs Rust for Cut T.
+    #[test]
+    fn time2bdfe_differential_oracle_corpus() {
+        let named = [
+            0u32,
+            1,
+            59,
+            60,
+            3599,
+            3600,
+            86399,
+            86400,
+            99705600,  // 2004-02-29
+            299937600, // 2010-07-04 12:00:00
+            u32::MAX,
+            365 * 86400,
+            366 * 86400,
+            1461 * 86400, // ~2005-01-01
+        ];
+        for &secs in &named {
+            assert_eq!(
+                fs_time2bdfe(secs),
+                fasm_oracle_fs_time2bdfe(secs),
+                "named secs={secs}"
+            );
+        }
+
+        // Structured grid over day counts and time-of-day remainders.
+        for days in 0u32..=4000 {
+            for &tod in &[0u32, 1, 3600, 12 * 3600, 86399] {
+                let secs = days.saturating_mul(86400).saturating_add(tod);
+                assert_eq!(
+                    fs_time2bdfe(secs),
+                    fasm_oracle_fs_time2bdfe(secs),
+                    "grid days={days} tod={tod}"
+                );
+            }
+        }
+
+        // Deterministic PRNG corpus (seed documented for Cut T).
+        const SEED: u32 = 0xC07_72B_FE; // "Cut T 2bdfe"
+        const CASES: u32 = 200_000;
+        let mut state = SEED;
+        let mut next = || -> u32 {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            state
+        };
+        for _ in 0..CASES {
+            let secs = next();
+            assert_eq!(
+                fs_time2bdfe(secs),
+                fasm_oracle_fs_time2bdfe(secs),
+                "prng secs={secs}"
+            );
+        }
+    }
+
+    /// Roundtrip: valid BdfeTime → secs (G) → BdfeTime (T) recovers fields
+    /// for the production calendar domain (month 1..12, plausible days).
+    #[test]
+    fn time2bdfe_roundtrip_with_calculate_time() {
+        let named = [
+            t(2001, 1, 1, 0, 0, 0),
+            t(2001, 1, 1, 0, 0, 1),
+            t(2001, 1, 1, 23, 59, 59),
+            t(2001, 2, 28, 0, 0, 0),
+            t(2004, 2, 29, 0, 0, 0),
+            t(2004, 3, 1, 0, 0, 0),
+            t(2010, 7, 4, 12, 0, 0),
+            t(2024, 2, 29, 11, 22, 33),
+            t(2025, 12, 31, 23, 59, 59),
+        ];
+        for bt in named {
+            let secs = fs_calculate_time(bt);
+            assert_eq!(fs_time2bdfe(secs), bt, "roundtrip {bt:?}");
+        }
+
+        const SEED: u32 = 0xC07_72B_FE;
+        const CASES: u32 = 50_000;
+        let mut state = SEED;
+        let mut next = || -> u32 {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            state
+        };
+        for _ in 0..CASES {
+            let r0 = next();
+            let r1 = next();
+            let year = 2001 + (r0 % 50) as u16;
+            let month = 1 + ((r0 >> 16) % 12) as u8;
+            // Keep days valid for the month (FASM tables).
+            let max_day = match month {
+                2 => {
+                    if (year % 4) == 0 {
+                        29
+                    } else {
+                        28
+                    }
+                }
+                4 | 6 | 9 | 11 => 30,
+                _ => 31,
+            };
+            let day = 1 + ((r1 % max_day as u32) as u8);
+            let hour = ((r1 >> 8) % 24) as u8;
+            let min = ((r1 >> 16) % 60) as u8;
+            let sec = ((r1 >> 24) % 60) as u8;
+            let bt = t(year, month, day, hour, min, sec);
+            let secs = fs_calculate_time(bt);
+            assert_eq!(fs_time2bdfe(secs), bt, "roundtrip prng {bt:?}");
+        }
+    }
+}
+
+/// FASM-faithful host oracle for `fsTime2bdfe` — separate control-flow mirror
+/// of `fs_common.inc` (not a call through [`fs_time2bdfe`]).
+#[cfg(test)]
+pub fn fasm_oracle_fs_time2bdfe(secs: u32) -> BdfeTime {
+    const MONTHS: [u8; 24] = [
+        31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, // months
+        31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31, // months2
+    ];
+
+    let mut eax = secs;
+    let mut edx: u32;
+    let ecx_60: u32 = 60;
+
+    // div 60 → sec
+    edx = eax % ecx_60;
+    eax /= ecx_60;
+    let sec = edx as u8;
+
+    // div 60 → min
+    edx = eax % ecx_60;
+    eax /= ecx_60;
+    let min = edx as u8;
+
+    // div 24 → hour (stored as DX word)
+    let ecx_24: u32 = 24;
+    edx = eax % ecx_24;
+    eax /= ecx_24;
+    let hour = edx as u8;
+
+    // div 365 → years / day-of-year
+    let ecx_365: u32 = 365;
+    edx = eax % ecx_365;
+    eax /= ecx_365;
+    let mut ebx = eax.wrapping_add(2001);
+    let leaps = eax >> 2;
+    let (subbed, _) = edx.overflowing_sub(leaps);
+    if (subbed as i32) < 0 {
+        ebx = ebx.wrapping_sub(1);
+        edx = subbed.wrapping_add(365);
+        if (ebx & 3) == 0 {
+            edx = edx.wrapping_add(1);
+        }
+    } else {
+        edx = subbed;
+    }
+
+    let table_base: usize = if (ebx & 3) == 0 { 12 } else { 0 };
+    let mut month: u32 = 0;
+    // DX as 16-bit register view of EDX low half
+    let mut dx = (edx & 0xffff) as u16;
+    loop {
+        month = month.wrapping_add(1);
+        let idx = table_base + (month as usize - 1);
+        let mlen = if idx < 24 { MONTHS[idx] as u16 } else { 0 };
+        let dl = dx as u8;
+        let (new_dl, borrow) = dl.overflowing_sub(mlen as u8);
+        if !borrow {
+            dx = (dx & 0xff00) | (new_dl as u16);
+            continue;
+        }
+        let dh = (dx >> 8) as u8;
+        let (new_dh, _) = dh.overflowing_sub(1);
+        dx = ((new_dh as u16) << 8) | (new_dl as u16);
+        if (new_dh as i8) >= 0 {
+            continue;
+        }
+        let day = new_dl.wrapping_add(mlen as u8).wrapping_add(1);
+        return BdfeTime {
+            sec,
+            min,
+            hour,
+            day,
+            month: month as u8,
+            year: ebx as u16,
+        };
     }
 }

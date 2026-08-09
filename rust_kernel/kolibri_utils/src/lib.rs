@@ -1,5 +1,5 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S utilities: CRC32, Unicode, casefold, string, checksum,
-//! filesystem calendar, video geometry, NTFS MCB decode, NTFS USA restore, FAT
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T utilities: CRC32, Unicode, casefold, string, checksum,
+//! filesystem calendar (BDFE↔secs), video geometry, NTFS MCB decode, NTFS USA restore, FAT
 //! 8.3 short-name collision, HID mouse acceleration, TCP RTT estimator, GUI
 //! font anti-aliasing, MENUET app-header validation, syscall userspace
 //! region gate, UTF-16→UTF-8 streaming encode, XFS extent unpack, and window
@@ -53,7 +53,7 @@ pub use string::strncmp;
 pub use tcp::{
     tcp_xmit_timer, TCP_OFF_T_RTT, TCP_OFF_T_RTTVAR, TCP_OFF_T_SRTT, TCP_XMIT_TIMER_PRNG_SEED,
 };
-pub use time::{fs_calculate_time, BdfeTime};
+pub use time::{fs_calculate_time, fs_time2bdfe, fs_time2bdfe_ptr, BdfeTime};
 pub use unicode::{cp866_encode, utf16_encode, utf8_decode};
 pub use userspace::{
     is_region_userspace, trampoline_zf_from_rust_return, IS_REGION_USERSPACE_PRNG_SEED,

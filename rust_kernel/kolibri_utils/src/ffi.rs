@@ -18,7 +18,7 @@ use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
 use crate::ntfs_usa::ntfs_restore_usa_ptr;
 use crate::string::strncmp;
 use crate::tcp::tcp_xmit_timer_ptr;
-use crate::time::fs_calculate_time_ptr;
+use crate::time::{fs_calculate_time_ptr, fs_time2bdfe_ptr};
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
 use crate::userspace::is_region_userspace;
 use crate::utf16_to_8::utf16_to_8_ptr;
@@ -198,6 +198,22 @@ pub extern "stdcall" fn rust_checksum_2(sum: u32) -> u32 {
 pub unsafe extern "stdcall" fn rust_fs_calculate_time(block: *const u8) -> u32 {
     // SAFETY: kernel trampoline passes ESI → valid BDFE block.
     unsafe { fs_calculate_time_ptr(block) }
+}
+
+/// `stdcall` rust_fs_time2bdfe(secs, out) — writes 8-byte BDFE at `out`.
+///
+/// Cut T: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). FASM trampoline passes EAX/EDI then
+/// performs `add edi, 8` to match the public ABI.
+///
+/// # Safety
+/// `out` must point to a writable 8-byte BDFE datetime block.
+#[no_mangle]
+#[link_section = ".text.rust_fs_time2bdfe"]
+pub unsafe extern "stdcall" fn rust_fs_time2bdfe(secs: u32, out: *mut u8) {
+    // SAFETY: kernel trampoline passes EDI → valid BDFE out block.
+    unsafe { fs_time2bdfe_ptr(secs, out) }
 }
 
 /// `stdcall` rust_block_clip(clip, rect) -> EAX = 0 draw / 1 reject.

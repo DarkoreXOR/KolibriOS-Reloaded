@@ -117,6 +117,8 @@ include "rust/utf16_to_8.inc"
 include "rust/xfs_extent_unpack.inc"
 ; Cut S: window._.check_window_position — Rust blob + smoke (USE_RUST_CHECK_WINDOW_POSITION)
 include "rust/check_window_position.inc"
+; Cut T: fsTime2bdfe — Rust blob + smoke (USE_RUST_FS_TIME2BDFE)
+include "rust/fs_time2bdfe.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

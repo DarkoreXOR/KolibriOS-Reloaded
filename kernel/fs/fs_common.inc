@@ -113,6 +113,28 @@ months  db  31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 months2 db  31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
 endg
 
+; Cut T: USE_RUST_FS_TIME2BDFE=1 routes through Rust rust_fs_time2bdfe
+; (see rust/fs_time2bdfe.inc). Set USE_RUST_FS_TIME2BDFE=0 to restore the
+; original FASM body without deleting it. Independent of Cuts A–S.
+; Critical ABI: EDI advances by exactly 8; hour stored as word at +2.
+
+USE_RUST_FS_TIME2BDFE = 1
+
+if USE_RUST_FS_TIME2BDFE
+
+; Compatibility trampoline: register ABI → Rust stdcall → EDI+=8.
+; Callers keep `call fsTime2bdfe` with EAX=secs / EDI→BDFE out.
+; EDI must advance by 8 (ext/ntfs/xfs chain timestamps).
+; EBX/ECX/EDX may be clobbered (matches original FASM body).
+; ESI/EBP preserved (untouched by FASM; stdcall callee-saved).
+align 4
+fsTime2bdfe:
+        stdcall rust_fs_time2bdfe, eax, edi
+        add     edi, 8
+        ret
+
+else
+
 fsTime2bdfe:
 ; in: eax = seconds since 01.01.2001
 ; edi -> data block
@@ -161,3 +183,5 @@ fsTime2bdfe:
         mov     [edi+6], bx
         add     edi, 8
         ret
+
+end if
