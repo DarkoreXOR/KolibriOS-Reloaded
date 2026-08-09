@@ -465,6 +465,35 @@ local   .done
 ; tcp_set_persist                                                 ;
 ;                                                                 ;
 ;-----------------------------------------------------------------;
+; Cut V: USE_RUST_TCP_SET_PERSIST=1 routes through Rust
+; rust_tcp_set_persist (see rust/tcp_set_persist.inc).
+; Set USE_RUST_TCP_SET_PERSIST=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–U (composes with Cut M
+; SRTT/RTTVAR fields only).
+
+USE_RUST_TCP_SET_PERSIST = 1
+
+if USE_RUST_TCP_SET_PERSIST
+
+; Compatibility trampoline: register ABI → Rust stdcall.
+; Callers keep `call tcp_set_persist` with EAX=socket pointer.
+; EAX must be preserved (tcp_timer uses it after return).
+; EBX preserved to match legacy push/pop; ECX/EDX saved defensively.
+align 4
+tcp_set_persist:
+        push    ebx
+        push    ecx
+        push    edx
+        push    eax
+        stdcall rust_tcp_set_persist, eax
+        pop     eax
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
 align 4
 tcp_set_persist:
 
@@ -498,6 +527,8 @@ tcp_set_persist:
   .exit:
 
         ret
+
+end if
 
 
 

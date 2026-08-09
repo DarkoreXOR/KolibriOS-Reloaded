@@ -1,28 +1,60 @@
 //! Cut M: `tcp_xmit_timer` — TCP RFC793-style SRTT/RTTVAR update.
+//! Cut V: `tcp_set_persist` — TCP persist-timer arming from SRTT/RTTVAR.
 //!
 //! Matches `kernel/network/tcp_subr.inc` FASM leaf semantics, including:
 //! * gate on `TCP_SOCKET.t_rtt == 0` for the init path
 //! * fixed-point shifts (`TCP_RTT_SHIFT=3`, `TCP_RTTVAR_SHIFT=2`)
 //! * signed abs via CDQ/XOR/SUB (`i32::MIN` stays `0x8000_0000`)
 //! * unsigned `add` then `ja` clamp-to-1 (zero or CF → 1)
+//! * persist: retransmit mutual exclusion; `(srtt>>2 + rttvar)>>1 << rxtshift`;
+//!   unsigned `tcpt_rangeset` clamp to `[8,94]`; OR persist flag; bump `t_rxtshift`
 //!
 //! Field offsets are locked from a FASM struct audit of `socket.inc`.
 
+/// `TCP_SOCKET.t_rxtshift` offset (bytes) — `db` + 3-byte pad.
+pub const TCP_OFF_T_RXTSHIFT: usize = 118;
 /// `TCP_SOCKET.t_rtt` offset (bytes).
 pub const TCP_OFF_T_RTT: usize = 202;
 /// `TCP_SOCKET.t_srtt` offset (bytes).
 pub const TCP_OFF_T_SRTT: usize = 210;
 /// `TCP_SOCKET.t_rttvar` offset (bytes).
 pub const TCP_OFF_T_RTTVAR: usize = 214;
+/// `TCP_SOCKET.timer_flags` offset (bytes).
+pub const TCP_OFF_TIMER_FLAGS: usize = 254;
+/// `TCP_SOCKET.timer_persist` offset (bytes).
+pub const TCP_OFF_TIMER_PERSIST: usize = 262;
 
 const TCP_RTT_SHIFT: u32 = 3;
 const TCP_RTTVAR_SHIFT: u32 = 2;
 
+/// `TCP_time_pers_min` (`tcp.inc`).
+pub const TCP_TIME_PERS_MIN: u32 = 8;
+/// `TCP_time_pers_max` (`tcp.inc`).
+pub const TCP_TIME_PERS_MAX: u32 = 94;
+/// `TCP_max_rxtshift` (`tcp.inc`).
+pub const TCP_MAX_RXTSHIFT: u8 = 12;
+/// `timer_flag_retransmission` (`tcp_timer.inc`).
+pub const TIMER_FLAG_RETRANSMISSION: u32 = 1;
+/// `timer_flag_persist` (`tcp_timer.inc`).
+pub const TIMER_FLAG_PERSIST: u32 = 8;
+
 /// Cut M differential PRNG seed (documented).
 pub const TCP_XMIT_TIMER_PRNG_SEED: u32 = 0x7C90_0001;
+/// Cut V differential PRNG seed (documented).
+pub const TCP_SET_PERSIST_PRNG_SEED: u32 = 0x7C90_0002;
 
 /// Unaligned dword load — `TCP_SOCKET` fields sit at offset 202+ (SOCKET size 74
 /// leaves them 2-byte aligned). Matches x86 permissive `[mem]` loads.
+#[inline(always)]
+unsafe fn read_u8(base: *const u8, off: usize) -> u8 {
+    unsafe { *base.add(off) }
+}
+
+#[inline(always)]
+unsafe fn write_u8(base: *mut u8, off: usize, val: u8) {
+    unsafe { *base.add(off) = val }
+}
+
 #[inline(always)]
 unsafe fn read_u32(base: *const u8, off: usize) -> u32 {
     unsafe { core::ptr::read_unaligned(base.add(off) as *const u32) }
@@ -31,6 +63,18 @@ unsafe fn read_u32(base: *const u8, off: usize) -> u32 {
 #[inline(always)]
 unsafe fn write_u32(base: *mut u8, off: usize, val: u32) {
     unsafe { core::ptr::write_unaligned(base.add(off) as *mut u32, val) }
+}
+
+/// FASM `tcpt_rangeset` — unsigned `jb`/`ja` clamp into `[min, max]`.
+#[inline(always)]
+fn tcpt_rangeset(value: u32, min: u32, max: u32) -> u32 {
+    if value < min {
+        min
+    } else if value > max {
+        max
+    } else {
+        value
+    }
 }
 
 /// Unsigned `add` + `ja` clamp used by FASM: if CF or ZF after ADD, store 1.
@@ -97,6 +141,50 @@ pub unsafe fn tcp_xmit_timer(rtt: u32, socket: *mut u8) {
 #[inline(always)]
 pub unsafe fn tcp_xmit_timer_ptr(rtt: u32, socket: *mut u8) {
     unsafe { tcp_xmit_timer(rtt, socket) }
+}
+
+/// Arm/restart the TCP persist timer on a `TCP_SOCKET` at `socket`.
+///
+/// Matches `tcp_set_persist` in `tcp_subr.inc`: early exit if retransmission
+/// is armed; else compute RTO from SRTT/RTTVAR/`t_rxtshift`, clamp into
+/// `[TCP_TIME_PERS_MIN, TCP_TIME_PERS_MAX]`, OR persist flag, and bump
+/// `t_rxtshift` while `< TCP_MAX_RXTSHIFT`.
+///
+/// # Safety
+/// `socket` must point to a writable `TCP_SOCKET` through `timer_persist`.
+#[inline(always)]
+pub unsafe fn tcp_set_persist(socket: *mut u8) {
+    let flags = unsafe { read_u32(socket, TCP_OFF_TIMER_FLAGS) };
+    if (flags & TIMER_FLAG_RETRANSMISSION) != 0 {
+        return;
+    }
+
+    let srtt = unsafe { read_u32(socket, TCP_OFF_T_SRTT) };
+    let rttvar = unsafe { read_u32(socket, TCP_OFF_T_RTTVAR) };
+    let mut ebx = (srtt >> 2).wrapping_add(rttvar) >> 1;
+    let shift = unsafe { read_u8(socket, TCP_OFF_T_RXTSHIFT) };
+    // x86 `shl ebx, cl` masks CL to 5 bits for 32-bit ops — same as wrapping_shl.
+    ebx = ebx.wrapping_shl(u32::from(shift));
+
+    let persist = tcpt_rangeset(ebx, TCP_TIME_PERS_MIN, TCP_TIME_PERS_MAX);
+    unsafe {
+        write_u32(socket, TCP_OFF_TIMER_PERSIST, persist);
+        write_u32(socket, TCP_OFF_TIMER_FLAGS, flags | TIMER_FLAG_PERSIST);
+    }
+
+    let rxtshift = unsafe { read_u8(socket, TCP_OFF_T_RXTSHIFT) };
+    if rxtshift < TCP_MAX_RXTSHIFT {
+        unsafe { write_u8(socket, TCP_OFF_T_RXTSHIFT, rxtshift.wrapping_add(1)) };
+    }
+}
+
+/// Pointer-friendly entry used by the stdcall FFI.
+///
+/// # Safety
+/// Same as [`tcp_set_persist`].
+#[inline(always)]
+pub unsafe fn tcp_set_persist_ptr(socket: *mut u8) {
+    unsafe { tcp_set_persist(socket) }
 }
 
 #[cfg(test)]
@@ -208,6 +296,9 @@ mod tests {
         assert_eq!(TCP_OFF_T_RTT, 202);
         assert_eq!(TCP_OFF_T_SRTT, 210);
         assert_eq!(TCP_OFF_T_RTTVAR, 214);
+        assert_eq!(TCP_OFF_T_RXTSHIFT, 118);
+        assert_eq!(TCP_OFF_TIMER_FLAGS, 254);
+        assert_eq!(TCP_OFF_TIMER_PERSIST, 262);
     }
 
     #[test]
@@ -236,6 +327,163 @@ mod tests {
             state = state.wrapping_mul(1664525).wrapping_add(1013904223);
             let t_rttvar = state;
             check(rtt, t_rtt, t_srtt, t_rttvar);
+        }
+    }
+
+    /// Independent FASM-flow oracle for `tcp_set_persist` (`tcp_subr.inc:469–500`).
+    fn persist_oracle(
+        flags: u32,
+        srtt: u32,
+        rttvar: u32,
+        mut rxtshift: u8,
+        persist_in: u32,
+    ) -> (u32, u32, u8) {
+        if (flags & TIMER_FLAG_RETRANSMISSION) != 0 {
+            return (flags, persist_in, rxtshift);
+        }
+        let mut ebx = (srtt >> 2).wrapping_add(rttvar) >> 1;
+        ebx = ebx.wrapping_shl(u32::from(rxtshift));
+        let persist = if ebx < TCP_TIME_PERS_MIN {
+            TCP_TIME_PERS_MIN
+        } else if ebx > TCP_TIME_PERS_MAX {
+            TCP_TIME_PERS_MAX
+        } else {
+            ebx
+        };
+        let flags_out = flags | TIMER_FLAG_PERSIST;
+        if rxtshift < TCP_MAX_RXTSHIFT {
+            rxtshift = rxtshift.wrapping_add(1);
+        }
+        (flags_out, persist, rxtshift)
+    }
+
+    fn persist_run(
+        flags: u32,
+        srtt: u32,
+        rttvar: u32,
+        rxtshift: u8,
+        persist_in: u32,
+    ) -> (u32, u32, u8) {
+        // Need through timer_persist @ 262.
+        let mut buf = [0u8; 288];
+        unsafe {
+            write_u8(buf.as_mut_ptr(), TCP_OFF_T_RXTSHIFT, rxtshift);
+            write_u32(buf.as_mut_ptr(), TCP_OFF_T_SRTT, srtt);
+            write_u32(buf.as_mut_ptr(), TCP_OFF_T_RTTVAR, rttvar);
+            write_u32(buf.as_mut_ptr(), TCP_OFF_TIMER_FLAGS, flags);
+            write_u32(buf.as_mut_ptr(), TCP_OFF_TIMER_PERSIST, persist_in);
+            tcp_set_persist(buf.as_mut_ptr());
+            (
+                read_u32(buf.as_ptr(), TCP_OFF_TIMER_FLAGS),
+                read_u32(buf.as_ptr(), TCP_OFF_TIMER_PERSIST),
+                read_u8(buf.as_ptr(), TCP_OFF_T_RXTSHIFT),
+            )
+        }
+    }
+
+    fn persist_check(
+        flags: u32,
+        srtt: u32,
+        rttvar: u32,
+        rxtshift: u8,
+        persist_in: u32,
+    ) {
+        let got = persist_run(flags, srtt, rttvar, rxtshift, persist_in);
+        let exp = persist_oracle(flags, srtt, rttvar, rxtshift, persist_in);
+        assert_eq!(
+            got, exp,
+            "persist mismatch flags={flags:#x} srtt={srtt:#x} rttvar={rttvar:#x} \
+             rxtshift={rxtshift} persist_in={persist_in:#x}"
+        );
+        // Retransmit gate must leave neighbors alone when early-exiting.
+        if (flags & TIMER_FLAG_RETRANSMISSION) != 0 {
+            assert_eq!(got.0, flags);
+            assert_eq!(got.1, persist_in);
+            assert_eq!(got.2, rxtshift);
+        }
+    }
+
+    #[test]
+    fn persist_retransmit_gate() {
+        persist_check(TIMER_FLAG_RETRANSMISSION, 40, 10, 0, 0xDEAD_BEEF);
+        persist_check(
+            TIMER_FLAG_RETRANSMISSION | TIMER_FLAG_PERSIST,
+            100,
+            20,
+            3,
+            55,
+        );
+        persist_check(0xFFFF_FFFF, 0, 0, 0, 99);
+    }
+
+    #[test]
+    fn persist_named_clamp() {
+        // Zero estimators → raw 0 → clamp to min 8; shift 0 → rxtshift becomes 1.
+        persist_check(0, 0, 0, 0, 0);
+        // tcp_output zeros rxtshift then calls: typical first arm.
+        persist_check(0, 40, 10, 0, 0);
+        // ((40>>2)+10)>>1 = 10; <<3 = 80 → in range.
+        persist_check(0, 40, 10, 3, 1);
+        // Force max clamp.
+        persist_check(0, 0xFFFF_FFFF, 0xFFFF_FFFF, 5, 0);
+        // Force near-min then shift.
+        persist_check(0, 4, 0, 0, 0); // ((1)+0)>>1 = 0 → min 8
+        persist_check(0, 32, 0, 0, 0); // (8+0)>>1 = 4 → min 8
+        persist_check(0, 64, 0, 0, 0); // (16+0)>>1 = 8 → exact min
+        persist_check(0, 64, 0, 4, 0); // 8<<4 = 128 → max 94
+    }
+
+    #[test]
+    fn persist_rxtshift_saturate() {
+        persist_check(0, 40, 10, 11, 0); // 11 → 12
+        persist_check(0, 40, 10, 12, 0); // 12 stays 12
+        persist_check(0, 40, 10, 255, 0); // 255 stays 255 (unsigned jae)
+    }
+
+    #[test]
+    fn persist_sticky_flag_and_restart() {
+        // Already-persist: still recompute timer and keep flag.
+        persist_check(TIMER_FLAG_PERSIST, 40, 10, 1, 50);
+        // Other timer bits preserved.
+        persist_check(0xF0, 40, 10, 0, 0);
+    }
+
+    #[test]
+    fn persist_shift_mask_edges() {
+        // CL & 31 semantics via wrapping_shl: shift 32 ≡ 0.
+        persist_check(0, 64, 0, 32, 0);
+        persist_check(0, 64, 0, 31, 0);
+        persist_check(0, 1, 0, 16, 0);
+    }
+
+    #[test]
+    fn persist_grid() {
+        for flags in [0u32, TIMER_FLAG_RETRANSMISSION, TIMER_FLAG_PERSIST, 0xF0] {
+            for srtt in [0u32, 4, 32, 40, 64, 100, 0x1000, 0xFFFF_FFFF] {
+                for rttvar in [0u32, 1, 10, 20, 0x100, 0xFFFF_FFFF] {
+                    for rxtshift in [0u8, 1, 3, 7, 11, 12, 13, 31, 32, 255] {
+                        persist_check(flags, srtt, rttvar, rxtshift, 0x1234_5678);
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn persist_prng_200k() {
+        let mut state = TCP_SET_PERSIST_PRNG_SEED;
+        for _ in 0..200_000 {
+            state = state.wrapping_mul(1664525).wrapping_add(1013904223);
+            let flags = state;
+            state = state.wrapping_mul(1664525).wrapping_add(1013904223);
+            let srtt = state;
+            state = state.wrapping_mul(1664525).wrapping_add(1013904223);
+            let rttvar = state;
+            state = state.wrapping_mul(1664525).wrapping_add(1013904223);
+            let rxtshift = (state & 0xFF) as u8;
+            state = state.wrapping_mul(1664525).wrapping_add(1013904223);
+            let persist_in = state;
+            persist_check(flags, srtt, rttvar, rxtshift, persist_in);
         }
     }
 }

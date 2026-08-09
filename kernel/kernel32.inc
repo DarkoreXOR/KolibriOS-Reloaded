@@ -121,6 +121,8 @@ include "rust/check_window_position.inc"
 include "rust/fs_time2bdfe.inc"
 ; Cut U: fat_gen_short_name — Rust blob + smoke (USE_RUST_FAT_GEN_SHORT_NAME)
 include "rust/fat_gen_short_name.inc"
+; Cut V: tcp_set_persist — Rust blob + smoke (USE_RUST_TCP_SET_PERSIST)
+include "rust/tcp_set_persist.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

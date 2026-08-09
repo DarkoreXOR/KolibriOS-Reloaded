@@ -17,7 +17,7 @@ use crate::mouse::mouse_acceleration;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
 use crate::ntfs_usa::ntfs_restore_usa_ptr;
 use crate::string::strncmp;
-use crate::tcp::tcp_xmit_timer_ptr;
+use crate::tcp::{tcp_set_persist_ptr, tcp_xmit_timer_ptr};
 use crate::time::{fs_calculate_time_ptr, fs_time2bdfe_ptr};
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
 use crate::userspace::is_region_userspace;
@@ -335,6 +335,22 @@ pub extern "stdcall" fn rust_mouse_acceleration(
 pub unsafe extern "stdcall" fn rust_tcp_xmit_timer(rtt: u32, socket: *mut u8) {
     // SAFETY: kernel trampoline passes EAX/EBX → valid rtt + socket.
     unsafe { tcp_xmit_timer_ptr(rtt, socket) }
+}
+
+/// `stdcall` rust_tcp_set_persist(socket) -> void.
+///
+/// Cut V: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 4 bytes (`ret 4`). FASM trampoline preserves
+/// `EAX`/`EBX`/`ECX`/`EDX` around the call (callers keep EAX as socket).
+///
+/// # Safety
+/// `socket` must point to a writable `TCP_SOCKET` through `timer_persist`.
+#[no_mangle]
+#[link_section = ".text.rust_tcp_set_persist"]
+pub unsafe extern "stdcall" fn rust_tcp_set_persist(socket: *mut u8) {
+    // SAFETY: kernel trampoline passes EAX → valid socket.
+    unsafe { tcp_set_persist_ptr(socket) }
 }
 
 /// `stdcall` rust_anti_aliasing(fg, bg) -> EAX blended RGB.

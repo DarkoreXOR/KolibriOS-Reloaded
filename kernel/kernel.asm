@@ -234,6 +234,7 @@ high_code:
 ; Cut S: check_window_position smoke ON when USE_RUST_CHECK_WINDOW_POSITION=1.
 ; Cut T: fsTime2bdfe smoke ON when USE_RUST_FS_TIME2BDFE=1.
 ; Cut U: fat_gen_short_name smoke ON when USE_RUST_FAT_GEN_SHORT_NAME=1.
+; Cut V: tcp_set_persist smoke ON when USE_RUST_TCP_SET_PERSIST=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -263,6 +264,8 @@ high_code:
         call    fs_time2bdfe_rust_smoke_test
         ; Cut U: fat_gen_short_name smoke (Rust when USE_RUST_FAT_GEN_SHORT_NAME=1).
         call    fat_gen_short_name_rust_smoke_test
+        ; Cut V: tcp_set_persist smoke (Rust when USE_RUST_TCP_SET_PERSIST=1).
+        call    tcp_set_persist_rust_smoke_test
 
 
         mov     ecx, pg_data.mutex

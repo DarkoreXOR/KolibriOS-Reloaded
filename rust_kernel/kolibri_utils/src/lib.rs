@@ -1,7 +1,7 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U utilities: CRC32, Unicode, casefold, string, checksum,
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V utilities: CRC32, Unicode, casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), video geometry, NTFS MCB decode, NTFS USA restore, FAT
-//! 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator, GUI
-//! font anti-aliasing, MENUET app-header validation, syscall userspace
+//! 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator +
+//! persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall userspace
 //! region gate, UTF-16→UTF-8 streaming encode, XFS extent unpack, and window
 //! screen-fit helpers for KolibriOS hybrid migration.
 //!
@@ -54,7 +54,10 @@ pub use ntfs_mcb::{ntfs_decode_mcb_entry, McbDecodeResult};
 pub use ntfs_usa::{ntfs_restore_usa, UsaRestoreResult};
 pub use string::strncmp;
 pub use tcp::{
-    tcp_xmit_timer, TCP_OFF_T_RTT, TCP_OFF_T_RTTVAR, TCP_OFF_T_SRTT, TCP_XMIT_TIMER_PRNG_SEED,
+    tcp_set_persist, tcp_set_persist_ptr, tcp_xmit_timer, TCP_MAX_RXTSHIFT, TCP_OFF_TIMER_FLAGS,
+    TCP_OFF_TIMER_PERSIST, TCP_OFF_T_RTT, TCP_OFF_T_RTTVAR, TCP_OFF_T_RXTSHIFT, TCP_OFF_T_SRTT,
+    TCP_SET_PERSIST_PRNG_SEED, TCP_TIME_PERS_MAX, TCP_TIME_PERS_MIN, TCP_XMIT_TIMER_PRNG_SEED,
+    TIMER_FLAG_PERSIST, TIMER_FLAG_RETRANSMISSION,
 };
 pub use time::{fs_calculate_time, fs_time2bdfe, fs_time2bdfe_ptr, BdfeTime};
 pub use unicode::{cp866_encode, utf16_encode, utf8_decode};
