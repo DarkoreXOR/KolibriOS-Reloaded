@@ -60,7 +60,13 @@ Remaining `parse_fn` leaves were audited and deferred (tables, flags ABI, or wea
 
 ## ABI
 
-### FASM `strncmp` (unchanged for callers)
+When replacing a legacy FASM routine with Rust, the **effective ABI** includes
+not only arguments, return value, stack cleanup, and explicitly documented
+callee-saved registers, but also **observable legacy register preservation
+relied upon by existing callers**. That preservation is an **ABI compatibility
+requirement**, not an optimization detail.
+
+### FASM `strncmp` (caller-visible contract)
 
 | Item | Contract |
 |------|----------|
@@ -68,9 +74,46 @@ Remaining `parse_fn` leaves were audited and deferred (tables, flags ABI, or wea
 | Inputs | `s1`, `s2`, `n` — three stack dwords |
 | Output | `EAX` ∈ {−1, 0, +1} (unsigned byte order) |
 | Stack cleanup | callee `ret 12` |
-| Callee-saved | `ESI`, `EDI` (FASM body); Rust stdcall preserves `EBX`/`ESI`/`EDI`/`EBP` |
-| Flags | clobbered |
+| Callee-saved (documented) | `ESI`, `EDI` (FASM body); Rust stdcall preserves `EBX`/`ESI`/`EDI`/`EBP` |
+| **Legacy EDX** | **`EDX` survives the call** (FASM body never touched it) |
+| Flags / DF | FASM body executes `cld` (forces DF=0); other flags clobbered |
 | Memory | read-only |
+
+### Legacy EDX preservation (required)
+
+```text
+Legacy behavior:
+    EDX survives the call.
+
+Reason:
+    get_service (kernel/core/dll.inc) keeps SRV* in EDX across strncmp,
+    then uses EDX after the call (return path / list walk).
+
+Rust integration requirement:
+    FASM trampoline must preserve EDX across rust_strncmp.
+    rust_strncmp itself may clobber EDX (uses it as s2); that is fine
+    behind the trampoline.
+
+Current solution:
+    push edx
+    stdcall rust_strncmp, [s1], [s2], [n]
+    pop edx
+```
+
+This is **ABI compatibility**, not a micro-optimization.
+
+### Potential legacy-ABI difference: DF / `cld` (unchanged)
+
+```text
+Potential legacy-ABI difference:
+    FASM strncmp forces DF=0 via CLD.
+    Rust strncmp currently leaves DF unchanged.
+
+Status:
+    Not demonstrated to cause the observed Cut D regression.
+    Not changed as part of the Cut D fix.
+    Requires separate investigation if ABI completeness is required.
+```
 
 ### Rust `rust_strncmp`
 
@@ -80,15 +123,48 @@ Remaining `parse_fn` leaves were audited and deferred (tables, flags ABI, or wea
 | Args | `(s1: *const u8, s2: *const u8, n: u32)` |
 | Return | `i32` in `EAX` |
 | Epilogue | `ret 12` |
+| EDX | may be clobbered (trampoline restores) |
+| DF | not forced; see note above |
 
-### Trampoline
+### Trampoline (production)
 
 ```asm
 proc strncmp stdcall, s1:dword, s2:dword, n:dword
+        push    edx
         stdcall rust_strncmp, [s1], [s2], [n]
+        pop     edx
         ret
 endp
 ```
+
+---
+
+## Post-bisect status (2026-08-09)
+
+```text
+Cut D:
+    target: strncmp
+    status: COMPLETE — FIXED
+
+Regression:
+    Desktop remained functional.
+    Network connectivity was lost.
+
+Root cause:
+    Rust strncmp clobbered EDX.
+
+Critical caller:
+    get_service.
+
+Fix:
+    EDX-preserving FASM trampoline.
+
+Validation:
+    Desktop OK.
+    Internet OK.
+```
+
+Investigation log: [`black-screen-investigation.md`](black-screen-investigation.md).
 
 ---
 
@@ -336,17 +412,18 @@ Cut D plan                              PASS
 Rust implementation                     PASS
 Rust tests                              PASS (38/38)
 Differential/oracle                     PASS (corpus + PRNG)
-ABI/trampoline                          PASS (in-kernel smoke + ESI/EDI)
+ABI/trampoline                          PASS (ESI/EDI + EDX preserve via trampoline)
 Relocation validation                   PASS
-Kernel smoke                            PASS
-QEMU Rust ON                            PASS
+Kernel smoke                            PASS (early); D–O diagnostic smokes OFF post-bisect
+QEMU Rust ON                            PASS (desktop + network after EDX fix)
 QEMU Rust OFF                           PASS
 Deterministic rebuild ×2                PASS
 Rollback switch                         PASS
 Cut A regression                        PASS (suite + blob extract)
 Cut B regression                        PASS (suite + cp866_upper hash)
 Cut C regression                        PASS (suite + utf16_upper hash)
+Post-bisect EDX ABI fix                 PASS (get_service / network)
 Documentation                           PASS
 ```
 
-**STOP** — do not start Cut E.
+Stage 2 Cuts A–O are production-validated; do not start Cut P. DF/`cld` for `strncmp` remains an open separate question.

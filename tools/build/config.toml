@@ -1,0 +1,235 @@
+# kolibri_build — repository-local build / image / QEMU orchestrator
+#
+# Paths are relative to the repository root unless noted as absolute.
+# This file is the source of truth for developer `run` / `build` / `image` / `qemu`.
+# Do not put secrets here.
+
+# ---------------------------------------------------------------------------
+# Rust freestanding components (Cuts A–O Strategy A+C blobs)
+# ---------------------------------------------------------------------------
+[rust]
+# Cargo workspace containing `kolibri_utils`.
+workspace = "rust_kernel"
+# Package to test and build as freestanding staticlib.
+package = "kolibri_utils"
+# Custom target JSON for `i686-kolibri-none`.
+target_json = "rust_kernel/kolibri_utils/i686-kolibri-none.json"
+# Isolates freestanding artifacts from tools/build's own target dir.
+cargo_target_dir = "rust_kernel/target"
+# Where reloc-free `*.bin` blobs are written (embedded by kernel/rust/*.inc).
+out_dir = "rust_kernel/kolibri_utils/out"
+# Nightly toolchain name passed to `cargo +<toolchain>`.
+toolchain = "nightly"
+# Run `cargo test -p kolibri_utils` before freestanding build (recommended).
+run_host_tests = true
+# Delete prior staticlib/deps before freestanding build (matches build-*.ps1).
+# Prevents stale RUSTFLAGS / incremental leftovers from shipping bad blobs.
+force_recompile_staticlib = true
+# Clear process RUSTFLAGS for the freestanding build (must not lower opt-level).
+clear_rustflags = true
+
+# Extractor scripts (canonical project Python helpers — invoked by this tool).
+[rust.extract]
+# Prefer `python` on PATH; doctor also tries `python3` / `py -3` if needed at runtime.
+python = "python"
+generic_script = "rust_kernel/kolibri_utils/scripts/extract_reloc_free_text.py"
+probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
+
+# Blobs currently required by the hybrid kernel (Cuts A–O). Order is extraction
+# order only; FASM embeds whichever files `kernel/rust/*.inc` reference.
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_test_app_header"
+symbol = "rust_test_app_header"
+expect_ret_imm = 12
+out = "rust_test_app_header.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_anti_aliasing"
+symbol = "rust_anti_aliasing"
+expect_ret_imm = 8
+out = "rust_anti_aliasing.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_tcp_xmit_timer"
+symbol = "rust_tcp_xmit_timer"
+expect_ret_imm = 8
+out = "rust_tcp_xmit_timer.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_mouse_acceleration"
+symbol = "rust_mouse_acceleration"
+expect_ret_imm = 12
+out = "rust_mouse_acceleration.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_fat_next_short_name"
+symbol = "rust_fat_next_short_name"
+expect_ret_imm = 4
+out = "rust_fat_next_short_name.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_ntfs_restore_usa"
+symbol = "rust_ntfs_restore_usa"
+expect_ret_imm = 8
+out = "rust_ntfs_restore_usa.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_ntfs_decode_mcb_entry"
+symbol = "rust_ntfs_decode_mcb_entry"
+expect_ret_imm = 8
+out = "rust_ntfs_decode_mcb_entry.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_block_clip"
+symbol = "rust_block_clip"
+expect_ret_imm = 8
+out = "rust_block_clip.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_fs_calculate_time"
+symbol = "rust_fs_calculate_time"
+expect_ret_imm = 4
+out = "rust_fs_calculate_time.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_checksum_2"
+symbol = "rust_checksum_2"
+expect_ret_imm = 4
+out = "rust_checksum_2.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_checksum_1"
+symbol = "rust_checksum_1"
+expect_ret_imm = 12
+out = "rust_checksum_1.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_strncmp"
+symbol = "rust_strncmp"
+expect_ret_imm = 12
+out = "rust_strncmp.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_utf16_to_upper"
+symbol = "rust_utf16_to_upper"
+expect_ret_imm = 4
+out = "rust_utf16_to_upper.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_cp866_to_upper"
+symbol = "rust_cp866_to_upper"
+expect_ret_imm = 4
+out = "rust_cp866_to_upper.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_unicode_utf8_decode"
+symbol = "rust_unicode_utf8_decode"
+expect_ret_imm = 8
+out = "rust_unicode_utf8_decode.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_unicode_cp866_encode"
+symbol = "rust_unicode_cp866_encode"
+expect_ret_imm = 4
+out = "rust_unicode_cp866_encode.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_unicode_utf16_encode"
+symbol = "rust_unicode_utf16_encode"
+expect_ret_imm = 4
+out = "rust_unicode_utf16_encode.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_crc_32"
+symbol = "rust_crc_32"
+expect_ret_imm = 16
+out = "rust_crc_32.bin"
+
+[[rust.blobs]]
+kind = "probe"
+out = "rust_phase_c_probe.bin"
+
+# ---------------------------------------------------------------------------
+# FASM kernel assemble
+# ---------------------------------------------------------------------------
+[kernel]
+# Vendored assembler (repo-relative). Preferred over system `fasm`.
+fasm = "fasm/FASM.EXE"
+# Entry assembly unit.
+asm = "kernel/kernel.asm"
+# Output artifact used for image replace / QEMU.
+output = "kernel/bin/kernel.mnt"
+# Ephemeral `kernel/lang.inc` content: `lang fix <lang>`.
+lang = "en_US"
+# FASM `-m` memory size (matches project docs).
+memory_kib = 262144
+
+# ---------------------------------------------------------------------------
+# Disposable test image (never mutate the reference)
+# ---------------------------------------------------------------------------
+[image]
+# Host helper crate (built on demand).
+tool_manifest = "tools/kolibri_img/Cargo.toml"
+# Expected release binary after `cargo build --release` (Windows name).
+# On Unix the tool looks for `kolibri_img` beside this path / without `.exe`.
+tool_bin = "tools/kolibri_img/target/release/kolibri_img.exe"
+# Immutable reference floppy — read-only; only CoW copies are mutated.
+base_image = "kolibrios-0.7.7.0-9160-g944d74f01-en_US.img"
+# Directory for fresh test images (created if missing). Relative to repo root.
+output_dir = "build/test"
+# Filename pattern. `{timestamp}` → local YYYYMMDD-HHMMSS.
+filename_pattern = "kernel-{timestamp}.img"
+# Root FAT 8.3 names deleted on the CoW copy before replace (frees clusters).
+delete_before_replace = ["DOCPACK"]
+# Destination name inside the image for the newly built kernel.
+kernel_fat_name = "KERNEL.MNT"
+
+# ---------------------------------------------------------------------------
+# QEMU
+# ---------------------------------------------------------------------------
+[qemu]
+# Candidates tried in order; first existing file or PATH lookup wins.
+# Platform-specific entries are fine here; unused paths are skipped.
+executables = [
+  "C:\\Program Files\\qemu\\qemu-system-i386.exe",
+  "qemu-system-i386",
+]
+# Arguments always passed (image path is injected as `-fda <fresh-img>`).
+args = ["-boot", "a", "-m", "256", "-vga", "std"]
+# Extra args when `--headless` is set (automation / CI-style smoke).
+# Include QMP so callers can query-status / screendump without a VGA window.
+headless_extra_args = [
+  "-display", "none",
+  "-no-reboot",
+  "-no-shutdown",
+  "-qmp", "tcp:127.0.0.1:4550,server,nowait",
+]
+# Extra args for `ref`: boot `image.base_image` without rebuilding.
+# `-snapshot` keeps disk writes in RAM so the reference floppy is never modified.
+reference_extra_args = ["-snapshot"]
+
+# ---------------------------------------------------------------------------
+# Cleanup / diagnostics
+# ---------------------------------------------------------------------------
+[cleanup]
+# If true, delete the temporary image after QEMU exits 0.
+# Default false: keep artifacts for inspection after failures and success.
+delete_image_on_success = false

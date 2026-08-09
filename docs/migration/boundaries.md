@@ -7,7 +7,7 @@
 A **viable cut** is a surface where:
 
 1. Arguments/results are already marshalled (syscall, stdcall export, boot struct), and
-2. The callee does not require ambient FASM register/stack conventions beyond that surface, and
+2. The trampoline restores any **caller-observable** legacy register / flag behavior that existing in-kernel callers rely on (even if undocumented) — see Cut D `strncmp` / EDX in [`cut-d-implementation.md`](cut-d-implementation.md), and
 3. Failure can fall back to FASM without bricking boot.
 
 ## Viable cuts (ranked early → late)

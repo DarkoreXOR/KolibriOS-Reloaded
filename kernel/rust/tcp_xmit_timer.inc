@@ -59,8 +59,10 @@ tcp_xmit_timer_rust_smoke_test:
 
         ; --- Update path + register preservation ---
         ; t_rtt=1, srtt=40, rttvar=10, rtt=5
-        ; delta = 5 - (40>>3) - 1 = -1 → srtt=39
-        ; abs(-1)=1; rttvar = 10 + (1 - 2) = 9
+        ; delta = 5 - (40>>3) - 1 = -1 = 0xFFFFFFFF
+        ; FASM/Rust use unsigned ADD + JA: 40+(-1) sets CF → clamp srtt=1;
+        ; abs(delta)=1; 1-(10>>2)=-1 → 10+(-1) sets CF → clamp rttvar=1.
+        ; (Signed RFC-style 39/9 is NOT what add/ja implements.)
         mov     dword [ebx+202], 1
         mov     dword [ebx+210], 40
         mov     dword [ebx+214], 10
@@ -78,19 +80,21 @@ tcp_xmit_timer_rust_smoke_test:
         jne     .fail
         cmp     edi, 0xE2000008
         jne     .fail
-        cmp     dword [ebx+210], 39
+        cmp     dword [ebx+210], 1
         jne     .fail
-        cmp     dword [ebx+214], 9
+        cmp     dword [ebx+214], 1
         jne     .fail
 
         ; --- Clamp path: t_rtt=1, srtt=1, rttvar=4, rtt=0 ---
-        ; delta = -1; srtt = 1 + (-1) = 0 → clamp 1
+        ; delta=-1; srtt 1+(-1)=0 → JA clamp 1; rttvar 4+(1-1)=4
         mov     dword [ebx+202], 1
         mov     dword [ebx+210], 1
         mov     dword [ebx+214], 4
         xor     eax, eax
         call    tcp_xmit_timer
         cmp     dword [ebx+210], 1
+        jne     .fail
+        cmp     dword [ebx+214], 4
         jne     .fail
 
         mov     [rust_tcp_xmit_timer_smoke_result], 0x5443504D ; 'TCPM'

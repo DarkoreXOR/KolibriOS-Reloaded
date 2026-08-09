@@ -226,42 +226,27 @@ high_code:
         mov     eax, cr3
         mov     cr3, eax          ; flush TLB
 
-; Phase C smoke: FASM → Rust stdcall probe (hangs on mismatch).
+; Stage 2+3: Phase C + Cuts A–O production ON; diagnostic smokes D–O ON
+; (Cut M smoke expects unsigned ADD+JA clamp 1/1, not signed 39/9).
+; Cut D EDX trampoline is production-required; do not alter rust_strncmp for ABI.
         call    phase_c_smoke_test
-; CRC smoke: FASM crc_32 trampoline → Rust CRC (hangs on mismatch).
         call    crc_rust_smoke_test
-; UTF-16 smoke: FASM unicode.utf16.encode trampoline → Rust (hangs on mismatch).
         call    utf16_rust_smoke_test
-; CP866 smoke: FASM unicode.cp866.encode trampoline → Rust (hangs on mismatch).
         call    cp866_rust_smoke_test
-; UTF-8 smoke: FASM unicode.utf8.decode trampoline → Rust (hangs on mismatch).
         call    utf8_rust_smoke_test
-; Cut B smoke: FASM cp866toUpper trampoline → Rust (hangs on mismatch).
         call    cp866_upper_rust_smoke_test
-; Cut C smoke: FASM utf16toUpper trampoline → Rust (hangs on mismatch).
         call    utf16_upper_rust_smoke_test
-; Cut D smoke: FASM strncmp trampoline → Rust (hangs on mismatch).
         call    strncmp_rust_smoke_test
-; Cut E smoke: FASM checksum_1 trampoline → Rust (hangs on mismatch).
         call    checksum1_rust_smoke_test
-; Cut F smoke: FASM checksum_2 trampoline → Rust (hangs on mismatch).
         call    checksum2_rust_smoke_test
-; Cut G smoke: FASM fsCalculateTime trampoline → Rust (hangs on mismatch).
         call    fs_calculate_time_rust_smoke_test
         call    block_clip_rust_smoke_test
-; Cut I smoke: FASM ntfs_decode_mcb_entry trampoline → Rust (hangs on mismatch).
         call    ntfs_decode_mcb_rust_smoke_test
-; Cut J smoke: FASM ntfs_restore_usa trampoline → Rust (hangs on mismatch).
         call    ntfs_restore_usa_rust_smoke_test
-; Cut K smoke: FASM fat_next_short_name trampoline → Rust (hangs on mismatch).
         call    fat_next_short_name_rust_smoke_test
-; Cut L smoke: FASM mouse_acceleration trampoline → Rust (hangs on mismatch).
         call    mouse_acceleration_rust_smoke_test
-; Cut M smoke: FASM tcp_xmit_timer trampoline → Rust (hangs on mismatch).
         call    tcp_xmit_timer_rust_smoke_test
-; Cut N smoke: FASM antiAliasing trampoline → Rust (hangs on mismatch).
         call    anti_aliasing_rust_smoke_test
-; Cut O smoke: FASM test_app_header trampoline → Rust (hangs on mismatch).
         call    test_app_header_rust_smoke_test
 
 

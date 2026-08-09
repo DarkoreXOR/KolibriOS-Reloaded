@@ -93,6 +93,7 @@ Not designed as public API, but binaries may depend. Preserve with shims until c
 - [ ] APM CF flag return exception to “eflags preserved”
 - [ ] f68.15 returns 0 (not −1)
 - [ ] Silent refusal of SYSENTER MSR writes via f68.4
+- [x] **FASM→Rust leaf migrations:** preserve *observable* legacy register behavior relied on by in-kernel callers (not only documented callee-saved). Example: `strncmp` must leave **EDX** intact — `get_service` keeps `SRV*` in EDX across the call. Fixed by FASM trampoline `push edx` / `pop edx` around `rust_strncmp` ([`cut-d-implementation.md`](../migration/cut-d-implementation.md)). DF/`cld` parity for `strncmp` is a separate open question (not part of the Cut D fix).
 
 ---
 

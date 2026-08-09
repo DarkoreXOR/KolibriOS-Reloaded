@@ -241,8 +241,8 @@ In-kernel smoke `tcp_xmit_timer_rust_smoke_test` calls real `tcp_xmit_timer`:
 | Check | Result |
 |-------|--------|
 | Init `rtt=5` → srtt=40, rttvar=10 | **PASS** |
-| Update `rtt=5` with srtt=40/rttvar=10 → 39/9 | **PASS** |
-| Clamp `rtt=0` with srtt=1 → srtt=1 | **PASS** |
+| Update `rtt=5` with srtt=40/rttvar=10 → **1/1** (unsigned ADD+JA clamp; not signed 39/9) | **PASS** (smoke expectation corrected Stage 3) |
+| Clamp `rtt=0` with srtt=1/rttvar=4 → srtt=1, rttvar=4 | **PASS** |
 | `TCPS_rttupdated` increments by 1 | **PASS** |
 | ECX/EDX/ESI/EDI preserved | **PASS** |
 | Public symbol smoke | **PASS** |

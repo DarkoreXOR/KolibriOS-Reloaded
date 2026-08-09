@@ -65,8 +65,12 @@ if USE_RUST_STRNCMP
 
 ; Compatibility trampoline: existing stdcall ABI → Rust stdcall.
 ; Callers keep `stdcall strncmp, s1, s2, n` / manual push+call with ret 12.
+; ABI requirement: preserve EDX — FASM body never touched it; get_service
+; keeps SRV* in EDX across the call. rust_strncmp clobbers EDX as s2.
 proc strncmp stdcall, s1:dword, s2:dword, n:dword
+        push    edx
         stdcall rust_strncmp, [s1], [s2], [n]
+        pop     edx
         ret
 endp
 

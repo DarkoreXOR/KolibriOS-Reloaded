@@ -9,6 +9,7 @@ tools/**/target/
 # Disposable image experiments (never commit CoW copies of the reference .img)
 /tmp_images/*
 !/tmp_images/README.md
+/build/test/
 *.img.cow
 *.qcow2
 

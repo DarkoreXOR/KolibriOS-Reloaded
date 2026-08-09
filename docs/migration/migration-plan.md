@@ -23,10 +23,11 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 
 - Cut A from boundaries.
 - **Risk:** low.
+- **Status (2026-08-09):** **COMPLETE** — Phase C + Cuts A–O production-validated (desktop + network). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–O re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
 - **Done:** Phase C probe + CRC32 + UTF-16 + CP866 + UTF-8. Baseline: [`cut-a-final-architecture.md`](cut-a-final-architecture.md).
 - **Cut B (pure util, not allocator):** `cp866toUpper` — **done** 2026-08-09 ([`cut-b-plan.md`](cut-b-plan.md), [`cut-b-implementation.md`](cut-b-implementation.md)).
 - **Cut C:** `utf16toUpper` — **done** ([`cut-c-implementation.md`](cut-c-implementation.md)).
-- **Cut D:** `strncmp` — **done** ([`cut-d-implementation.md`](cut-d-implementation.md)).
+- **Cut D:** `strncmp` — **COMPLETE — FIXED** ([`cut-d-implementation.md`](cut-d-implementation.md)). Production regression: Rust body clobbered EDX; `get_service` required EDX=`SRV*` across the call → network loss. Fix: EDX-preserving FASM trampoline. Open (unchanged): FASM `cld` vs Rust DF leave-alone.
 - **Cut E:** `checksum_1` — **done** 2026-08-09 ([`cut-e-plan.md`](cut-e-plan.md), [`cut-e-implementation.md`](cut-e-implementation.md)).
 - **Cut F:** `checksum_2` — **done** 2026-08-09 ([`cut-f-plan.md`](cut-f-plan.md), [`cut-f-implementation.md`](cut-f-implementation.md)).
 - **Cut G:** `fsCalculateTime` — **done** 2026-08-09 ([`cut-g-plan.md`](cut-g-plan.md), [`cut-g-implementation.md`](cut-g-implementation.md)).

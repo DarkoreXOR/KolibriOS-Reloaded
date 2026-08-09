@@ -1,0 +1,17 @@
+[package]
+name = "kolibri_build"
+version = "0.1.0"
+edition = "2021"
+description = "Orchestrate hybrid FASM+Rust kernel build, disposable test images, and QEMU"
+license = "GPL-2.0-or-later"
+publish = false
+
+[[bin]]
+name = "kolibri_build"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+serde = { version = "1", features = ["derive"] }
+toml = "0.8"
