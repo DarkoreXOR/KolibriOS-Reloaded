@@ -90,6 +90,8 @@ include "rust/utf16_upper.inc"
 include "rust/strncmp.inc"
 ; Cut E: checksum_1 — Rust blob + smoke (see docs/migration/cut-e-plan.md)
 include "rust/checksum1.inc"
+; Cut F: checksum_2 — Rust blob + smoke (see docs/migration/cut-f-plan.md)
+include "rust/checksum2.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

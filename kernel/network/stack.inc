@@ -763,6 +763,25 @@ end if
 ;  OUT: dx = checksum (in INET byte order)                        ;
 ;                                                                 ;
 ;-----------------------------------------------------------------;
+; Cut F: USE_RUST_CHECKSUM_2=1 routes through Rust rust_checksum_2
+; (see rust/checksum2.inc). Set USE_RUST_CHECKSUM_2=0 to restore the
+; original FASM body without deleting it. Independent of Cut E.
+
+USE_RUST_CHECKSUM_2 = 1
+
+if USE_RUST_CHECKSUM_2
+
+; Compatibility trampoline: register ABI → Rust stdcall → EDX.
+; Callers keep `call checksum_2` with EDX in / DX out; EAX may be clobbered
+; (audited: no live caller depends on EAX/ECX across this call).
+align 4
+checksum_2:
+        stdcall rust_checksum_2, edx
+        mov     edx, eax
+        ret
+
+else
+
 align 4
 checksum_2:
 
@@ -784,6 +803,8 @@ checksum_2:
         DEBUGF  DEBUG_NETWORK_VERBOSE, "Checksum: %x\n", dx
 
         ret
+
+end if
 
 
 

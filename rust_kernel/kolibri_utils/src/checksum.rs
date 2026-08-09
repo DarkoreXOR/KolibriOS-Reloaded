@@ -1,10 +1,12 @@
-//! Partial Internet checksum matching FASM `checksum_1` in `kernel/network/stack.inc`.
+//! Internet checksum helpers matching FASM `checksum_1` / `checksum_2` in
+//! `kernel/network/stack.inc`.
 //!
-//! Accumulates network-order 16-bit words into a 32-bit partial sum with an
-//! 8-byte ADC stride and 4/2/1 remnant paths (length bits via SHR/CF).
+//! `checksum_1` accumulates network-order 16-bit words into a 32-bit partial sum.
+//! `checksum_2` folds / one’s-complements / byte-swaps that partial sum to INET order.
 //!
-//! Freestanding FFI uses raw pointer walks (no slice indexing) so the dedicated
-//! `.text.rust_checksum_1` section stays free of panic/bounds-check relocations.
+//! Cut E and Cut F are intentionally independent: no shared helpers between the two
+//! algorithms. Freestanding FFI avoids slice indexing so dedicated `.text.rust_*`
+//! sections stay free of panic/bounds-check relocations.
 
 /// Update a partial checksum over `length` bytes at `data`, matching FASM `checksum_1`.
 ///
@@ -75,6 +77,34 @@ pub unsafe fn checksum_1(mut sum: u32, data: *const u8, length: u32) -> u32 {
 #[cfg(test)]
 pub fn checksum_1_slice(seed: u32, data: &[u8]) -> u32 {
     unsafe { checksum_1(seed, data.as_ptr(), data.len() as u32) }
+}
+
+/// Finalize a partial checksum matching FASM `checksum_2`.
+///
+/// `sum` is the incoming `EDX` semi-checksum. Returns the value left in `EDX`
+/// (low 16 bits = INET-order checksum; high half clear), matching the FASM body.
+///
+/// Independent of `checksum_1` — no shared helpers (Cut F isolation rule).
+///
+/// Inlined into the FFI entry so `.text.rust_checksum_2` stays reloc-free.
+#[inline(always)]
+pub fn checksum_2(sum: u32) -> u32 {
+    // mov ecx, edx / shr ecx, 16 / and edx, 0xffff / add edx, ecx
+    let edx = (sum & 0xffff) + (sum >> 16);
+
+    // mov ecx, edx / shr ecx, 16 / add dx, cx
+    let mut dx = (edx as u16).wrapping_add((edx >> 16) as u16);
+
+    // test dx, dx ; not dx ; jnz .not_zero ; dec dx
+    let was_zero = dx == 0;
+    dx = !dx;
+    if was_zero {
+        dx = dx.wrapping_sub(1); // 0xFFFF → 0xFFFE
+    }
+
+    // xchg dl, dh
+    dx = dx.rotate_left(8);
+    u32::from(dx)
 }
 
 #[inline(always)]
@@ -389,5 +419,166 @@ mod tests {
                 "seed={seed:#x} len={len}"
             );
         }
+    }
+}
+
+/// Host-side FASM-faithful oracle for `checksum_2` (independent of Cut E).
+#[cfg(test)]
+pub fn checksum_2_fasm_oracle(mut edx: u32) -> u32 {
+    let mut ecx = edx >> 16;
+    edx = (edx & 0xffff) + ecx;
+
+    ecx = edx >> 16;
+    let mut dx = (edx as u16).wrapping_add(ecx as u16);
+    let zf = dx == 0;
+    dx = !dx;
+    if zf {
+        dx = dx.wrapping_sub(1);
+    }
+    // xchg dl, dh
+    let lo = (dx & 0xff) as u8;
+    let hi = (dx >> 8) as u8;
+    u32::from(u16::from(lo) << 8 | u16::from(hi))
+}
+
+#[cfg(test)]
+mod checksum_2_tests {
+    use super::{checksum_2, checksum_2_fasm_oracle};
+
+    #[test]
+    fn named_edge_cases() {
+        let cases: &[(u32, u32)] = &[
+            (0, 0x0000_FEFF),           // zero → not/dec → FFFE → swap FEFF
+            (0x0000_FFFF, 0),           // ~FFFF = 0
+            (0x0000_0001, 0x0000_FEFF), // ~1 = FFFE → swap
+            (0x0000_1A35, 0x0000_CAE5), // Cut E ICMP partial → final
+            (0x0001_0000, 0x0000_FEFF), // fold high alone
+            (0x0001_FFFE, 0),           // folds to FFFF → ~0
+            (0xFFFF_FFFF, 0),           // max → folds to FFFF → 0
+            (0x1234_5678, 0x0000_5397), // mixed fold + swap
+            (0x0000_FF00, 0x0000_FF00), // complement then swap
+            (0x0000_00FF, 0x0000_00FF),
+            (0x00FF_00FF, 0x0000_01FE), // double fold
+            (0xABCD_EF01, 0x0000_3065),
+        ];
+        for &(input, expect) in cases {
+            assert_eq!(checksum_2(input), expect, "input={input:#x}");
+            assert_eq!(
+                checksum_2_fasm_oracle(input),
+                expect,
+                "oracle input={input:#x}"
+            );
+        }
+    }
+
+    #[test]
+    fn zero_quirk_is_fffe_before_swap() {
+        // Pre-swap result of zero path must be 0xFFFE, not 0xFFFF.
+        assert_eq!(checksum_2(0) & 0xffff, 0xFEFF);
+        assert_eq!(checksum_2_fasm_oracle(0) & 0xffff, 0xFEFF);
+    }
+
+    #[test]
+    fn all_bit_patterns_low16() {
+        for v in 0u32..=0xffff {
+            assert_eq!(
+                checksum_2(v),
+                checksum_2_fasm_oracle(v),
+                "v={v:#x}"
+            );
+        }
+    }
+
+    #[test]
+    fn all_bit_patterns_high16() {
+        for hi in 0u32..=0xffff {
+            let v = hi << 16;
+            assert_eq!(
+                checksum_2(v),
+                checksum_2_fasm_oracle(v),
+                "v={v:#x}"
+            );
+        }
+    }
+
+    #[test]
+    fn carry_producing_folds() {
+        // Values that force first-fold carry into the high half.
+        let inputs = [
+            0x0000_FFFF,
+            0xFFFF_0000,
+            0xFFFF_FFFF,
+            0x8000_8000,
+            0x7FFF_8001,
+            0x0001_FFFF,
+            0xFFFE_0002,
+            0x1234_EDCC,
+        ];
+        for v in inputs {
+            assert_eq!(checksum_2(v), checksum_2_fasm_oracle(v), "v={v:#x}");
+        }
+    }
+
+    #[test]
+    fn structured_grid_low_times_sample_high() {
+        let highs = [
+            0u32, 1, 2, 0x7fff, 0x8000, 0xfffe, 0xffff, 0x1234, 0xabcd, 0x5555, 0xaaaa,
+        ];
+        for hi in highs {
+            for lo in 0u32..=0xffff {
+                let v = (hi << 16) | lo;
+                assert_eq!(
+                    checksum_2(v),
+                    checksum_2_fasm_oracle(v),
+                    "v={v:#x}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn structured_grid_high_times_sample_low() {
+        let lows = [
+            0u32, 1, 2, 0x7fff, 0x8000, 0xfffe, 0xffff, 0x1234, 0xabcd, 0x5555, 0xaaaa,
+        ];
+        for lo in lows {
+            for hi in 0u32..=0xffff {
+                let v = (hi << 16) | lo;
+                assert_eq!(
+                    checksum_2(v),
+                    checksum_2_fasm_oracle(v),
+                    "v={v:#x}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn deterministic_prng_u32_corpus() {
+        // Seed fixed; 200_000 distinct-ish u32 inputs (xorshift).
+        let mut state = 0xF00D_C0DEu32;
+        for i in 0..200_000u32 {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            // Mix iteration so consecutive states still diverge if xorshift stalls.
+            let v = state ^ i.wrapping_mul(0x9E37_79B9);
+            assert_eq!(
+                checksum_2(v),
+                checksum_2_fasm_oracle(v),
+                "i={i} v={v:#x}"
+            );
+        }
+    }
+
+    #[test]
+    fn chain_with_checksum_1_smoke_buffer() {
+        // Mirrors production: checksum_1 then checksum_2 on ICMP-like bytes.
+        use super::checksum_1_slice;
+        let buf = [0x08u8, 0x00, 0x00, 0x00, 0x12, 0x34, 0x00, 0x01];
+        let partial = checksum_1_slice(0, &buf);
+        assert_eq!(partial, 0x1A35);
+        assert_eq!(checksum_2(partial), 0xCAE5);
+        assert_eq!(checksum_2_fasm_oracle(partial), 0xCAE5);
     }
 }
