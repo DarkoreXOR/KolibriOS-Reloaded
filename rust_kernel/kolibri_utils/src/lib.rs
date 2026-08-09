@@ -1,9 +1,10 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X utilities: CRC32, Unicode, casefold, string, checksum,
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y utilities: CRC32, Unicode, casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), video geometry, NTFS MCB decode, NTFS USA restore, FAT
 //! 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator +
 //! persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall userspace
 //! region gate, UTF-16→UTF-8 streaming encode, XFS extent unpack + dir hash binary search, window
-//! screen-fit helpers, and TSS I/O permission bitmap updates for KolibriOS hybrid migration.
+//! screen-fit helpers, TSS I/O permission bitmap updates, and COFF reloc application for KolibriOS
+//! hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -17,6 +18,7 @@
 mod app_header;
 mod casefold;
 mod checksum;
+mod coff_reloc;
 mod crc;
 mod fat_name;
 mod font;
@@ -44,6 +46,11 @@ pub use app_header::{
 };
 pub use casefold::{cp866_to_upper, utf16_to_upper};
 pub use checksum::{checksum_1, checksum_2};
+pub use coff_reloc::{
+    fix_coff_relocs, fix_coff_relocs_buffered, fix_coff_relocs_ptr, COFF_HEADER_SIZE,
+    COFF_RELOC_SIZE, COFF_SECTION_SIZE, COFF_SYM_SIZE, FIX_COFF_RELOCS_PRNG_SEED,
+    RELOC_TYPE_DIR32, RELOC_TYPE_REL32,
+};
 pub use crc::crc32_update;
 pub use fat_name::{
     fat_gen_short_name, fat_next_short_name, FatNextShortNameResult, FAT_GEN_FILL_LEN,

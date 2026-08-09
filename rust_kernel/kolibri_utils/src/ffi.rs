@@ -9,6 +9,7 @@
 use crate::app_header::test_app_header_ptr;
 use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
+use crate::coff_reloc::fix_coff_relocs_ptr;
 use crate::crc::crc32_update;
 use crate::fat_name::{fat_gen_short_name_ptr, fat_next_short_name_ptr};
 use crate::font::anti_aliasing;
@@ -376,6 +377,27 @@ pub unsafe extern "stdcall" fn rust_set_io_access_rights(
 ) {
     // SAFETY: kernel trampoline passes EAX/EBP + tss._io_map_0.
     unsafe { set_io_access_rights_ptr(port, clear_access, io_map) }
+}
+
+/// `stdcall` rust_fix_coff_relocs(coff, sym, delta) -> void.
+///
+/// Cut Y: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). Matches legacy
+/// `proc fix_coff_relocs stdcall uses ebx esi`.
+///
+/// # Safety
+/// `coff`/`sym` must describe a valid COFF image; every patch address
+/// `reloc.VA + sec.VA + delta` must be a writable dword.
+#[no_mangle]
+#[link_section = ".text.rust_fix_coff_relocs"]
+pub unsafe extern "stdcall" fn rust_fix_coff_relocs(
+    coff: *mut u8,
+    sym: *const u8,
+    delta: u32,
+) {
+    // SAFETY: kernel trampoline / load_library passes live COFF pointers.
+    unsafe { fix_coff_relocs_ptr(coff, sym, delta) }
 }
 
 /// `stdcall` rust_anti_aliasing(fg, bg) -> EAX blended RGB.

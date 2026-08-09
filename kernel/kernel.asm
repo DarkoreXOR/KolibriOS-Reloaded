@@ -237,6 +237,7 @@ high_code:
 ; Cut V: tcp_set_persist smoke ON when USE_RUST_TCP_SET_PERSIST=1.
 ; Cut W: xfs._.get_addr_by_hash smoke ON when USE_RUST_XFS_GET_ADDR_BY_HASH=1.
 ; Cut X: set_io_access_rights smoke ON when USE_RUST_SET_IO_ACCESS_RIGHTS=1.
+; Cut Y: fix_coff_relocs smoke ON when USE_RUST_FIX_COFF_RELOCS=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -270,6 +271,7 @@ high_code:
         call    tcp_set_persist_rust_smoke_test
         ; Cut W: xfs._.get_addr_by_hash smoke (Rust when USE_RUST_XFS_GET_ADDR_BY_HASH=1).
         call    xfs_get_addr_by_hash_rust_smoke_test
+        ; Cut Y smoke deferred until after LTR (larger stack; with Cut X).
         ; Cut X smoke deferred until tss._io_map_0 is mapped/filled (below).
 
 
@@ -442,6 +444,8 @@ high_code:
         mov     ax, tss0
         ltr     ax
 
+        ; Cut Y: fix_coff_relocs smoke — after LTR (stable stack like Cut X).
+        call    fix_coff_relocs_rust_smoke_test
         ; Cut X: set_io_access_rights smoke — requires live tss._io_map_0.
         call    set_io_access_rights_rust_smoke_test
 

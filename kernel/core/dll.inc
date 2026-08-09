@@ -723,6 +723,27 @@ proc fix_coff_symbols stdcall uses ebx esi, sec:dword, symbols:dword,\
 endp
 
 align 4
+; Cut Y: USE_RUST_FIX_COFF_RELOCS=1 routes through Rust
+; rust_fix_coff_relocs (see rust/fix_coff_relocs.inc).
+; Set USE_RUST_FIX_COFF_RELOCS=0 to restore the original FASM body
+; without deleting it. Independent of Cuts AвЂ“X.
+
+USE_RUST_FIX_COFF_RELOCS = 1
+
+if USE_RUST_FIX_COFF_RELOCS
+
+; Compatibility trampoline: same stdcall(coff, sym, delta) as legacy.
+; `uses ebx esi` matches FASM proc register preservation.
+align 4
+proc fix_coff_relocs stdcall uses ebx esi, coff:dword, sym:dword, \
+        delta:dword
+        stdcall rust_fix_coff_relocs, [coff], [sym], [delta]
+        ret
+endp
+
+else
+
+align 4
 proc fix_coff_relocs stdcall uses ebx esi, coff:dword, sym:dword, \
         delta:dword
            locals
@@ -776,6 +797,8 @@ proc fix_coff_relocs stdcall uses ebx esi, coff:dword, sym:dword, \
 .exit:
         ret
 endp
+
+end if
 
 align 4
 proc rebase_coff stdcall uses ebx esi, coff:dword, sym:dword, \
@@ -1426,4 +1449,5 @@ destroy_object:
         pop     esi
         mov     eax, -1
         ret
+
 

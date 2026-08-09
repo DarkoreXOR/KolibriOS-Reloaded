@@ -127,6 +127,8 @@ include "rust/tcp_set_persist.inc"
 include "rust/xfs_get_addr_by_hash.inc"
 ; Cut X: set_io_access_rights — Rust blob + smoke (USE_RUST_SET_IO_ACCESS_RIGHTS)
 include "rust/set_io_access_rights.inc"
+; Cut Y: fix_coff_relocs — Rust blob + smoke (USE_RUST_FIX_COFF_RELOCS)
+include "rust/fix_coff_relocs.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 
