@@ -5,7 +5,7 @@
 # Do not put secrets here.
 
 # ---------------------------------------------------------------------------
-# Rust freestanding components (Cuts A–AA Strategy A+C blobs)
+# Rust freestanding components (Cuts A–AB Strategy A+C blobs)
 # ---------------------------------------------------------------------------
 [rust]
 # Cargo workspace containing `kolibri_utils`.
@@ -35,9 +35,16 @@ python = "python"
 generic_script = "rust_kernel/kolibri_utils/scripts/extract_reloc_free_text.py"
 probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 
-# Blobs required by the hybrid kernel (Cuts A–AA). Newest-first extraction order;
+# Blobs required by the hybrid kernel (Cuts A–AB). Newest-first extraction order;
 # FASM embeds whichever files `kernel/rust/*.inc` reference. Blobs are always
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_utf8to16"
+symbol = "rust_utf8to16"
+expect_ret_imm = 8
+out = "rust_utf8to16.bin"
+
 [[rust.blobs]]
 kind = "generic"
 section = ".text.rust_pid_to_slot"
@@ -252,12 +259,21 @@ out = "rust_crc_32.bin"
 kind = "probe"
 out = "rust_phase_c_probe.bin"
 
-# Production migration registry (Cuts A–AA). Each entry maps one independent
+# Production migration registry (Cuts A–AB). Each entry maps one independent
 # `USE_RUST_*` gate to its blob, embed include, and gate assignment file.
 # `enabled` is applied to `gate_file` before every kernel assemble (independent
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "AB"
+blob = "rust_utf8to16.bin"
+symbol = "rust_utf8to16"
+gate = "USE_RUST_UTF8TO16"
+include = "kernel/rust/utf8to16.inc"
+gate_file = "kernel/fs/parse_fn.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "AA"
 blob = "rust_pid_to_slot.bin"

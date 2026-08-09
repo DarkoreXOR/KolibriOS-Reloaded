@@ -27,4 +27,6 @@ Binary: `tools/kolibri_img/target/release/kolibri_img.exe`
 
 Always keep `kolibrios-*-en_US.img` at the repo root read-only; operate on `tmp_images/` copies.
 
-See [`../../docs/_meta/project-structure.md`](../../docs/_meta/project-structure.md) and [`../../docs/migration/cut-a-final-architecture.md`](../../docs/migration/cut-a-final-architecture.md).
+See [`../../docs/_meta/project-structure.md`](../../docs/_meta/project-structure.md),
+[`../../docs/migration/migration-plan.md`](../../docs/migration/migration-plan.md),
+and [`../../docs/migration/cut-a-final-architecture.md`](../../docs/migration/cut-a-final-architecture.md).

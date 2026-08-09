@@ -23,29 +23,26 @@ Cargo workspace root: [`rust_kernel/Cargo.toml`](../../rust_kernel/Cargo.toml).
 ```text
 rust_kernel/
   Cargo.toml                 # workspace members
-  kolibri_utils/             # Cut A: CRC32 + Unicode helpers (staticlib + rlib)
+  kolibri_utils/             # Cuts A–AB freestanding utils (staticlib + rlib)
     Cargo.toml
     i686-kolibri-none.json   # custom freestanding i686 target
-    build-cut-a.ps1          # host test + freestanding build helper
-    build-phase-c.ps1        # Phase C: build + extract probe blob
-    build-crc.ps1            # Phase D: build + extract CRC (+ probe) blobs
-    build-utf16.ps1          # UTF-16 encode: build + extract utf16 (+ CRC + probe)
-    build-cp866.ps1          # CP866 encode: build + extract cp866 (+ prior blobs)
-    build-utf8.ps1           # UTF-8 decode: build + extract all Cut A blobs + probe
+    build-utf8to16.ps1       # Cut AB: host test + freestanding build + extract all blobs
+    build-pid-to-slot.ps1    # Cut AA helper (prior; still builds full blob set)
+    build-*.ps1              # per-cut helpers (A–AA); prefer newest or kolibri_build
     scripts/extract_phase_c_probe.py
     scripts/extract_reloc_free_text.py
     out/                     # generated *.bin blobs (gitignored)
-    fasm/trampolines.inc.example
-    src/{lib,crc,unicode,ffi}.rs
+    src/                     # crc, unicode, utf8to16, pid_to_slot, …, ffi.rs
   target/                    # local build output (gitignored; may be overridden by CARGO_TARGET_DIR)
 ```
 
+Orchestrator (preferred): [`../../tools/build/`](../../tools/build/) + [`../../tools/build/config.toml`](../../tools/build/config.toml) — extracts every registered blob and syncs `USE_RUST_*` gates.
+
 Phase C FASM glue: [`kernel/rust/phase_c.inc`](../../kernel/rust/phase_c.inc). Docs: [`../migration/phase-c-integration.md`](../migration/phase-c-integration.md).  
-Phase D CRC: [`kernel/rust/crc.inc`](../../kernel/rust/crc.inc) + `USE_RUST_CRC` in [`kernel/crc.inc`](../../kernel/crc.inc). Docs: [`../migration/crc32-migration.md`](../migration/crc32-migration.md).  
-UTF-16 encode: [`kernel/rust/utf16.inc`](../../kernel/rust/utf16.inc) + `USE_RUST_UTF16` in [`kernel/unicode.inc`](../../kernel/unicode.inc). Docs: [`../migration/utf16-migration.md`](../migration/utf16-migration.md).  
-CP866 encode: [`kernel/rust/cp866.inc`](../../kernel/rust/cp866.inc) + `USE_RUST_CP866` in [`kernel/unicode.inc`](../../kernel/unicode.inc). Docs: [`../migration/cp866-migration.md`](../migration/cp866-migration.md).  
-UTF-8 decode: [`kernel/rust/utf8.inc`](../../kernel/rust/utf8.inc) + `USE_RUST_UTF8` in [`kernel/unicode.inc`](../../kernel/unicode.inc). Docs: [`../migration/utf8-migration.md`](../migration/utf8-migration.md).  
-**Cut A baseline:** [`../migration/cut-a-final-architecture.md`](../migration/cut-a-final-architecture.md).
+Cut A Unicode/CRC embeds: `kernel/rust/{crc,utf16,cp866,utf8}.inc` + gates in `kernel/{crc,unicode}.inc`.  
+**Current status (Cuts A–AB):** [`../migration/migration-plan.md`](../migration/migration-plan.md).  
+**Latest cut:** [`../migration/cut-ab-implementation.md`](../migration/cut-ab-implementation.md).  
+**Cut A baseline architecture:** [`../migration/cut-a-final-architecture.md`](../migration/cut-a-final-architecture.md).
 
 Build from the workspace directory:
 
@@ -56,12 +53,9 @@ cargo +nightly build -Z build-std=core,compiler_builtins -Z json-target-spec `
   -p kolibri_utils --release --target kolibri_utils/i686-kolibri-none.json
 ```
 
-Or: `powershell -File rust_kernel/kolibri_utils/build-cut-a.ps1 -All`  
-Preferred one-shot for all Cut A blobs: `powershell -File rust_kernel/kolibri_utils/build-utf8.ps1`  
-Phase C blob only: `powershell -File rust_kernel/kolibri_utils/build-phase-c.ps1`  
-CRC + probe: `powershell -File rust_kernel/kolibri_utils/build-crc.ps1`  
-UTF-16 (+ CRC + probe): `powershell -File rust_kernel/kolibri_utils/build-utf16.ps1`  
-CP866 (+ prior): `powershell -File rust_kernel/kolibri_utils/build-cp866.ps1`
+Preferred one-shot for **all** current blobs:  
+`powershell -File rust_kernel/kolibri_utils/build-utf8to16.ps1`  
+Or: `cargo run --manifest-path tools/build/Cargo.toml -- build`
 
 See [`../architecture/build-system.md`](../architecture/build-system.md) and [`../architecture/boot-sequence.md`](../architecture/boot-sequence.md).
 
@@ -135,7 +129,7 @@ cargo run --release -- replace ..\..\tmp_images\work.img KERNEL.MNT ..\..\kernel
 Commands: `inspect`, `ls [--path DIR]`, `cow`, `extract`, `delete`, `replace`.  
 Supports FAT12/FAT16 BPB detection; directory walk for simple 8.3 paths; refuses `cow` onto the same path; `delete`/`replace` refuse filenames that look like the immutable `kolibrios-*.img` reference.
 
-**LOCAL FACT:** Assembled hybrid `kernel.mnt` is **223080** bytes with all Cut A Rust switches on (~218 KiB; docs may say “~222 KiB”). Larger than the kerpack’d `KERNEL.MNT` on the reference floppy (~107 KiB). Replacing without `kerpack` requires freeing clusters first (e.g. delete `DOCPACK`).
+**LOCAL FACT:** Assembled hybrid `kernel.mnt` with Cuts A–AB production gates on is on the order of **~240 KiB** uncompressed (e.g. ~240664 bytes after Cut AB). Larger than the kerpack’d `KERNEL.MNT` on the reference floppy (~107 KiB). Replacing without `kerpack` requires freeing clusters first (authorized deletes: `DOCPACK`, `DEVELOP/FASM`, `3D/VIEW3DS`, `GAMES/DINO`).
 
 ## Assumptions, limitations, blockers
 
@@ -144,7 +138,7 @@ Supports FAT12/FAT16 BPB detection; directory walk for simple 8.3 paths; refuses
 | Rust workspace lives only under `rust_kernel/` | **Done** |
 | FASM `kernel/` build | **Done** — assembles with vendored `fasm/FASM.EXE` |
 | Boot smoke (QEMU + CoW image) | **Done** — desktop reached with rebuilt uncompressed `KERNEL.MNT` |
-| Hybrid Rust↔FASM link | **Cut A complete** — reloc-free blobs + trampolines; see [`../migration/cut-a-final-architecture.md`](../migration/cut-a-final-architecture.md) |
+| Hybrid Rust↔FASM link | **Cuts A–AB complete** — reloc-free blobs + trampolines; see [`../migration/migration-plan.md`](../migration/migration-plan.md) |
 | Host `kerpack` | **Absent** — optional; without it, free floppy space before replacing `KERNEL.MNT` |
 | QEMU on PATH | May be absent; full path under `C:\Program Files\qemu\` works here |
 | `kolibri_img` replace/delete | **Implemented** — mutate CoW copies only |
@@ -154,7 +148,10 @@ Supports FAT12/FAT16 BPB detection; directory walk for simple 8.3 paths; refuses
 
 - FASM build details: [`../architecture/build-system.md`](../architecture/build-system.md)
 - Boot sequence: [`../architecture/boot-sequence.md`](../architecture/boot-sequence.md)
+- Migration status: [`../migration/migration-plan.md`](../migration/migration-plan.md)
+- Latest cut (AB): [`../migration/cut-ab-implementation.md`](../migration/cut-ab-implementation.md)
 - Cut A Rust utils: [`../migration/cut-a-implementation.md`](../migration/cut-a-implementation.md)
 - Cut A final architecture: [`../migration/cut-a-final-architecture.md`](../migration/cut-a-final-architecture.md)
+- Orchestrator: [`../../tools/build/README.md`](../../tools/build/README.md)
 - FASM baseline restoration: [`../migration/fasm-baseline-restoration.md`](../migration/fasm-baseline-restoration.md)
 - Source inventory: [`source-inventory.md`](source-inventory.md)

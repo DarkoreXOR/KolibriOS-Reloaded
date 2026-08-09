@@ -6,7 +6,8 @@
 
 | Path | Role |
 |------|------|
-| `rust_kernel/` | Cargo workspace for freestanding Rust kernel work (`kolibri_utils`, …) |
+| `rust_kernel/` | Cargo workspace for freestanding Rust kernel utils (`kolibri_utils`, Cuts A–AB) |
+| `tools/build/` | Hybrid build orchestrator (`kolibri_build`): blobs, FASM, image, QEMU |
 | `tools/kolibri_img/` | Host utility: FAT image inspect / CoW / extract / delete / replace |
 | `fasm/` | Vendored FASM assembler |
 | `kolibrios-*.img` | Read-only reference floppy image |

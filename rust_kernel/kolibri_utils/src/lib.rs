@@ -1,10 +1,11 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA utilities: CRC32, Unicode, casefold, string, checksum,
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB utilities: CRC32, Unicode, casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), video geometry, NTFS MCB decode, NTFS USA restore, FAT
 //! 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator +
 //! persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall userspace
-//! region gate, UTF-16→UTF-8 streaming encode, XFS extent unpack + dir hash binary search, window
-//! screen-fit helpers, TSS I/O permission bitmap updates, COFF reloc application, MBR/EBR
-//! partition-table entry validation, and process TID→slot lookup for KolibriOS hybrid migration.
+//! region gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS extent unpack +
+//! dir hash binary search, window screen-fit helpers, TSS I/O permission bitmap updates, COFF
+//! reloc application, MBR/EBR partition-table entry validation, and process TID→slot lookup for
+//! KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -35,6 +36,7 @@ mod time;
 mod unicode;
 mod userspace;
 mod utf16_to_8;
+mod utf8to16;
 mod window;
 mod xfs_extent;
 mod xfs_hash_lookup;
@@ -92,6 +94,7 @@ pub use utf16_to_8::{
     pack_sf_eax, trampoline_eax_from_packed, trampoline_sf_from_packed, unpack_sf_eax, utf16_to_8,
     utf16_to_8_ptr, Utf16To8Result, UTF16_TO_8_PRNG_SEED,
 };
+pub use utf8to16::{utf8to16, utf8to16_ptr, Utf8To16Result, UTF8TO16_PRNG_SEED};
 pub use window::{
     check_window_position, check_window_position_ptr, WindowBox, CHECK_WINDOW_POSITION_PRNG_SEED,
 };

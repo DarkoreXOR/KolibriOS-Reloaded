@@ -133,6 +133,8 @@ include "rust/fix_coff_relocs.inc"
 include "rust/is_partition_table_entry.inc"
 ; Cut AA: pid_to_slot — Rust blob + smoke (USE_RUST_PID_TO_SLOT)
 include "rust/pid_to_slot.inc"
+; Cut AB: utf8to16 — Rust blob + smoke (USE_RUST_UTF8TO16)
+include "rust/utf8to16.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

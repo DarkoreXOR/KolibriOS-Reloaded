@@ -1,9 +1,9 @@
 # KolibriOS kernel (hybrid FASM + Rust)
 
 This repository is a KolibriOS kernel tree with a staged Rust migration.
-**Cuts A–O are complete.** Use this README to build the current hybrid kernel,
-put it on a **fresh disposable floppy image**, and smoke-test it under QEMU
-before further migration work.
+**Cuts A–AB are complete** and production-enabled. Use this README to build the
+current hybrid kernel, put it on a **fresh disposable floppy image**, and
+smoke-test it under QEMU before further migration work.
 
 Do **not** modify the reference image at the repository root. Always work on a
 CoW / disposable copy (`build/test/` via the orchestrator, or `tmp_images/`).
@@ -19,7 +19,7 @@ cargo run --manifest-path tools/build/Cargo.toml -- run
 This orchestrator (`tools/build`, config in `tools/build/config.toml`) performs:
 
 ```text
-Rust blobs (Cuts A–O) → assemble kernel.mnt → fresh build/test/*.img → QEMU
+Rust blobs (Cuts A–AB) → assemble kernel.mnt → fresh build/test/*.img → QEMU
 ```
 
 It always rebuilds current Rust components before packaging, refuses to ship a
@@ -33,7 +33,7 @@ stale `kernel.mnt` if the kernel stage fails, and never mutates the reference
 | `image` | Build → fresh temporary `.img` only |
 | `build` | Rust blobs + `kernel/bin/kernel.mnt` only |
 | `ref` | Boot the **original reference** floppy in QEMU (no rebuild; `-snapshot`) |
-| `doctor` | Check tools and configured paths |
+| `doctor` | Check tools, paths, and migration-gate registry |
 
 Examples:
 
@@ -57,7 +57,7 @@ Useful flags:
 | `--skip-tests` | Skip `cargo test -p kolibri_utils` |
 | `--headless` | Add headless/QMP QEMU args from config |
 
-Settings (QEMU path, image dir, blob list, etc.) live in
+Settings (QEMU path, image dir, blob list, migration gates, etc.) live in
 [`tools/build/config.toml`](tools/build/config.toml).
 
 ## Prerequisites
@@ -92,28 +92,29 @@ debugging a single stage.
 
 All commands start from the **repository root** unless noted.
 
-### 1. Build Rust blobs (Cuts A–O)
+### 1. Build Rust blobs (Cuts A–AB)
 
 Freestanding blobs under `rust_kernel/kolibri_utils/out/` are **generated**
 (not committed). The current kernel embeds them via `kernel/rust/*.inc`.
 
-The Cut O helper rebuilds **all** blobs the hybrid kernel currently needs
-(A through O), runs host tests, and extracts into `out/`:
+The Cut AB helper rebuilds **all** blobs the hybrid kernel currently needs
+(A through AB), runs host tests, and extracts into `out/`:
 
 ```powershell
-powershell -File rust_kernel/kolibri_utils/build-test-app-header.ps1
+powershell -File rust_kernel/kolibri_utils/build-utf8to16.ps1
 ```
 
 Expected outputs include (among others):
 
 ```text
-rust_kernel/kolibri_utils/out/rust_test_app_header.bin
-rust_kernel/kolibri_utils/out/rust_anti_aliasing.bin
-… (earlier Cut A–N blobs)
+rust_kernel/kolibri_utils/out/rust_utf8to16.bin
+rust_kernel/kolibri_utils/out/rust_pid_to_slot.bin
+… (earlier Cut A–AA blobs)
 rust_kernel/kolibri_utils/out/rust_phase_c_probe.bin
 ```
 
-This step does **not** assemble `kernel.mnt`.
+This step does **not** assemble `kernel.mnt`. The orchestrator’s `build` /
+`run` commands perform the same extract list from `tools/build/config.toml`.
 
 ### 2. Assemble `kernel.mnt`
 
@@ -124,6 +125,13 @@ New-Item -ItemType Directory -Force -Path kernel\bin | Out-Null
 Set-Content kernel\lang.inc "lang fix en_US`n"
 .\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
 Remove-Item kernel\lang.inc
+```
+
+Or let the orchestrator sync every `USE_RUST_*` gate from `config.toml` and
+assemble:
+
+```powershell
+cargo run --manifest-path tools/build/Cargo.toml -- build --skip-tests
 ```
 
 **Artifact:**
@@ -169,7 +177,7 @@ Still in `tools/kolibri_img` (or use the same relative paths from that directory
 | Step | Why |
 |------|-----|
 | `cow` | Creates disposable `tmp_images/dev-test.img` (refuses same-path overwrite) |
-| `delete …` | Authorized free-space paths (see `.cursor/rules/image-handling.mdc`); `DOCPACK` alone is no longer enough for Cut S–sized kernels |
+| `delete …` | Authorized free-space paths (see `.cursor/rules/image-handling.mdc`); `DOCPACK` alone is no longer enough for current hybrid kernels |
 | `replace … KERNEL.MNT` | Puts **your** `kernel/bin/kernel.mnt` onto that image |
 
 **Resulting image:**
@@ -179,7 +187,8 @@ tmp_images/dev-test.img
 ```
 
 Choose any other name under `tmp_images/` if you prefer; keep the reference
-`kolibrios-*.img` untouched.
+`kolibrios-*.img` untouched. Production cut checkpoints (e.g.
+`tmp_images/cut-ab-final.img`) are also disposable CoW descendants.
 
 Optional sanity check that the image sees your kernel:
 
@@ -223,6 +232,8 @@ Cut audits sometimes use headless mode plus QMP, for example:
   -display none `
   -no-reboot `
   -no-shutdown `
+  -netdev user,id=n0 `
+  -device e1000,netdev=n0 `
   -qmp tcp:127.0.0.1:4550,server,nowait
 ```
 
@@ -237,10 +248,9 @@ After boot, check at least:
 3. Several normal **`/sys` applications** launch and run without an obvious crash.
 4. No hang during ordinary desktop use for a short soak.
 
-Launching several `/sys` apps is especially useful right now: Cuts through **O**
-exercise the live `fs_execute → test_app_header` path used when starting
-MENUET-format binaries. This is a **smoke** check, not proof that every `/sys`
-application is compatible.
+Launching several `/sys` apps exercises live paths covered by completed cuts
+(e.g. MENUET header validation, path UTF-8→UTF-16 decode, process TID lookup).
+This is a **smoke** check, not proof that every `/sys` application is compatible.
 
 When finished, quit QEMU. Disposable images under `tmp_images/` may be deleted.
 
@@ -248,16 +258,17 @@ When finished, quit QEMU. Disposable images under `tmp_images/` may be deleted.
 
 | Symptom | Likely cause / fix |
 |---------|--------------------|
-| FASM error opening `rust_kernel/kolibri_utils/out/*.bin` | Blobs missing — run `build-test-app-header.ps1` first (`out/` is generated, not committed) |
+| FASM error opening `rust_kernel/kolibri_utils/out/*.bin` | Blobs missing — run `build-utf8to16.ps1` or `kolibri_build build` first (`out/` is generated, not committed) |
 | `cargo +nightly build` / `build-std` fails | Install nightly and `rust-src` (`rustup component add rust-src --toolchain nightly`) |
 | `python: command not found` during blob extract | Install Python 3 and ensure `python` is on `PATH` |
-| `lang.inc` / assemble errors | Run the assemble sequence from the **repo root**; create ephemeral `kernel/lang.inc` as shown, then remove it |
+| `lang.inc` / assemble errors | Run the assemble sequence from the **repo root**; create ephemeral `kernel/lang.inc` as shown, then remove it — or use `kolibri_build build` |
 | `kolibri_img` missing | `cd tools\kolibri_img` then `cargo build --release` |
 | `replace` fails (not enough space / write refused) | Always `cow` to `tmp_images/`/`build/test/`, then delete authorized free-space paths (`DOCPACK`, `DEVELOP/FASM`, `3D/VIEW3DS`, `GAMES/DINO` — see `.cursor/rules/image-handling.mdc`), then `replace`. Never mutate `kolibrios-*.img`. The orchestrator does this via `tools/build/config.toml` `delete_before_replace`. |
 | QEMU not found | Use the full path to `qemu-system-i386.exe`, or add QEMU to `PATH` |
 | Boots but looks like an old build | Image was not recreated or still has old `KERNEL.MNT` — rebuild `kernel.mnt`, then new `cow` + `delete` + `replace` |
 | Wrong directory | FASM and `powershell -File …` expect repo-root paths; `kolibri_img` commands in the docs use paths relative to `tools/kolibri_img` |
 | Stale artifacts | Re-run the blob build script, reassemble `kernel/bin/kernel.mnt`, and create a **new** `tmp_images/*.img` rather than reusing an old CoW |
+| `doctor` gate mismatch | `config.toml` `[[rust.migrations]].enabled` must match live `USE_RUST_*=0\|1` in each `gate_file` |
 
 ## Development verification workflow
 
@@ -273,12 +284,14 @@ Or, stage by stage: `build` → `image` → open the printed `build/test/*.img` 
 via `run` / `qemu`.
 
 After this manual QEMU verification succeeds, development continues with the
-**next migration step** (do not start Cut P from this README alone — follow
-`docs/migration/`).
+**next migration step** (do not start Cut AC from this README alone — follow
+[`docs/migration/migration-plan.md`](docs/migration/migration-plan.md)).
 
 ## Further reading
 
 * Layout and image rules: [`docs/_meta/project-structure.md`](docs/_meta/project-structure.md)
 * Build system notes: [`docs/architecture/build-system.md`](docs/architecture/build-system.md)
 * Migration status: [`docs/migration/migration-plan.md`](docs/migration/migration-plan.md)
+* Latest cut: [`docs/migration/cut-ab-implementation.md`](docs/migration/cut-ab-implementation.md)
+* Orchestrator: [`tools/build/README.md`](tools/build/README.md)
 * Image tool: [`tools/kolibri_img/README.md`](tools/kolibri_img/README.md)

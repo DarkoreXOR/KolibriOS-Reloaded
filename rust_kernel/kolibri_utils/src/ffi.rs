@@ -26,6 +26,7 @@ use crate::time::{fs_calculate_time_ptr, fs_time2bdfe_ptr};
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
 use crate::userspace::is_region_userspace;
 use crate::utf16_to_8::utf16_to_8_ptr;
+use crate::utf8to16::utf8to16_ptr;
 use crate::window::check_window_position_ptr;
 use crate::xfs_extent::xfs_extent_unpack_ptr;
 use crate::xfs_hash_lookup::{pack_eax_zf, xfs_get_addr_by_hash_ptr};
@@ -442,6 +443,26 @@ pub unsafe extern "stdcall" fn rust_pid_to_slot(
 ) -> u32 {
     // SAFETY: kernel trampoline passes live SLOT_BASE + thread_count.
     unsafe { pid_to_slot_ptr(pid, slot_base, thread_count) }
+}
+
+/// `stdcall` rust_utf8to16(esi_inout, initial_eax) -> EAX.
+///
+/// Cut AB: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). Advances `*esi_inout` by the FASM ESI
+/// delta; returns the final EAX bit pattern (`AX` = UTF-16 code unit).
+/// `initial_eax` mirrors live EAX on entry (high bits affect 3-byte path).
+///
+/// # Safety
+/// `esi_inout` must be valid; `*esi_inout` readable for the consumed sequence.
+#[no_mangle]
+#[link_section = ".text.rust_utf8to16"]
+pub unsafe extern "stdcall" fn rust_utf8to16(
+    esi_inout: *mut *const u8,
+    initial_eax: u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes &ESI stack slot + live EAX.
+    unsafe { utf8to16_ptr(esi_inout, initial_eax) }
 }
 
 /// `stdcall` rust_anti_aliasing(fg, bg) -> EAX blended RGB.

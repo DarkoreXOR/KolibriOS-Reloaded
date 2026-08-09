@@ -240,6 +240,7 @@ high_code:
 ; Cut Y: fix_coff_relocs smoke ON when USE_RUST_FIX_COFF_RELOCS=1.
 ; Cut Z: is_partition_table_entry smoke ON when USE_RUST_IS_PARTITION_TABLE_ENTRY=1.
 ; Cut AA: pid_to_slot smoke ON when USE_RUST_PID_TO_SLOT=1 (after SLOT_BASE setup).
+; Cut AB: utf8to16 smoke ON when USE_RUST_UTF8TO16=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -261,6 +262,7 @@ high_code:
         call    test_app_header_rust_smoke_test
         call    is_region_userspace_rust_smoke_test
         call    utf16_to_8_rust_smoke_test
+        call    utf8to16_rust_smoke_test
         ; Cut R: xfs._.extent_unpack smoke (Rust trampoline when USE_RUST_XFS_EXTENT_UNPACK=1).
         call    xfs_extent_unpack_rust_smoke_test
         ; Cut S: window._.check_window_position smoke (Rust when USE_RUST_CHECK_WINDOW_POSITION=1).

@@ -5,7 +5,8 @@
 
 ## Deterministic migration order
 
-Order follows Stage 2 cut history (Phase C → Cuts A–O). Each unit is one
+Order follows Stage 2 cut history (Phase C → Cuts A–O; later cuts P–AB are
+outside this bisect log — see [`migration-plan.md`](migration-plan.md)). Each unit is one
 `USE_RUST_*` trampoline switch (or Phase C smoke call). Smoke tests that go
 through the public FASM symbol are part of the same unit when that switch is on.
 

@@ -426,4 +426,4 @@ Post-bisect EDX ABI fix                 PASS (get_service / network)
 Documentation                           PASS
 ```
 
-Stage 2 Cuts A–O are production-validated; do not start Cut P. DF/`cld` for `strncmp` remains an open separate question.
+Stage 2 continued through Cut AB after this write-up — see [`migration-plan.md`](migration-plan.md). DF/`cld` for `strncmp` remains an open separate question.

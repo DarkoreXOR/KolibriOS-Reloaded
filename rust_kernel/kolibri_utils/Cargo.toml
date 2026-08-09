@@ -2,7 +2,7 @@
 name = "kolibri_utils"
 version = "0.1.0"
 edition = "2021"
-description = "Cut A: freestanding CRC32 and Unicode helpers matching KolibriOS FASM ABI"
+description = "Freestanding KolibriOS kernel utils (Cuts A–AB): CRC, Unicode, FS, net, GUI, process helpers"
 license = "GPL-2.0-or-later"
 publish = false
 

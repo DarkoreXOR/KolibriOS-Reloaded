@@ -383,6 +383,44 @@ UTF16to8:
 
 end if
 
+; Cut AB: USE_RUST_UTF8TO16=1 routes through Rust rust_utf8to16
+; (see rust/utf8to16.inc). Set USE_RUST_UTF8TO16=0 to restore the
+; original FASM body without deleting it. Independent of Cuts A–AA.
+; Production ON (Cut AB complete).
+
+USE_RUST_UTF8TO16 = 1
+
+if USE_RUST_UTF8TO16
+
+; Compatibility trampoline: ESI/EAX register ABI → Rust stdcall → EAX/ESI.
+; Callers keep `call utf8to16` with ESI→UTF-8; AX out; ESI advanced.
+; Proven requirements: EBX/ECX/EDX/EDI/EBP untouched; DF unchanged;
+; incoming EAX passed through (high bits affect 3-byte path).
+align 4
+utf8to16:
+; in: esi -> UTF-8 char (increasing)
+; out: ax = UTF-16 char
+        push    ebx
+        push    ecx
+        push    edx
+        push    edi
+        push    ebp
+
+        push    esi                     ; [esp] = esi_inout storage
+        mov     ecx, esp
+        stdcall rust_utf8to16, ecx, eax
+        pop     esi
+
+        pop     ebp
+        pop     edi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
+; --- original FASM implementation (rollback) ---
 utf8to16:
 ; in: esi -> UTF-8 char (increasing)
 ; out: ax = UTF-16 char
@@ -417,6 +455,8 @@ utf8to16:
 .got:
         xor     ah, ah
         ret
+
+end if
 
 strlen:
 ; in: esi -> source

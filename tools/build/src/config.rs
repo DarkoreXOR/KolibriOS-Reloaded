@@ -29,7 +29,7 @@ pub struct RustConfig {
     pub clear_rustflags: bool,
     pub extract: ExtractConfig,
     pub blobs: Vec<BlobSpec>,
-    /// Completed Cuts A–Z: blob ↔ `USE_RUST_*` gate ↔ kernel include mapping.
+    /// Completed Cuts A–AB: blob ↔ `USE_RUST_*` gate ↔ kernel include mapping.
     #[serde(default)]
     pub migrations: Vec<MigrationSpec>,
 }
@@ -37,7 +37,7 @@ pub struct RustConfig {
 /// One production migration gate and its build artifacts.
 #[derive(Debug, Clone, Deserialize)]
 pub struct MigrationSpec {
-    /// Cut id (`A`–`Z`, or `A-crc` / `A-utf8` / … for Cut A sub-blobs).
+    /// Cut id (`A`–`Z`, then `AA`, `AB`, …; or `A-crc` / `A-utf8` / … for Cut A sub-blobs).
     pub cut: String,
     /// Output blob filename under `rust.out_dir` (must match a generic blob).
     pub blob: String,
@@ -157,7 +157,7 @@ impl Config {
         }
 
         if self.rust.migrations.is_empty() {
-            bail!("config [rust.migrations] is empty — register Cuts A–Z gates");
+            bail!("config [rust.migrations] is empty — register Cuts A–AB gates");
         }
 
         let mut mig_blobs = HashSet::new();

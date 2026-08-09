@@ -18,7 +18,19 @@ Set-Content kernel\lang.inc "lang fix en_US`n"
 Remove-Item kernel\lang.inc
 ```
 
-Produces **223080** bytes uncompressed hybrid `kernel.mnt` with all Cut A Rust switches on (historically cited as ~222 KiB). Distribution floppy kernels are typically **kerpack**’d (~107 KiB on the reference image); host `kerpack` is not in this tree — see FASM baseline doc.
+Produces **~240 KiB** uncompressed hybrid `kernel.mnt` with Cuts A–AB production
+gates on (historical Cut A-only size was **223080** bytes / ~218 KiB). Distribution
+floppy kernels are typically **kerpack**’d (~107 KiB on the reference image); host
+`kerpack` is not in this tree — see FASM baseline doc.
+
+Preferred orchestrated build (blobs + gate sync + FASM):
+
+```text
+cargo run --manifest-path tools/build/Cargo.toml -- build
+```
+
+Blob/gate registry: [`../../tools/build/config.toml`](../../tools/build/config.toml).
+Migration status: [`../migration/migration-plan.md`](../migration/migration-plan.md).
 
 ## Primary build (Makefile)
 

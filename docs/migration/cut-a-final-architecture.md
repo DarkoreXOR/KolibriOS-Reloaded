@@ -2,7 +2,8 @@
 
 **Stage:** Stage 2 / Cut A — **complete** (audited 2026-08-09)  
 **Scope:** `crc_32`, `unicode.utf16.encode`, `unicode.cp866.encode`, `unicode.utf8.decode` only.  
-**Next migration:** **not started.**
+**Later Stage 2:** Cuts B–AB also complete — see [`migration-plan.md`](migration-plan.md).  
+**Next migration:** follow [`migration-plan.md`](migration-plan.md) (do not start from this Cut A baseline doc alone).
 
 Evidence policy: [`../_meta/evidence-policy.md`](../_meta/evidence-policy.md).
 
@@ -25,7 +26,8 @@ Evidence policy: [`../_meta/evidence-policy.md`](../_meta/evidence-policy.md).
 | Cut E (`checksum_1`) | ✓ — see [`cut-e-implementation.md`](cut-e-implementation.md) |
 | Cut F (`checksum_2`) | ✓ — see [`cut-f-implementation.md`](cut-f-implementation.md) |
 | Cut G (`fsCalculateTime`) | ✓ — see [`cut-g-implementation.md`](cut-g-implementation.md) |
-| Next cut | **not started** |
+| Cuts H–AB | ✓ — see [`migration-plan.md`](migration-plan.md) (Stage 2 through Cut AB) |
+| Next cut | follow [`migration-plan.md`](migration-plan.md) (**stop before Cut AC** until planned) |
 | Phase D (remove FASM bodies) | **not started** — originals kept under `USE_RUST_*=0` |
 
 ---
@@ -207,10 +209,10 @@ Determinism (same nightly + same source, clean rebuild): **byte-identical** blob
 
 ## Remaining issues
 
-**Required for next migration (not Cut A):**
+**Required for later migrations (historical Cut A note):**
 
 * Decide link strategy per future function: reloc-free extract vs `rust-lld` at fixed VMA vs rewrite.
-* Plan Cut B (or next dependency cut) separately after reviewing Cut A lessons.
+* Plan each new cut separately after reviewing prior lessons — current status: [`migration-plan.md`](migration-plan.md).
 
 **Optional future improvement:**
 

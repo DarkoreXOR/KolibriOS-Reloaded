@@ -30,7 +30,7 @@ Every important claim must carry one of:
 
 ## Scope of this tree
 
-**LOCAL FACT:** Workspace root contains `kernel/` (FASM), `rust_kernel/` (Rust Cut A), `tools/`, `docs/`, vendored `fasm/`, and the immutable reference floppy image.
+**LOCAL FACT:** Workspace root contains `kernel/` (FASM), `rust_kernel/` (Rust Cuts A–AB freestanding utils), `tools/`, `docs/`, vendored `fasm/`, and the immutable reference floppy image.
 
 **LOCAL FACT:** [`kernel/init.inc`](../../kernel/init.inc) was restored 2026-08-09 from upstream matching the reference image (`944d74f01`). Historical corruption notes: [`upstream-init-diff.md`](upstream-init-diff.md), [`../migration/fasm-baseline-restoration.md`](../migration/fasm-baseline-restoration.md).
 
