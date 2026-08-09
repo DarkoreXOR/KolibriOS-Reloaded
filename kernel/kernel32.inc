@@ -92,6 +92,8 @@ include "rust/strncmp.inc"
 include "rust/checksum1.inc"
 ; Cut F: checksum_2 — Rust blob + smoke (see docs/migration/cut-f-plan.md)
 include "rust/checksum2.inc"
+; Cut G: fsCalculateTime — Rust blob + smoke (see docs/migration/cut-g-plan.md)
+include "rust/fs_calculate_time.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

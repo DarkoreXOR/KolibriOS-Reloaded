@@ -10,6 +10,7 @@ use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
 use crate::crc::crc32_update;
 use crate::string::strncmp;
+use crate::time::fs_calculate_time_ptr;
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
 use crate::PHASE_C_PROBE_MAGIC;
 
@@ -170,4 +171,19 @@ pub unsafe extern "stdcall" fn rust_checksum_1(
 #[link_section = ".text.rust_checksum_2"]
 pub extern "stdcall" fn rust_checksum_2(sum: u32) -> u32 {
     checksum_2(sum)
+}
+
+/// `stdcall` rust_fs_calculate_time(block) -> EAX = seconds since 2001-01-01.
+///
+/// Cut G: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 4 bytes (`ret 4`). FASM trampoline passes ESI.
+///
+/// # Safety
+/// `block` must point to a readable 8-byte BDFE datetime (kernel `ESI`).
+#[no_mangle]
+#[link_section = ".text.rust_fs_calculate_time"]
+pub unsafe extern "stdcall" fn rust_fs_calculate_time(block: *const u8) -> u32 {
+    // SAFETY: kernel trampoline passes ESI → valid BDFE block.
+    unsafe { fs_calculate_time_ptr(block) }
 }

@@ -246,6 +246,8 @@ high_code:
         call    checksum1_rust_smoke_test
 ; Cut F smoke: FASM checksum_2 trampoline → Rust (hangs on mismatch).
         call    checksum2_rust_smoke_test
+; Cut G smoke: FASM fsCalculateTime trampoline → Rust (hangs on mismatch).
+        call    fs_calculate_time_rust_smoke_test
 
 
         mov     ecx, pg_data.mutex

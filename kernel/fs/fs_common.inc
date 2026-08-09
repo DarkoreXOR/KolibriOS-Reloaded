@@ -39,6 +39,26 @@ fsGetTime:
         push    eax
         mov     esi, esp
         add     esp, 8
+; Cut G: USE_RUST_FS_CALCULATE_TIME=1 routes through Rust rust_fs_calculate_time
+; (see rust/fs_calculate_time.inc). Set USE_RUST_FS_CALCULATE_TIME=0 to restore
+; the original FASM body without deleting it. Independent of Cuts A–F.
+; Note: fsGetTime falls through into this label after CMOS read + stack BDFE.
+
+USE_RUST_FS_CALCULATE_TIME = 1
+
+if USE_RUST_FS_CALCULATE_TIME
+
+; Compatibility trampoline: register ABI → Rust stdcall → EAX.
+; Callers keep `call fsCalculateTime` with ESI → BDFE block / EAX out.
+; ESI must be preserved (ext/ntfs advance ESI by 8 between calls).
+; EBX/ECX/EDX may be clobbered (matches original FASM body).
+align 4
+fsCalculateTime:
+        stdcall rust_fs_calculate_time, esi
+        ret
+
+else
+
 fsCalculateTime:
 ; in: esi -> data block
 ; out: eax = seconds since 01.01.2001
@@ -85,6 +105,8 @@ fsCalculateTime:
         mov     bl, [esi]
         add     eax, ebx
         ret
+
+end if
 
 iglobal
 months  db  31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31
