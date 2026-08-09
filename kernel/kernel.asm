@@ -243,6 +243,7 @@ high_code:
 ; Cut AB: utf8to16 smoke ON when USE_RUST_UTF8TO16=1.
 ; Cut AC: ipv4_route smoke ON (synthetic tables; gate USE_RUST_IPV4_ROUTE).
 ; Cut AD: is_protective_mbr smoke ON when USE_RUST_IS_PROTECTIVE_MBR=1.
+; Cut AE: ntfs_datetime_to_bdfe smoke ON when USE_RUST_NTFS_DATETIME_TO_BDFE=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -271,6 +272,8 @@ high_code:
         call    check_window_position_rust_smoke_test
         ; Cut T: fsTime2bdfe smoke (Rust when USE_RUST_FS_TIME2BDFE=1).
         call    fs_time2bdfe_rust_smoke_test
+        ; Cut AE: ntfs_datetime_to_bdfe smoke (Rust when USE_RUST_NTFS_DATETIME_TO_BDFE=1).
+        call    ntfs_datetime_to_bdfe_rust_smoke_test
         ; Cut U: fat_gen_short_name smoke (Rust when USE_RUST_FAT_GEN_SHORT_NAME=1).
         call    fat_gen_short_name_rust_smoke_test
         ; Cut V: tcp_set_persist smoke (Rust when USE_RUST_TCP_SET_PERSIST=1).

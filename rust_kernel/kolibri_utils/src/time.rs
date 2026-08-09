@@ -1,10 +1,21 @@
 //! Cut G: `fsCalculateTime` — BDFE datetime → seconds since 2001-01-01.
 //! Cut T: `fsTime2bdfe` — seconds since 2001-01-01 → BDFE datetime (EDI+=8).
+//! Cut AE: `ntfs_datetime_to_bdfe` — NTFS FILETIME (1601×10⁷) → BDFE (EDI+=8).
 //!
-//! Matches `kernel/fs/fs_common.inc` FASM leaf semantics for the production
-//! domain (year &lt; 3025 so `BH` pollution after `shr ebx,2` does not apply).
-//! Month tables are stack-materialized so the freestanding FFI section stays
-//! reloc-free (no `.rodata` absolute loads).
+//! Matches `kernel/fs/fs_common.inc` / `ntfs.inc` FASM leaf semantics for the
+//! production domain (year &lt; 3025 so `BH` pollution after `shr ebx,2` does
+//! not apply). Month tables are stack-materialized so the freestanding FFI
+//! section stays reloc-free (no `.rodata` absolute loads).
+
+/// NTFS FILETIME bias: 2001-01-01 00:00:00 as 100ns ticks since 1601-01-01.
+/// FASM `sub eax, 3365781504` / `sbb edx, 29389701`.
+pub const NTFS_FILETIME_BIAS_LO: u32 = 3365781504;
+pub const NTFS_FILETIME_BIAS_HI: u32 = 29389701;
+/// 10_000_000 = 100ns units per second (FASM `mov ecx, 10000000`).
+pub const NTFS_FILETIME_PER_SEC: u32 = 10_000_000;
+
+/// PRNG seed for Cut AE differential corpus (`'CUTE'`).
+pub const NTFS_DATETIME_TO_BDFE_PRNG_SEED: u32 = 0x4355_5445;
 
 /// BDFE-style datetime block layout (same offsets as FASM / `fsTime2bdfe`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -244,6 +255,65 @@ pub unsafe fn fs_time2bdfe_ptr(secs: u32, out: *mut u8) {
     unsafe {
         core::ptr::copy_nonoverlapping(b.as_ptr(), out, 8);
     }
+}
+
+/// Convert NTFS FILETIME dwords to Kolibri seconds since 2001-01-01.
+///
+/// Mirrors `ntfs_datetime_to_bdfe` bias/`sbb`/clamp/`div` before the
+/// `jmp fsTime2bdfe`. Pre-2001 inputs wrap (unsigned underflow). When the
+/// post-bias high dword is `>= 10_000_000`, FASM zeros EDX before dividing
+/// (quotient then uses the low dword only).
+#[inline(always)]
+pub fn ntfs_filetime_to_secs(filetime_lo: u32, filetime_hi: u32) -> u32 {
+    let (eax, borrow) = filetime_lo.overflowing_sub(NTFS_FILETIME_BIAS_LO);
+    let mut edx = filetime_hi
+        .wrapping_sub(NTFS_FILETIME_BIAS_HI)
+        .wrapping_sub(if borrow { 1 } else { 0 });
+    // cmp edx, ecx / jc @f / xor edx, edx
+    if edx >= NTFS_FILETIME_PER_SEC {
+        edx = 0;
+    }
+    // div ecx — EDX:EAX / 10_000_000 → EAX quotient (secs); EDX remainder discarded
+    let dividend = ((edx as u64) << 32) | (eax as u64);
+    (dividend / (NTFS_FILETIME_PER_SEC as u64)) as u32
+}
+
+/// Convert NTFS FILETIME to BDFE datetime (FASM `ntfs_datetime_to_bdfe`).
+///
+/// Composes [`ntfs_filetime_to_secs`] + [`fs_time2bdfe`].
+#[inline(always)]
+pub fn ntfs_datetime_to_bdfe(filetime_lo: u32, filetime_hi: u32) -> BdfeTime {
+    fs_time2bdfe(ntfs_filetime_to_secs(filetime_lo, filetime_hi))
+}
+
+/// Pointer form used by the FFI trampoline — writes 8 BDFE bytes at `out`.
+///
+/// # Safety
+/// `out` must point to a writable 8-byte BDFE datetime block.
+#[inline(always)]
+pub unsafe fn ntfs_datetime_to_bdfe_ptr(filetime_lo: u32, filetime_hi: u32, out: *mut u8) {
+    let t = ntfs_datetime_to_bdfe(filetime_lo, filetime_hi);
+    let b = t.to_bytes();
+    // SAFETY: caller guarantees 8 writable bytes (kernel trampoline / tests).
+    unsafe {
+        core::ptr::copy_nonoverlapping(b.as_ptr(), out, 8);
+    }
+}
+
+/// Pack FILETIME lo/hi into a u64 (host tests / corpus helpers).
+#[inline(always)]
+pub fn pack_filetime(lo: u32, hi: u32) -> u64 {
+    ((hi as u64) << 32) | (lo as u64)
+}
+
+/// FILETIME (100ns since 1601) for a given seconds-since-2001 value, using
+/// the inverse of the FASM bias add (`ntfsCalculateTime` path).
+#[inline(always)]
+pub fn filetime_from_secs_2001(secs: u32) -> (u32, u32) {
+    let product = (secs as u64).wrapping_mul(NTFS_FILETIME_PER_SEC as u64);
+    let bias = pack_filetime(NTFS_FILETIME_BIAS_LO, NTFS_FILETIME_BIAS_HI);
+    let ft = product.wrapping_add(bias);
+    (ft as u32, (ft >> 32) as u32)
 }
 
 /// FASM-faithful host oracle — separately coded control-flow mirror of
@@ -654,6 +724,178 @@ mod tests {
             assert_eq!(fs_time2bdfe(secs), bt, "roundtrip prng {bt:?}");
         }
     }
+
+    // ----- Cut AE: ntfs_datetime_to_bdfe -----
+
+    #[test]
+    fn ntfs_dt_epoch_2001() {
+        let (lo, hi) = filetime_from_secs_2001(0);
+        assert_eq!(lo, NTFS_FILETIME_BIAS_LO);
+        assert_eq!(hi, NTFS_FILETIME_BIAS_HI);
+        assert_eq!(ntfs_filetime_to_secs(lo, hi), 0);
+        assert_eq!(ntfs_datetime_to_bdfe(lo, hi), t(2001, 1, 1, 0, 0, 0));
+    }
+
+    #[test]
+    fn ntfs_dt_one_second() {
+        let (lo, hi) = filetime_from_secs_2001(1);
+        assert_eq!(ntfs_datetime_to_bdfe(lo, hi), t(2001, 1, 1, 0, 0, 1));
+    }
+
+    #[test]
+    fn ntfs_dt_leap_2004_02_29() {
+        let (lo, hi) = filetime_from_secs_2001(99705600);
+        assert_eq!(ntfs_datetime_to_bdfe(lo, hi), t(2004, 2, 29, 0, 0, 0));
+    }
+
+    #[test]
+    fn ntfs_dt_2010_07_04_noon() {
+        let (lo, hi) = filetime_from_secs_2001(299937600);
+        assert_eq!(ntfs_datetime_to_bdfe(lo, hi), t(2010, 7, 4, 12, 0, 0));
+    }
+
+    #[test]
+    fn ntfs_dt_end_of_day() {
+        let (lo, hi) = filetime_from_secs_2001(86399);
+        assert_eq!(ntfs_datetime_to_bdfe(lo, hi), t(2001, 1, 1, 23, 59, 59));
+    }
+
+    #[test]
+    fn ntfs_dt_pre_2001_wraps() {
+        // FILETIME 0 (1601) underflows bias; must match FASM wrap semantics.
+        let got = ntfs_datetime_to_bdfe(0, 0);
+        let expect = fasm_oracle_ntfs_datetime_to_bdfe(0, 0);
+        assert_eq!(got, expect, "FILETIME 0 wrap");
+    }
+
+    #[test]
+    fn ntfs_dt_clamp_high_edx() {
+        // After bias, force EDX >= 10_000_000 so FASM zeros EDX before div.
+        // Construct: post-bias edx = NTFS_FILETIME_PER_SEC, eax = 50_000_000
+        // → secs = 50_000_000 / 10_000_000 = 5.
+        // filetime_lo = BIAS_LO + 50_000_000 (no borrow)
+        // filetime_hi = BIAS_HI + 10_000_000
+        let lo = NTFS_FILETIME_BIAS_LO.wrapping_add(50_000_000);
+        let hi = NTFS_FILETIME_BIAS_HI.wrapping_add(NTFS_FILETIME_PER_SEC);
+        assert_eq!(ntfs_filetime_to_secs(lo, hi), 5);
+        assert_eq!(
+            ntfs_datetime_to_bdfe(lo, hi),
+            fasm_oracle_ntfs_datetime_to_bdfe(lo, hi)
+        );
+    }
+
+    #[test]
+    fn ntfs_dt_just_below_clamp() {
+        // EDX = 9_999_999 after bias → no clamp; large dividend.
+        let lo = NTFS_FILETIME_BIAS_LO; // eax = 0 after sub
+        let hi = NTFS_FILETIME_BIAS_HI.wrapping_add(NTFS_FILETIME_PER_SEC - 1);
+        let secs = ntfs_filetime_to_secs(lo, hi);
+        let expect_secs = fasm_oracle_ntfs_filetime_to_secs(lo, hi);
+        assert_eq!(secs, expect_secs);
+        // Quotient must fit u32 for div not to #DE; this case:
+        // dividend = 9999999 << 32 = 42949668254744576 / 1e7 = 4294966825 — fits.
+        assert_eq!(
+            ntfs_datetime_to_bdfe(lo, hi),
+            fasm_oracle_ntfs_datetime_to_bdfe(lo, hi)
+        );
+    }
+
+    #[test]
+    fn ntfs_dt_ptr_writes_layout() {
+        let (lo, hi) = filetime_from_secs_2001(86399);
+        let mut buf = [0xAAu8; 8];
+        unsafe { ntfs_datetime_to_bdfe_ptr(lo, hi, buf.as_mut_ptr()) };
+        assert_eq!(buf[0], 59);
+        assert_eq!(buf[1], 59);
+        assert_eq!(buf[2], 23);
+        assert_eq!(buf[3], 0); // hour word pad
+        assert_eq!(buf[4], 1);
+        assert_eq!(buf[5], 1);
+        assert_eq!(u16::from_le_bytes([buf[6], buf[7]]), 2001);
+    }
+
+    #[test]
+    fn ntfs_dt_oracle_named_and_boundary() {
+        let vectors: &[(u32, u32)] = &[
+            (NTFS_FILETIME_BIAS_LO, NTFS_FILETIME_BIAS_HI),
+            filetime_from_secs_2001(1),
+            filetime_from_secs_2001(86400),
+            filetime_from_secs_2001(99705600),
+            filetime_from_secs_2001(299937600),
+            filetime_from_secs_2001(86399),
+            (0, 0),
+            (1, 0),
+            (u32::MAX, u32::MAX),
+            (NTFS_FILETIME_BIAS_LO.wrapping_sub(1), NTFS_FILETIME_BIAS_HI), // just before 2001
+            (
+                NTFS_FILETIME_BIAS_LO.wrapping_add(50_000_000),
+                NTFS_FILETIME_BIAS_HI.wrapping_add(NTFS_FILETIME_PER_SEC),
+            ),
+            (
+                NTFS_FILETIME_BIAS_LO,
+                NTFS_FILETIME_BIAS_HI.wrapping_add(NTFS_FILETIME_PER_SEC - 1),
+            ),
+            (
+                NTFS_FILETIME_BIAS_LO,
+                NTFS_FILETIME_BIAS_HI.wrapping_add(NTFS_FILETIME_PER_SEC),
+            ),
+        ];
+        for &(lo, hi) in vectors {
+            // Skip cases where unsigned div quotient would exceed u32 (#DE on HW).
+            if fasm_oracle_ntfs_div_overflows(lo, hi) {
+                continue;
+            }
+            assert_eq!(
+                ntfs_datetime_to_bdfe(lo, hi),
+                fasm_oracle_ntfs_datetime_to_bdfe(lo, hi),
+                "named lo={lo:#x} hi={hi:#x}"
+            );
+        }
+    }
+
+    #[test]
+    fn ntfs_dt_prng_oracle_50k() {
+        const CASES: usize = 50_000;
+        let mut state = NTFS_DATETIME_TO_BDFE_PRNG_SEED;
+        let mut next = || -> u32 {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            state
+        };
+        let mut checked = 0usize;
+        for _ in 0..CASES {
+            let lo = next();
+            let hi = next();
+            if fasm_oracle_ntfs_div_overflows(lo, hi) {
+                continue;
+            }
+            assert_eq!(
+                ntfs_datetime_to_bdfe(lo, hi),
+                fasm_oracle_ntfs_datetime_to_bdfe(lo, hi),
+                "prng lo={lo:#x} hi={hi:#x}"
+            );
+            checked += 1;
+        }
+        assert!(checked > 40_000, "too many #DE-skipped vectors: {checked}");
+    }
+
+    #[test]
+    fn ntfs_dt_roundtrip_via_secs() {
+        // Production-domain BDFE → CalculateTime → FILETIME → datetime_to_bdfe
+        let samples = [
+            t(2001, 1, 1, 0, 0, 0),
+            t(2001, 1, 1, 23, 59, 59),
+            t(2004, 2, 29, 0, 0, 0),
+            t(2010, 7, 4, 12, 0, 0),
+            t(2020, 12, 31, 23, 59, 59),
+        ];
+        for bt in samples {
+            let secs = fs_calculate_time(bt);
+            let (lo, hi) = filetime_from_secs_2001(secs);
+            assert_eq!(ntfs_datetime_to_bdfe(lo, hi), bt, "roundtrip {bt:?}");
+        }
+    }
 }
 
 /// FASM-faithful host oracle for `fsTime2bdfe` — separate control-flow mirror
@@ -732,4 +974,42 @@ pub fn fasm_oracle_fs_time2bdfe(secs: u32) -> BdfeTime {
             year: ebx as u16,
         };
     }
+}
+
+/// FASM-faithful FILETIME→secs oracle (`ntfs.inc` bias/clamp/div only).
+#[cfg(test)]
+pub fn fasm_oracle_ntfs_filetime_to_secs(filetime_lo: u32, filetime_hi: u32) -> u32 {
+    let (eax, borrow) = filetime_lo.overflowing_sub(3365781504u32);
+    let mut edx = filetime_hi
+        .wrapping_sub(29389701u32)
+        .wrapping_sub(if borrow { 1 } else { 0 });
+    let ecx = 10_000_000u32;
+    if edx >= ecx {
+        edx = 0;
+    }
+    let dividend = ((edx as u64) << 32) | (eax as u64);
+    (dividend / (ecx as u64)) as u32
+}
+
+/// True when FASM `div ecx` would raise #DE (quotient does not fit in EAX).
+#[cfg(test)]
+pub fn fasm_oracle_ntfs_div_overflows(filetime_lo: u32, filetime_hi: u32) -> bool {
+    let (eax, borrow) = filetime_lo.overflowing_sub(3365781504u32);
+    let mut edx = filetime_hi
+        .wrapping_sub(29389701u32)
+        .wrapping_sub(if borrow { 1 } else { 0 });
+    let ecx = 10_000_000u32;
+    if edx >= ecx {
+        edx = 0;
+    }
+    let dividend = ((edx as u64) << 32) | (eax as u64);
+    (dividend / (ecx as u64)) > u32::MAX as u64
+}
+
+/// FASM-faithful host oracle for `ntfs_datetime_to_bdfe` — bias/clamp/div
+/// mirrored from `ntfs.inc`, then calendar via [`fasm_oracle_fs_time2bdfe`]
+/// (not a call through [`ntfs_datetime_to_bdfe`]).
+#[cfg(test)]
+pub fn fasm_oracle_ntfs_datetime_to_bdfe(filetime_lo: u32, filetime_hi: u32) -> BdfeTime {
+    fasm_oracle_fs_time2bdfe(fasm_oracle_ntfs_filetime_to_secs(filetime_lo, filetime_hi))
 }

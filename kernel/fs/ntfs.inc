@@ -1812,6 +1812,30 @@ ntfs_direntry_to_bdfe:
         stosd
         ret
 
+; Cut AE: USE_RUST_NTFS_DATETIME_TO_BDFE=1 routes through Rust
+; rust_ntfs_datetime_to_bdfe (see rust/ntfs_datetime_to_bdfe.inc).
+; Set USE_RUST_NTFS_DATETIME_TO_BDFE=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–AD.
+; Critical ABI: EDI advances by exactly 8; EDX:EAX FILETIME in;
+; composes fsTime2bdfe calendar (hour as word). Production default ON after Cut AE gates.
+
+USE_RUST_NTFS_DATETIME_TO_BDFE = 1
+
+if USE_RUST_NTFS_DATETIME_TO_BDFE
+
+; Compatibility trampoline: register ABI → Rust stdcall → EDI+=8.
+; Callers keep `call ntfs_datetime_to_bdfe` with EDX:EAX FILETIME / EDI→BDFE.
+; EDI must advance by 8 (dirent timestamp chains).
+; EBX/ECX/EDX/EAX may be clobbered (matches original FASM + fsTime2bdfe).
+; ESI/EBP preserved (untouched by FASM; stdcall callee-saved).
+align 4
+ntfs_datetime_to_bdfe:
+        stdcall rust_ntfs_datetime_to_bdfe, eax, edx, edi
+        add     edi, 8
+        ret
+
+else
+
 ntfs_datetime_to_bdfe:
 ; in: edx:eax = seconds since 01.01.1601 x10000000
 ; edi -> data block
@@ -1825,6 +1849,8 @@ ntfs_datetime_to_bdfe:
 @@:
         div     ecx
         jmp     fsTime2bdfe
+
+end if
 
 ;----------------------------------------------------------------
 ntfs_GetFileInfo:

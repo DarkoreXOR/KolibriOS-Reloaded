@@ -5,7 +5,7 @@
 # Do not put secrets here.
 
 # ---------------------------------------------------------------------------
-# Rust freestanding components (Cuts A–AD Strategy A+C blobs)
+# Rust freestanding components (Cuts A–AE Strategy A+C blobs)
 # ---------------------------------------------------------------------------
 [rust]
 # Cargo workspace containing `kolibri_utils`.
@@ -35,9 +35,16 @@ python = "python"
 generic_script = "rust_kernel/kolibri_utils/scripts/extract_reloc_free_text.py"
 probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 
-# Blobs required by the hybrid kernel (Cuts A–AD). Newest-first extraction order;
+# Blobs required by the hybrid kernel (Cuts A–AE). Newest-first extraction order;
 # FASM embeds whichever files `kernel/rust/*.inc` reference. Blobs are always
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_ntfs_datetime_to_bdfe"
+symbol = "rust_ntfs_datetime_to_bdfe"
+expect_ret_imm = 12
+out = "rust_ntfs_datetime_to_bdfe.bin"
+
 [[rust.blobs]]
 kind = "generic"
 section = ".text.rust_is_protective_mbr"
@@ -273,12 +280,21 @@ out = "rust_crc_32.bin"
 kind = "probe"
 out = "rust_phase_c_probe.bin"
 
-# Production migration registry (Cuts A–AD). Each entry maps one independent
+# Production migration registry (Cuts A–AE). Each entry maps one independent
 # `USE_RUST_*` gate to its blob, embed include, and gate assignment file.
 # `enabled` is applied to `gate_file` before every kernel assemble (independent
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "AE"
+blob = "rust_ntfs_datetime_to_bdfe.bin"
+symbol = "rust_ntfs_datetime_to_bdfe"
+gate = "USE_RUST_NTFS_DATETIME_TO_BDFE"
+include = "kernel/rust/ntfs_datetime_to_bdfe.inc"
+gate_file = "kernel/fs/ntfs.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "AD"
 blob = "rust_is_protective_mbr.bin"

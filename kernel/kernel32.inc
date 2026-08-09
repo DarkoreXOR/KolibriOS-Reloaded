@@ -119,6 +119,8 @@ include "rust/xfs_extent_unpack.inc"
 include "rust/check_window_position.inc"
 ; Cut T: fsTime2bdfe — Rust blob + smoke (USE_RUST_FS_TIME2BDFE)
 include "rust/fs_time2bdfe.inc"
+; Cut AE: ntfs_datetime_to_bdfe — Rust blob + smoke (USE_RUST_NTFS_DATETIME_TO_BDFE)
+include "rust/ntfs_datetime_to_bdfe.inc"
 ; Cut U: fat_gen_short_name — Rust blob + smoke (USE_RUST_FAT_GEN_SHORT_NAME)
 include "rust/fat_gen_short_name.inc"
 ; Cut V: tcp_set_persist — Rust blob + smoke (USE_RUST_TCP_SET_PERSIST)
