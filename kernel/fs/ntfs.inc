@@ -1113,6 +1113,44 @@ ntfs_restore_usa:
         stc
         ret
 
+; Cut I: USE_RUST_NTFS_DECODE_MCB_ENTRY=1 routes through Rust
+; rust_ntfs_decode_mcb_entry (see rust/ntfs_decode_mcb_entry.inc).
+; Set USE_RUST_NTFS_DECODE_MCB_ENTRY=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–H.
+
+USE_RUST_NTFS_DECODE_MCB_ENTRY = 1
+
+if USE_RUST_NTFS_DECODE_MCB_ENTRY
+
+; Compatibility trampoline: ESI + stack buffer → Rust stdcall → EAX → CF.
+; Callers keep `call ntfs_decode_mcb_entry` with ESI in/out, 16 B at [esp+4],
+; CF=1 more / CF=0 end. Preserve EAX/ECX/EDX/EDI (FASM preserved EAX/ECX/EDI;
+; callers also rely on EDX surviving).
+align 4
+ntfs_decode_mcb_entry:
+        push    eax
+        push    ecx
+        push    edx
+        push    edi
+        push    esi
+        mov     eax, esp            ; &ESI inout slot
+        lea     edx, [esp+24]       ; caller 16-byte buffer (5 pushes + ret)
+        stdcall rust_ntfs_decode_mcb_entry, eax, edx
+        pop     esi
+        pop     edi
+        pop     edx
+        pop     ecx
+        test    eax, eax
+        pop     eax
+        jz      .rust_end
+        stc
+        ret
+.rust_end:
+        clc
+        ret
+
+else
+
 ntfs_decode_mcb_entry:
 ;   in:
 ; esi -> MCB entry
@@ -1159,6 +1197,8 @@ ntfs_decode_mcb_entry:
 .end:
         pop     edi ecx eax
         ret
+
+end if
 
 ntfs_find_lfn:
 ; in: esi -> path string in UTF-8

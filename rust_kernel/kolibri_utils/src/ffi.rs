@@ -10,6 +10,7 @@ use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
 use crate::crc::crc32_update;
 use crate::geometry::block_clip_ptr;
+use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
 use crate::string::strncmp;
 use crate::time::fs_calculate_time_ptr;
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
@@ -203,4 +204,25 @@ pub unsafe extern "stdcall" fn rust_fs_calculate_time(block: *const u8) -> u32 {
 pub unsafe extern "stdcall" fn rust_block_clip(clip: *const u8, rect: *mut u8) -> u32 {
     // SAFETY: kernel trampoline passes ESI/EDI → valid RECT blocks.
     unsafe { block_clip_ptr(clip, rect) }
+}
+
+/// `stdcall` rust_ntfs_decode_mcb_entry(esi_inout, buffer) -> EAX = 0 end / 1 more.
+///
+/// Cut I: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). FASM trampoline maps EAX → `clc`/`stc`
+/// (inverted polarity vs Cut H: 1 = CF set = more).
+/// Advances `*esi_inout`; writes up to 16 bytes at `buffer` (partial on reject).
+///
+/// # Safety
+/// `esi_inout` must point to a readable/writable pointer into a packed MCB
+/// stream; `buffer` must be a writable 16-byte stack slot.
+#[no_mangle]
+#[link_section = ".text.rust_ntfs_decode_mcb_entry"]
+pub unsafe extern "stdcall" fn rust_ntfs_decode_mcb_entry(
+    esi_inout: *mut *mut u8,
+    buffer: *mut u8,
+) -> u32 {
+    // SAFETY: kernel trampoline passes &ESI slot and caller stack buffer.
+    unsafe { ntfs_decode_mcb_entry_ptr(esi_inout, buffer) }
 }
