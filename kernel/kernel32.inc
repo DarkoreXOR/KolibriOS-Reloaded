@@ -94,6 +94,7 @@ include "rust/checksum1.inc"
 include "rust/checksum2.inc"
 ; Cut G: fsCalculateTime — Rust blob + smoke (see docs/migration/cut-g-plan.md)
 include "rust/fs_calculate_time.inc"
+include "rust/block_clip.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

@@ -30,6 +30,31 @@ ends
 
 
 
+; Cut H: USE_RUST_BLOCK_CLIP=1 routes through Rust rust_block_clip
+; (see rust/block_clip.inc). Set USE_RUST_BLOCK_CLIP=0 to restore
+; the original FASM body without deleting it. Independent of Cuts A–G.
+
+USE_RUST_BLOCK_CLIP = 1
+
+if USE_RUST_BLOCK_CLIP
+
+; Compatibility trampoline: register ABI → Rust stdcall → EAX → CF.
+; Callers keep `call block_clip` with ESI=clip / EDI=rect / CF out.
+; ESI/EDI pointers and EBX must be preserved (FASM body preserved EBX;
+; blit_clip relies on ESI/EDI still pointing at the RECTs).
+align 4
+block_clip:
+        stdcall rust_block_clip, esi, edi
+        test    eax, eax
+        jnz     .rust_fail
+        clc
+        ret
+.rust_fail:
+        stc
+        ret
+
+else
+
 align 4
 block_clip:
 ;esi= clip RECT ptr
@@ -88,6 +113,8 @@ block_clip:
         pop     ebx
         stc
         ret
+
+end if
 
 
 align 4

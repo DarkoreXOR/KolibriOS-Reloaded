@@ -9,6 +9,7 @@
 use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
 use crate::crc::crc32_update;
+use crate::geometry::block_clip_ptr;
 use crate::string::strncmp;
 use crate::time::fs_calculate_time_ptr;
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
@@ -186,4 +187,20 @@ pub extern "stdcall" fn rust_checksum_2(sum: u32) -> u32 {
 pub unsafe extern "stdcall" fn rust_fs_calculate_time(block: *const u8) -> u32 {
     // SAFETY: kernel trampoline passes ESI → valid BDFE block.
     unsafe { fs_calculate_time_ptr(block) }
+}
+
+/// `stdcall` rust_block_clip(clip, rect) -> EAX = 0 draw / 1 reject.
+///
+/// Cut H: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). FASM trampoline maps EAX → `clc`/`stc`.
+/// Mutates the 16-byte RECT at `rect` in place (partial mutate on Y-fail).
+///
+/// # Safety
+/// `clip` must be a readable 16-byte RECT; `rect` must be a writable 16-byte RECT.
+#[no_mangle]
+#[link_section = ".text.rust_block_clip"]
+pub unsafe extern "stdcall" fn rust_block_clip(clip: *const u8, rect: *mut u8) -> u32 {
+    // SAFETY: kernel trampoline passes ESI/EDI → valid RECT blocks.
+    unsafe { block_clip_ptr(clip, rect) }
 }
