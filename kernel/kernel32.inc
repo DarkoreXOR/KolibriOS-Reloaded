@@ -99,6 +99,8 @@ include "rust/block_clip.inc"
 include "rust/ntfs_decode_mcb_entry.inc"
 ; Cut J: ntfs_restore_usa — Rust blob + smoke (see docs/migration/cut-j-plan.md)
 include "rust/ntfs_restore_usa.inc"
+; Cut K: fat_next_short_name — Rust blob + smoke (see docs/migration/cut-k-plan.md)
+include "rust/fat_next_short_name.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

@@ -392,6 +392,34 @@ fat_name_is_legal:
         pop     esi
         ret
 
+; Cut K: USE_RUST_FAT_NEXT_SHORT_NAME=1 routes through Rust
+; rust_fat_next_short_name (see rust/fat_next_short_name.inc).
+; Set USE_RUST_FAT_NEXT_SHORT_NAME=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–J.
+
+USE_RUST_FAT_NEXT_SHORT_NAME = 1
+
+if USE_RUST_FAT_NEXT_SHORT_NAME
+
+; Compatibility trampoline: EDI → Rust stdcall → EAX → CF; cld.
+; Callers keep `call fat_next_short_name` with EDI→8+3 name,
+; CF=0 OK / CF=1 exhausted. pushad/popad preserves all GPRs.
+align 4
+fat_next_short_name:
+        pushad
+        stdcall rust_fat_next_short_name, edi
+        test    eax, eax
+        popad
+        cld
+        jz      .rust_fat_ok
+        stc
+        ret
+.rust_fat_ok:
+        clc
+        ret
+
+else
+
 fat_next_short_name:
 ; in: edi->8+3 name
 ; out: name corrected, CF=1 -> error
@@ -483,6 +511,8 @@ fat_next_short_name:
         popad
         stc
         ret
+
+end if
 
 fat_gen_short_name:
 ;   in:

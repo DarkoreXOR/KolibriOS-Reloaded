@@ -253,6 +253,8 @@ high_code:
         call    ntfs_decode_mcb_rust_smoke_test
 ; Cut J smoke: FASM ntfs_restore_usa trampoline → Rust (hangs on mismatch).
         call    ntfs_restore_usa_rust_smoke_test
+; Cut K smoke: FASM fat_next_short_name trampoline → Rust (hangs on mismatch).
+        call    fat_next_short_name_rust_smoke_test
 
 
         mov     ecx, pg_data.mutex

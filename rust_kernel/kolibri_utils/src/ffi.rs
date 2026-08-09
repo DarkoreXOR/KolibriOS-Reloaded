@@ -9,6 +9,7 @@
 use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
 use crate::crc::crc32_update;
+use crate::fat_name::fat_next_short_name_ptr;
 use crate::geometry::block_clip_ptr;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
 use crate::ntfs_usa::ntfs_restore_usa_ptr;
@@ -243,4 +244,21 @@ pub unsafe extern "stdcall" fn rust_ntfs_decode_mcb_entry(
 pub unsafe extern "stdcall" fn rust_ntfs_restore_usa(record: *mut u8, size: u32) -> u32 {
     // SAFETY: kernel trampoline passes EBX/EAX → valid record + size.
     unsafe { ntfs_restore_usa_ptr(record, size) }
+}
+
+/// `stdcall` rust_fat_next_short_name(name) -> EAX = 0 OK / 1 fail.
+///
+/// Cut K: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 4 bytes (`ret 4`). FASM trampoline maps EAX → `clc`/`stc`
+/// (Cut H polarity: 0 = CF clear = OK, 1 = CF set = exhausted) and `cld`.
+/// Mutates basename bytes 0..7 of the 11-byte 8.3 name at `name`.
+///
+/// # Safety
+/// `name` must be a readable/writable 11-byte FAT 8.3 name buffer.
+#[no_mangle]
+#[link_section = ".text.rust_fat_next_short_name"]
+pub unsafe extern "stdcall" fn rust_fat_next_short_name(name: *mut u8) -> u32 {
+    // SAFETY: kernel trampoline passes EDI → valid 11-byte name.
+    unsafe { fat_next_short_name_ptr(name) }
 }
