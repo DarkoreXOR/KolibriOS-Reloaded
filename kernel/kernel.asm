@@ -259,6 +259,8 @@ high_code:
         call    mouse_acceleration_rust_smoke_test
 ; Cut M smoke: FASM tcp_xmit_timer trampoline → Rust (hangs on mismatch).
         call    tcp_xmit_timer_rust_smoke_test
+; Cut N smoke: FASM antiAliasing trampoline → Rust (hangs on mismatch).
+        call    anti_aliasing_rust_smoke_test
 
 
         mov     ecx, pg_data.mutex

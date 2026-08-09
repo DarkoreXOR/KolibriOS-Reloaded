@@ -1,13 +1,14 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M utilities: CRC32, Unicode, casefold, string, checksum,
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N utilities: CRC32, Unicode, casefold, string, checksum,
 //! filesystem calendar, video geometry, NTFS MCB decode, NTFS USA restore, FAT
-//! 8.3 short-name collision, HID mouse acceleration, and TCP RTT estimator helpers
-//! for KolibriOS hybrid migration.
+//! 8.3 short-name collision, HID mouse acceleration, TCP RTT estimator, and GUI
+//! font anti-aliasing helpers for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
 //! See `docs/migration/cut-a-final-architecture.md`, `cut-b-plan.md`, `cut-c-plan.md`,
 //! `cut-d-plan.md`, `cut-e-plan.md`, `cut-f-plan.md`, `cut-g-plan.md`, `cut-h-plan.md`,
-//! `cut-i-plan.md`, `cut-j-plan.md`, `cut-k-plan.md`, `cut-l-plan.md`, `cut-m-plan.md`.
+//! `cut-i-plan.md`, `cut-j-plan.md`, `cut-k-plan.md`, `cut-l-plan.md`, `cut-m-plan.md`,
+//! `cut-n-plan.md`.
 
 #![cfg_attr(target_os = "none", no_std)]
 
@@ -15,6 +16,7 @@ mod casefold;
 mod checksum;
 mod crc;
 mod fat_name;
+mod font;
 mod geometry;
 mod mouse;
 mod ntfs_mcb;
@@ -31,6 +33,7 @@ pub use casefold::{cp866_to_upper, utf16_to_upper};
 pub use checksum::{checksum_1, checksum_2};
 pub use crc::crc32_update;
 pub use fat_name::{fat_next_short_name, FatNextShortNameResult};
+pub use font::{anti_aliasing, ANTI_ALIASING_PRNG_SEED};
 pub use geometry::{block_clip, BlockClipResult, Rect};
 pub use mouse::mouse_acceleration;
 pub use ntfs_mcb::{ntfs_decode_mcb_entry, McbDecodeResult};

@@ -105,6 +105,8 @@ include "rust/fat_next_short_name.inc"
 include "rust/mouse_acceleration.inc"
 ; Cut M: tcp_xmit_timer — Rust blob + smoke (see docs/migration/cut-m-plan.md)
 include "rust/tcp_xmit_timer.inc"
+; Cut N: antiAliasing — Rust blob + smoke (see docs/migration/cut-n-plan.md)
+include "rust/anti_aliasing.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

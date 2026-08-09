@@ -10,6 +10,7 @@ use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
 use crate::crc::crc32_update;
 use crate::fat_name::fat_next_short_name_ptr;
+use crate::font::anti_aliasing;
 use crate::geometry::block_clip_ptr;
 use crate::mouse::mouse_acceleration;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
@@ -295,4 +296,16 @@ pub extern "stdcall" fn rust_mouse_acceleration(
 pub unsafe extern "stdcall" fn rust_tcp_xmit_timer(rtt: u32, socket: *mut u8) {
     // SAFETY: kernel trampoline passes EAX/EBX → valid rtt + socket.
     unsafe { tcp_xmit_timer_ptr(rtt, socket) }
+}
+
+/// `stdcall` rust_anti_aliasing(fg, bg) -> EAX blended RGB.
+///
+/// Cut N: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). FASM trampoline restores `EBP = EBX`
+/// (original FASM used `BP` as a 16-bit counter then `mov ebp, ebx`).
+#[no_mangle]
+#[link_section = ".text.rust_anti_aliasing"]
+pub extern "stdcall" fn rust_anti_aliasing(fg: u32, bg: u32) -> u32 {
+    anti_aliasing(fg, bg)
 }

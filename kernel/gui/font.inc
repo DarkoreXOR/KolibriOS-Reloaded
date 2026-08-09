@@ -843,6 +843,27 @@ drawChar:
         jnz     drawChar
         ret
 
+; Cut N: USE_RUST_ANTI_ALIASING=1 routes through Rust
+; rust_anti_aliasing (see rust/anti_aliasing.inc).
+; Set USE_RUST_ANTI_ALIASING=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–M.
+
+USE_RUST_ANTI_ALIASING = 1
+
+if USE_RUST_ANTI_ALIASING
+
+; Compatibility trampoline: register ABI → Rust stdcall → EAX.
+; Callers keep `call antiAliasing` with EAX=fg, EBX=bg.
+; EBP restoration (`mov ebp, ebx`) stays in FASM so the Rust blob is pure.
+; ECX/EDX may be clobbered (matches original FASM body).
+align 4
+antiAliasing:
+        stdcall rust_anti_aliasing, eax, ebx
+        mov     ebp, ebx
+        ret
+
+else
+
 antiAliasing:
         mov     bp, 3
 @@:
@@ -860,6 +881,8 @@ antiAliasing:
         ror     ebx, 8
         mov     ebp, ebx
         ret
+
+end if
 
 iglobal
 fontSmoothing   db  2   ; = 0, 1 or 2
