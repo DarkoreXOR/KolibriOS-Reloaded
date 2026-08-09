@@ -119,6 +119,8 @@ include "rust/xfs_extent_unpack.inc"
 include "rust/check_window_position.inc"
 ; Cut T: fsTime2bdfe — Rust blob + smoke (USE_RUST_FS_TIME2BDFE)
 include "rust/fs_time2bdfe.inc"
+; Cut U: fat_gen_short_name — Rust blob + smoke (USE_RUST_FAT_GEN_SHORT_NAME)
+include "rust/fat_gen_short_name.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

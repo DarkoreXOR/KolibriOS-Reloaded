@@ -10,7 +10,7 @@ use crate::app_header::test_app_header_ptr;
 use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
 use crate::crc::crc32_update;
-use crate::fat_name::fat_next_short_name_ptr;
+use crate::fat_name::{fat_gen_short_name_ptr, fat_next_short_name_ptr};
 use crate::font::anti_aliasing;
 use crate::geometry::block_clip_ptr;
 use crate::mouse::mouse_acceleration;
@@ -285,6 +285,24 @@ pub unsafe extern "stdcall" fn rust_ntfs_restore_usa(record: *mut u8, size: u32)
 pub unsafe extern "stdcall" fn rust_fat_next_short_name(name: *mut u8) -> u32 {
     // SAFETY: kernel trampoline passes EDI → valid 11-byte name.
     unsafe { fat_next_short_name_ptr(name) }
+}
+
+/// `stdcall` rust_fat_gen_short_name(src, out) — UTF-8 LFN → 8.3 at `out`.
+///
+/// Cut U: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). FASM trampoline wraps with `pushad`/`popad`.
+/// Writes 12 initial spaces then the 11-byte 8.3 form; may mutate via
+/// inlined `fat_next_short_name` when lossy.
+///
+/// # Safety
+/// `src` must be a readable NUL-terminated UTF-8 name.
+/// `out` must be writable for 12 bytes (caller `sub esp,12`).
+#[no_mangle]
+#[link_section = ".text.rust_fat_gen_short_name"]
+pub unsafe extern "stdcall" fn rust_fat_gen_short_name(src: *const u8, out: *mut u8) {
+    // SAFETY: kernel trampoline passes ESI/EDI → valid name + out buffer.
+    unsafe { fat_gen_short_name_ptr(src, out) }
 }
 
 /// `stdcall` rust_mouse_acceleration(delta, delay, speed_factor) -> EAX.

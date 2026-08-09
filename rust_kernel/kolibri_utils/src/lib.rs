@@ -1,6 +1,6 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T utilities: CRC32, Unicode, casefold, string, checksum,
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U utilities: CRC32, Unicode, casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), video geometry, NTFS MCB decode, NTFS USA restore, FAT
-//! 8.3 short-name collision, HID mouse acceleration, TCP RTT estimator, GUI
+//! 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator, GUI
 //! font anti-aliasing, MENUET app-header validation, syscall userspace
 //! region gate, UTF-16→UTF-8 streaming encode, XFS extent unpack, and window
 //! screen-fit helpers for KolibriOS hybrid migration.
@@ -43,7 +43,10 @@ pub use app_header::{
 pub use casefold::{cp866_to_upper, utf16_to_upper};
 pub use checksum::{checksum_1, checksum_2};
 pub use crc::crc32_update;
-pub use fat_name::{fat_next_short_name, FatNextShortNameResult};
+pub use fat_name::{
+    fat_gen_short_name, fat_next_short_name, FatNextShortNameResult, FAT_GEN_FILL_LEN,
+    FAT_GEN_SHORT_NAME_PRNG_SEED, FAT_NAME_LEN,
+};
 pub use font::{anti_aliasing, ANTI_ALIASING_PRNG_SEED};
 pub use geometry::{block_clip, BlockClipResult, Rect};
 pub use mouse::mouse_acceleration;

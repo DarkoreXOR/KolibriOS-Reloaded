@@ -233,6 +233,7 @@ high_code:
 ; Cut Q: UTF16to8 smoke ON (Rust trampoline; USE_RUST_UTF16_TO_8=1).
 ; Cut S: check_window_position smoke ON when USE_RUST_CHECK_WINDOW_POSITION=1.
 ; Cut T: fsTime2bdfe smoke ON when USE_RUST_FS_TIME2BDFE=1.
+; Cut U: fat_gen_short_name smoke ON when USE_RUST_FAT_GEN_SHORT_NAME=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -260,6 +261,8 @@ high_code:
         call    check_window_position_rust_smoke_test
         ; Cut T: fsTime2bdfe smoke (Rust when USE_RUST_FS_TIME2BDFE=1).
         call    fs_time2bdfe_rust_smoke_test
+        ; Cut U: fat_gen_short_name smoke (Rust when USE_RUST_FAT_GEN_SHORT_NAME=1).
+        call    fat_gen_short_name_rust_smoke_test
 
 
         mov     ecx, pg_data.mutex

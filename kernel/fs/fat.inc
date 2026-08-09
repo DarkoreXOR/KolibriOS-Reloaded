@@ -514,6 +514,25 @@ fat_next_short_name:
 
 end if
 
+; Cut U: USE_RUST_FAT_GEN_SHORT_NAME=1 routes through Rust
+; rust_fat_gen_short_name (see rust/fat_gen_short_name.inc).
+; Set USE_RUST_FAT_GEN_SHORT_NAME=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–T.
+
+USE_RUST_FAT_GEN_SHORT_NAME = 1
+
+if USE_RUST_FAT_GEN_SHORT_NAME
+
+; Compatibility trampoline: ESI/EDI → Rust stdcall; pushad/popad preserve GPRs.
+align 4
+fat_gen_short_name:
+        pushad
+        stdcall rust_fat_gen_short_name, esi, edi
+        popad
+        ret
+
+else
+
 fat_gen_short_name:
 ;   in:
 ; esi -> UTF-8 name
@@ -597,6 +616,8 @@ fat_gen_short_name:
 @@:
         popad
         ret
+
+end if
 
 set_FAT:
 ; in: eax = cluster, edx = value to save
