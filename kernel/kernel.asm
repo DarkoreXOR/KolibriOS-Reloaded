@@ -238,6 +238,7 @@ high_code:
 ; Cut W: xfs._.get_addr_by_hash smoke ON when USE_RUST_XFS_GET_ADDR_BY_HASH=1.
 ; Cut X: set_io_access_rights smoke ON when USE_RUST_SET_IO_ACCESS_RIGHTS=1.
 ; Cut Y: fix_coff_relocs smoke ON when USE_RUST_FIX_COFF_RELOCS=1.
+; Cut Z: is_partition_table_entry smoke ON when USE_RUST_IS_PARTITION_TABLE_ENTRY=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -448,6 +449,8 @@ high_code:
         call    fix_coff_relocs_rust_smoke_test
         ; Cut X: set_io_access_rights smoke — requires live tss._io_map_0.
         call    set_io_access_rights_rust_smoke_test
+        ; Cut Z: is_partition_table_entry smoke — synthetic entry + DISK stub.
+        call    is_partition_table_entry_rust_smoke_test
 
         mov     eax, sys_proc
         list_init eax

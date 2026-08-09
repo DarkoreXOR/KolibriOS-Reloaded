@@ -2,6 +2,7 @@
 
 use anyhow::{bail, Context, Result};
 use serde::Deserialize;
+use std::collections::{HashMap, HashSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -28,6 +29,28 @@ pub struct RustConfig {
     pub clear_rustflags: bool,
     pub extract: ExtractConfig,
     pub blobs: Vec<BlobSpec>,
+    /// Completed Cuts A–Z: blob ↔ `USE_RUST_*` gate ↔ kernel include mapping.
+    #[serde(default)]
+    pub migrations: Vec<MigrationSpec>,
+}
+
+/// One production migration gate and its build artifacts.
+#[derive(Debug, Clone, Deserialize)]
+pub struct MigrationSpec {
+    /// Cut id (`A`–`Z`, or `A-crc` / `A-utf8` / … for Cut A sub-blobs).
+    pub cut: String,
+    /// Output blob filename under `rust.out_dir` (must match a generic blob).
+    pub blob: String,
+    /// Freestanding Rust / FASM embed symbol.
+    pub symbol: String,
+    /// Independent FASM compile-time gate (`USE_RUST_*`).
+    pub gate: String,
+    /// Kernel embed/smoke include (`kernel/rust/*.inc`).
+    pub include: String,
+    /// Source file that assigns `gate = 0|1`.
+    pub gate_file: String,
+    /// Production default: `true` → gate should be `1` in `gate_file`.
+    pub enabled: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -108,6 +131,8 @@ impl Config {
         if self.rust.blobs.is_empty() {
             bail!("config [rust.blobs] is empty — hybrid kernel needs reloc-free blobs");
         }
+        let mut blob_outs = HashSet::new();
+        let mut generic_outs = HashSet::new();
         for (i, b) in self.rust.blobs.iter().enumerate() {
             match b.kind {
                 BlobKind::Generic => {
@@ -119,13 +144,90 @@ impl Config {
                             "rust.blobs[{i}] kind=generic requires section, symbol, expect_ret_imm"
                         );
                     }
+                    generic_outs.insert(b.out.clone());
                 }
                 BlobKind::Probe => {}
             }
             if b.out.is_empty() {
                 bail!("rust.blobs[{i}] missing out");
             }
+            if !blob_outs.insert(b.out.clone()) {
+                bail!("rust.blobs[{i}] duplicate out `{}`", b.out);
+            }
         }
+
+        if self.rust.migrations.is_empty() {
+            bail!("config [rust.migrations] is empty — register Cuts A–Z gates");
+        }
+
+        let mut mig_blobs = HashSet::new();
+        let mut mig_gates = HashSet::new();
+        let mut mig_cuts = HashSet::new();
+        for (i, m) in self.rust.migrations.iter().enumerate() {
+            if m.cut.is_empty()
+                || m.blob.is_empty()
+                || m.symbol.is_empty()
+                || m.gate.is_empty()
+                || m.include.is_empty()
+                || m.gate_file.is_empty()
+            {
+                bail!(
+                    "rust.migrations[{i}] requires cut, blob, symbol, gate, include, gate_file"
+                );
+            }
+            if !m.gate.starts_with("USE_RUST_") {
+                bail!(
+                    "rust.migrations[{i}] gate `{}` must start with USE_RUST_",
+                    m.gate
+                );
+            }
+            if !mig_cuts.insert(m.cut.clone()) {
+                bail!("rust.migrations[{i}] duplicate cut `{}`", m.cut);
+            }
+            if !mig_gates.insert(m.gate.clone()) {
+                bail!("rust.migrations[{i}] duplicate gate `{}`", m.gate);
+            }
+            if !mig_blobs.insert(m.blob.clone()) {
+                bail!("rust.migrations[{i}] duplicate blob `{}`", m.blob);
+            }
+            if !generic_outs.contains(&m.blob) {
+                bail!(
+                    "rust.migrations[{i}] blob `{}` has no matching generic [[rust.blobs]] entry (orphaned gate)",
+                    m.blob
+                );
+            }
+        }
+
+        for out in &generic_outs {
+            if !mig_blobs.contains(out) {
+                bail!(
+                    "generic blob `{out}` has no [[rust.migrations]] entry (orphaned blob)"
+                );
+            }
+        }
+
+        // Symbol consistency: migration.symbol must match blob.symbol for same out.
+        let blob_symbol: HashMap<&str, &str> = self
+            .rust
+            .blobs
+            .iter()
+            .filter_map(|b| match b.kind {
+                BlobKind::Generic => Some((b.out.as_str(), b.symbol.as_ref()?.as_str())),
+                BlobKind::Probe => None,
+            })
+            .collect();
+        for (i, m) in self.rust.migrations.iter().enumerate() {
+            if let Some(sym) = blob_symbol.get(m.blob.as_str()) {
+                if *sym != m.symbol.as_str() {
+                    bail!(
+                        "rust.migrations[{i}] symbol `{}` != blob symbol `{sym}` for `{}`",
+                        m.symbol,
+                        m.blob
+                    );
+                }
+            }
+        }
+
         if self.image.base_image.is_empty() {
             bail!("image.base_image is empty");
         }

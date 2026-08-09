@@ -1,10 +1,10 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y utilities: CRC32, Unicode, casefold, string, checksum,
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z utilities: CRC32, Unicode, casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), video geometry, NTFS MCB decode, NTFS USA restore, FAT
 //! 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator +
 //! persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall userspace
 //! region gate, UTF-16→UTF-8 streaming encode, XFS extent unpack + dir hash binary search, window
-//! screen-fit helpers, TSS I/O permission bitmap updates, and COFF reloc application for KolibriOS
-//! hybrid migration.
+//! screen-fit helpers, TSS I/O permission bitmap updates, COFF reloc application, and MBR/EBR
+//! partition-table entry validation for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -27,6 +27,7 @@ mod io_access;
 mod mouse;
 mod ntfs_mcb;
 mod ntfs_usa;
+mod partition;
 mod string;
 mod tcp;
 mod time;
@@ -65,6 +66,11 @@ pub use io_access::{
 pub use mouse::mouse_acceleration;
 pub use ntfs_mcb::{ntfs_decode_mcb_entry, McbDecodeResult};
 pub use ntfs_usa::{ntfs_restore_usa, UsaRestoreResult};
+pub use partition::{
+    is_partition_table_entry, is_partition_table_entry_ptr, make_entry,
+    IS_PARTITION_TABLE_ENTRY_PRNG_SEED, OFF_BOOTABLE, OFF_FIRST_ABS_SECTOR, OFF_LENGTH,
+    PARTITION_TABLE_ENTRY_SIZE,
+};
 pub use string::strncmp;
 pub use tcp::{
     tcp_set_persist, tcp_set_persist_ptr, tcp_xmit_timer, TCP_MAX_RXTSHIFT, TCP_OFF_TIMER_FLAGS,

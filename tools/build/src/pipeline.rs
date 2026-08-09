@@ -316,6 +316,8 @@ impl<'a> Pipeline<'a> {
             }
         }
 
+        self.apply_migration_gates()?;
+
         if !self.dry_run {
             fs::create_dir_all(bin_dir)
                 .with_context(|| format!("mkdir {}", bin_dir.display()))?;
@@ -385,6 +387,79 @@ impl<'a> Pipeline<'a> {
     pub fn build_all(&mut self) -> Result<()> {
         self.build_rust()?;
         self.build_kernel()?;
+        Ok(())
+    }
+
+    /// Sync each `USE_RUST_*` assignment in `gate_file` to `migrations[].enabled`.
+    /// No-op when already matching (keeps the tree clean for production defaults).
+    fn apply_migration_gates(&self) -> Result<()> {
+        if self.cfg.rust.migrations.is_empty() {
+            return Ok(());
+        }
+        eprintln!(
+            "  migration gates: {} registered",
+            self.cfg.rust.migrations.len()
+        );
+        for m in &self.cfg.rust.migrations {
+            let want = if m.enabled { 1u32 } else { 0u32 };
+            let path = resolve(self.root, &m.gate_file);
+            if self.dry_run {
+                eprintln!("  gate {} → {} ({})", m.gate, want, m.gate_file);
+                continue;
+            }
+            if !path.is_file() {
+                bail!(
+                    "ERROR: migration gate_file missing for {}\nExpected: {}",
+                    m.gate,
+                    path.display()
+                );
+            }
+            let text = fs::read_to_string(&path)
+                .with_context(|| format!("read {}", path.display()))?;
+            let mut found = false;
+            let mut changed = false;
+            let mut out = String::with_capacity(text.len());
+            for line in text.lines() {
+                let trimmed = line.trim();
+                // Match `USE_RUST_FOO = N` optionally followed by a comment.
+                let is_assign = trimmed
+                    .strip_prefix(&m.gate)
+                    .and_then(|rest| rest.trim_start().strip_prefix('='))
+                    .is_some()
+                    && !trimmed.starts_with(';');
+                if is_assign {
+                    found = true;
+                    let indent_len = line.len() - line.trim_start().len();
+                    let indent = &line[..indent_len];
+                    let expected = format!("{} = {}", m.gate, want);
+                    if trimmed == expected {
+                        out.push_str(line);
+                    } else {
+                        changed = true;
+                        out.push_str(indent);
+                        out.push_str(&expected);
+                    }
+                } else {
+                    out.push_str(line);
+                }
+                out.push('\n');
+            }
+            // Preserve absence of final newline only if original lacked one.
+            if !text.ends_with('\n') && out.ends_with('\n') {
+                out.pop();
+            }
+            if !found {
+                bail!(
+                    "ERROR: gate `{}` not found in {}\nCannot apply migrations[].enabled",
+                    m.gate,
+                    m.gate_file
+                );
+            }
+            if changed {
+                fs::write(&path, out).with_context(|| format!("write {}", path.display()))?;
+                eprintln!("  gate {} → {} ({})", m.gate, want, m.gate_file);
+            }
+        }
         Ok(())
     }
 
@@ -754,10 +829,94 @@ pub fn doctor(cfg: &Config, root: &Path) -> Result<()> {
         }
     }
 
+    doctor_migrations(cfg, root, &mut errors)?;
+
     if errors > 0 {
         bail!("doctor found {errors} problem(s)");
     }
     eprintln!("doctor: all checks passed");
+    Ok(())
+}
+
+fn doctor_migrations(cfg: &Config, root: &Path, errors: &mut u32) -> Result<()> {
+    eprintln!(
+        "== migrations ({} registered) ==",
+        cfg.rust.migrations.len()
+    );
+    for m in &cfg.rust.migrations {
+        let want = if m.enabled { 1 } else { 0 };
+        let include = resolve(root, &m.include);
+        let gate_file = resolve(root, &m.gate_file);
+        let label = format!("Cut {} {} ({})", m.cut, m.gate, m.symbol);
+
+        if !include.is_file() {
+            eprintln!("  FAIL {label}: include missing ({})", include.display());
+            *errors += 1;
+            continue;
+        }
+        if !gate_file.is_file() {
+            eprintln!(
+                "  FAIL {label}: gate_file missing ({})",
+                gate_file.display()
+            );
+            *errors += 1;
+            continue;
+        }
+
+        let include_text = fs::read_to_string(&include)
+            .with_context(|| format!("read {}", include.display()))?;
+        if !include_text.contains(&m.symbol) {
+            eprintln!(
+                "  FAIL {label}: include does not reference symbol `{}`",
+                m.symbol
+            );
+            *errors += 1;
+            continue;
+        }
+        if !include_text.contains(&m.blob) {
+            eprintln!(
+                "  FAIL {label}: include does not embed blob `{}`",
+                m.blob
+            );
+            *errors += 1;
+            continue;
+        }
+
+        let gate_text = fs::read_to_string(&gate_file)
+            .with_context(|| format!("read {}", gate_file.display()))?;
+        let assign = format!("{} = {}", m.gate, want);
+        let other = format!("{} = {}", m.gate, 1 - want);
+        if gate_text.lines().any(|l| {
+            let t = l.trim();
+            t == assign || t.starts_with(&format!("{assign};"))
+        }) {
+            eprintln!("  OK  {label} = {want}");
+        } else if gate_text.contains(&m.gate) {
+            eprintln!(
+                "  FAIL {label}: expected `{assign}` in {} (found gate, wrong value? e.g. `{other}`)",
+                m.gate_file
+            );
+            *errors += 1;
+        } else {
+            eprintln!(
+                "  FAIL {label}: gate not found in {}",
+                m.gate_file
+            );
+            *errors += 1;
+        }
+    }
+
+    let generic_n = cfg
+        .rust
+        .blobs
+        .iter()
+        .filter(|b| matches!(b.kind, BlobKind::Generic))
+        .count();
+    eprintln!(
+        "  enumerated {} generic blobs + {} migrations (probe excluded from gates)",
+        generic_n,
+        cfg.rust.migrations.len()
+    );
     Ok(())
 }
 

@@ -1053,6 +1053,38 @@ is_protective_mbr:
 ; length is less than twice the size of media. Multiplication by two is
 ; required since the size mentioned in the partition table can be slightly
 ; greater than the real size.
+; Cut Z: USE_RUST_IS_PARTITION_TABLE_ENTRY=1 routes through Rust
+; rust_is_partition_table_entry (see rust/is_partition_table_entry.inc).
+; Set USE_RUST_IS_PARTITION_TABLE_ENTRY=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–Y.
+
+USE_RUST_IS_PARTITION_TABLE_ENTRY = 1
+
+if USE_RUST_IS_PARTITION_TABLE_ENTRY
+
+; Compatibility trampoline: register ABI → Rust stdcall → EAX → CF.
+; Callers: ECX→entry, EBP=MBR/EBR base, ESI→DISK; CF out; ECX/ESI/EBP live.
+align 4
+is_partition_table_entry:
+        push    ecx
+        push    esi
+        push    ebp
+        stdcall rust_is_partition_table_entry, ecx, ebp, \
+                dword [esi+DISK.MediaInfo.Capacity], \
+                dword [esi+DISK.MediaInfo.Capacity+4]
+        pop     ebp
+        pop     esi
+        pop     ecx
+        test    eax, eax
+        jnz     .rust_invalid
+        clc
+        ret
+.rust_invalid:
+        stc
+        ret
+
+else
+
 is_partition_table_entry:
 ; 1. Check .Bootable field.
         mov     al, [ecx+PARTITION_TABLE_ENTRY.Bootable]
@@ -1082,6 +1114,8 @@ is_partition_table_entry:
 ; 6. Return fail: CF is set.
         stc
         ret
+
+end if
 
 ; This is an internal function called from disk_scan_partitions. It processes
 ; the entry pointed to by ecx.

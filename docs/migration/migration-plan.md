@@ -23,7 +23,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 
 - Cut A from boundaries.
 - **Risk:** low.
-- **Status (2026-08-10):** **COMPLETE** — Phase C + Cuts A–Y production-validated (desktop + network). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–Y re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
+- **Status (2026-08-10):** **COMPLETE** — Phase C + Cuts A–Z production-validated (desktop + network). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–Z re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
 - **Done:** Phase C probe + CRC32 + UTF-16 + CP866 + UTF-8. Baseline: [`cut-a-final-architecture.md`](cut-a-final-architecture.md).
 - **Cut B (pure util, not allocator):** `cp866toUpper` — **done** 2026-08-09 ([`cut-b-plan.md`](cut-b-plan.md), [`cut-b-implementation.md`](cut-b-implementation.md)).
 - **Cut C:** `utf16toUpper` — **done** ([`cut-c-implementation.md`](cut-c-implementation.md)).
@@ -48,7 +48,8 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut V:** `tcp_set_persist` — **done** 2026-08-10 ([`cut-v-plan.md`](cut-v-plan.md), [`cut-v-implementation.md`](cut-v-implementation.md)). Persist-timer arming from SRTT/RTTVAR; reloc-free.
 - **Cut W:** `xfs._.get_addr_by_hash` — **done** 2026-08-10 ([`cut-w-plan.md`](cut-w-plan.md), [`cut-w-implementation.md`](cut-w-implementation.md)). XFS dir leaf binary search; EAX+ZF dual return; reloc-free.
 - **Cut X:** `set_io_access_rights` — **done** 2026-08-10 ([`cut-x-plan.md`](cut-x-plan.md), [`cut-x-implementation.md`](cut-x-implementation.md)). TSS I/O permission bitmap BTR/BTS; reloc-free.
-- **Cut Y:** `fix_coff_relocs` — **done** 2026-08-10 ([`cut-y-plan.md`](cut-y-plan.md), [`cut-y-implementation.md`](cut-y-implementation.md)). PE/COFF DIR32/REL32 reloc buffer patch; reloc-free. **Stop; do not start Cut Z.**
+- **Cut Y:** `fix_coff_relocs` — **done** 2026-08-10 ([`cut-y-plan.md`](cut-y-plan.md), [`cut-y-implementation.md`](cut-y-implementation.md)). PE/COFF DIR32/REL32 reloc buffer patch; reloc-free.
+- **Cut Z:** `is_partition_table_entry` — **done** 2026-08-10 ([`cut-z-plan.md`](cut-z-plan.md), [`cut-z-implementation.md`](cut-z-implementation.md)). MBR/EBR partition-table entry validate (Bootable + 64-bit half-capacity); CF-out; reloc-free. **Stop; do not start Cut AA.**
 
 ### Stage 3 — Compat syscall façade (selected)
 

@@ -18,6 +18,7 @@ use crate::io_access::set_io_access_rights_ptr;
 use crate::mouse::mouse_acceleration;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
 use crate::ntfs_usa::ntfs_restore_usa_ptr;
+use crate::partition::is_partition_table_entry_ptr;
 use crate::string::strncmp;
 use crate::tcp::{tcp_set_persist_ptr, tcp_xmit_timer_ptr};
 use crate::time::{fs_calculate_time_ptr, fs_time2bdfe_ptr};
@@ -398,6 +399,27 @@ pub unsafe extern "stdcall" fn rust_fix_coff_relocs(
 ) {
     // SAFETY: kernel trampoline / load_library passes live COFF pointers.
     unsafe { fix_coff_relocs_ptr(coff, sym, delta) }
+}
+
+/// `stdcall` rust_is_partition_table_entry(entry, ebp_base, cap_lo, cap_hi) -> EAX.
+///
+/// Cut Z: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 16 bytes (`ret 16`). Returns `0` valid / `1` invalid;
+/// FASM trampoline maps EAX→CF and preserves ECX/ESI/EBP.
+///
+/// # Safety
+/// `entry` must be readable for 16 bytes (`PARTITION_TABLE_ENTRY`).
+#[no_mangle]
+#[link_section = ".text.rust_is_partition_table_entry"]
+pub unsafe extern "stdcall" fn rust_is_partition_table_entry(
+    entry: *const u8,
+    ebp_base: u32,
+    capacity_lo: u32,
+    capacity_hi: u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes ECX→entry + capacity from DISK.
+    unsafe { is_partition_table_entry_ptr(entry, ebp_base, capacity_lo, capacity_hi) }
 }
 
 /// `stdcall` rust_anti_aliasing(fg, bg) -> EAX blended RGB.

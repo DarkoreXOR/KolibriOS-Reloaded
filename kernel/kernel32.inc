@@ -129,6 +129,8 @@ include "rust/xfs_get_addr_by_hash.inc"
 include "rust/set_io_access_rights.inc"
 ; Cut Y: fix_coff_relocs — Rust blob + smoke (USE_RUST_FIX_COFF_RELOCS)
 include "rust/fix_coff_relocs.inc"
+; Cut Z: is_partition_table_entry — Rust blob + smoke (USE_RUST_IS_PARTITION_TABLE_ENTRY)
+include "rust/is_partition_table_entry.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

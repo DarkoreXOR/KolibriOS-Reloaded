@@ -1,7 +1,7 @@
 # `kolibri_build`
 
 Repository-local orchestrator for the hybrid FASM + Rust kernel workflow
-(Cuts A–O). Configuration: [`config.toml`](config.toml).
+(Cuts A–Z). Configuration: [`config.toml`](config.toml).
 
 ## Usage (from repository root)
 
@@ -15,8 +15,17 @@ cargo run --manifest-path tools/build/Cargo.toml -- run
 | `ref` / `original` | Boot immutable reference `.img` only (`-snapshot`, no rebuild) |
 | `image` | Build + package only |
 | `build` | Rust blobs + FASM assemble only |
-| `doctor` | Tooling / path checks |
+| `doctor` | Tooling / path / migration-gate checks |
 
 Flags: `--dry-run`, `--skip-tests`, `--headless`, `--config <path>`.
 
 See the root [`README.md`](../../README.md) for the full developer workflow.
+
+## Migrations
+
+`config.toml` lists every reloc-free blob under `[[rust.blobs]]` and every
+independent production gate under `[[rust.migrations]]` (Cuts A–Z). Each
+migration maps `blob` → `USE_RUST_*` → `kernel/rust/*.inc` → gate assignment
+file. Set `enabled = true|false` per cut; the orchestrator writes
+`USE_RUST_* = 0|1` into `gate_file` before assemble. Doctor verifies the live
+tree matches the registry.
