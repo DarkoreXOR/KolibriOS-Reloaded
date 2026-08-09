@@ -1,15 +1,16 @@
-# UTF-8 decode migration: freestanding build + extract reloc-free blobs.
+# Cut B — CP866 uppercase (cp866toUpper): freestanding build + extract reloc-free blobs.
 #
-#   powershell -File rust_kernel/kolibri_utils/build-utf8.ps1
+#   powershell -File rust_kernel/kolibri_utils/build-cp866-upper.ps1
 #
 # Produces (kernel currently needs all of these):
+#   rust_kernel/kolibri_utils/out/rust_cp866_to_upper.bin
 #   rust_kernel/kolibri_utils/out/rust_unicode_utf8_decode.bin
 #   rust_kernel/kolibri_utils/out/rust_unicode_cp866_encode.bin
 #   rust_kernel/kolibri_utils/out/rust_unicode_utf16_encode.bin
 #   rust_kernel/kolibri_utils/out/rust_crc_32.bin
 #   rust_kernel/kolibri_utils/out/rust_phase_c_probe.bin
 #
-# Does NOT assemble kernel.mnt (see docs/migration/utf8-migration.md).
+# Does NOT assemble kernel.mnt (see docs/migration/cut-b-implementation.md).
 
 param(
     [switch]$SkipTest
@@ -23,7 +24,7 @@ Set-Location $Workspace
 
 $env:CARGO_TARGET_DIR = Join-Path $Workspace "target"
 # Clear any prior freestanding RUSTFLAGS (must not lower opt-level globally —
-# that reintroduces relocs into CRC/UTF-16/CP866/UTF-8).
+# that reintroduces relocs into Cut A/B blobs).
 Remove-Item Env:RUSTFLAGS -ErrorAction SilentlyContinue
 
 if (-not $SkipTest) {
@@ -33,7 +34,6 @@ if (-not $SkipTest) {
 
 $targetJson = Join-Path $UtilsDir "i686-kolibri-none.json"
 Write-Host "==> freestanding staticlib (force recompile)"
-# Remove prior freestanding artifacts so UTF-8 codegen is not stale.
 $fsOut = Join-Path $env:CARGO_TARGET_DIR "i686-kolibri-none\release"
 if (Test-Path $fsOut) {
     Remove-Item -Recurse -Force (Join-Path $fsOut "libkolibri_utils.a") -ErrorAction SilentlyContinue
@@ -57,14 +57,6 @@ New-Item -ItemType Directory -Force -Path $outDir | Out-Null
 $extractGeneric = Join-Path $UtilsDir "scripts\extract_reloc_free_text.py"
 $extractProbe = Join-Path $UtilsDir "scripts\extract_phase_c_probe.py"
 
-Write-Host "==> extract reloc-free rust_unicode_utf8_decode"
-python $extractGeneric `
-    --archive $archive `
-    --section ".text.rust_unicode_utf8_decode" `
-    --symbol "rust_unicode_utf8_decode" `
-    --expect-ret-imm 8 `
-    --out (Join-Path $outDir "rust_unicode_utf8_decode.bin")
-
 Write-Host "==> extract reloc-free rust_cp866_to_upper"
 python $extractGeneric `
     --archive $archive `
@@ -72,6 +64,14 @@ python $extractGeneric `
     --symbol "rust_cp866_to_upper" `
     --expect-ret-imm 4 `
     --out (Join-Path $outDir "rust_cp866_to_upper.bin")
+
+Write-Host "==> extract reloc-free rust_unicode_utf8_decode"
+python $extractGeneric `
+    --archive $archive `
+    --section ".text.rust_unicode_utf8_decode" `
+    --symbol "rust_unicode_utf8_decode" `
+    --expect-ret-imm 8 `
+    --out (Join-Path $outDir "rust_unicode_utf8_decode.bin")
 
 Write-Host "==> extract reloc-free rust_unicode_cp866_encode"
 python $extractGeneric `
@@ -101,9 +101,10 @@ Write-Host "==> extract reloc-free Phase C probe"
 python $extractProbe --archive $archive --out (Join-Path $outDir "rust_phase_c_probe.bin")
 
 Write-Host "Repo root: $RepoRoot"
-Write-Host "UTF-8 blob:  $(Join-Path $outDir 'rust_unicode_utf8_decode.bin')"
-Write-Host "CP866 blob:  $(Join-Path $outDir 'rust_unicode_cp866_encode.bin')"
-Write-Host "UTF-16 blob: $(Join-Path $outDir 'rust_unicode_utf16_encode.bin')"
-Write-Host "CRC blob:    $(Join-Path $outDir 'rust_crc_32.bin')"
-Write-Host "Probe blob:  $(Join-Path $outDir 'rust_phase_c_probe.bin')"
-Write-Host "Next: assemble kernel with USE_RUST_UTF8 (see docs/migration/utf8-migration.md)"
+Write-Host "CP866 upper blob: $(Join-Path $outDir 'rust_cp866_to_upper.bin')"
+Write-Host "UTF-8 blob:       $(Join-Path $outDir 'rust_unicode_utf8_decode.bin')"
+Write-Host "CP866 blob:       $(Join-Path $outDir 'rust_unicode_cp866_encode.bin')"
+Write-Host "UTF-16 blob:      $(Join-Path $outDir 'rust_unicode_utf16_encode.bin')"
+Write-Host "CRC blob:         $(Join-Path $outDir 'rust_crc_32.bin')"
+Write-Host "Probe blob:       $(Join-Path $outDir 'rust_phase_c_probe.bin')"
+Write-Host "Next: assemble kernel with USE_RUST_CP866_UPPER (see docs/migration/cut-b-implementation.md)"

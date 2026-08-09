@@ -19,7 +19,8 @@ Evidence policy: [`../_meta/evidence-policy.md`](../_meta/evidence-policy.md).
 | CP866 encode Rust | ✓ |
 | UTF-8 decode Rust | ✓ |
 | Cut A audit / reproducibility | ✓ |
-| Cut B / next cut | **not started** |
+| Cut B (`cp866toUpper`) | ✓ — see [`cut-b-implementation.md`](cut-b-implementation.md) |
+| Next cut | **not started** |
 | Phase D (remove FASM bodies) | **not started** — originals kept under `USE_RUST_*=0` |
 
 ---

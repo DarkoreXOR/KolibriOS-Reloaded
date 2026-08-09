@@ -84,6 +84,23 @@ end if
 
 endp
 
+; CP866 uppercase migration: USE_RUST_CP866_UPPER=1 routes through Rust
+; rust_cp866_to_upper (see rust/cp866_upper.inc).
+; Set USE_RUST_CP866_UPPER=0 to restore the original FASM body without deleting it.
+
+USE_RUST_CP866_UPPER = 1
+
+if USE_RUST_CP866_UPPER
+
+; Compatibility trampoline: existing AL/EAX in/out ABI → Rust stdcall.
+; Callers keep `call cp866toUpper` with the CP866 character in AL.
+cp866toUpper:
+        stdcall rust_cp866_to_upper, eax
+        ret
+
+else
+
+; --- original FASM implementation (rollback) ---
 cp866toUpper:
 ; convert cp866 character in al to uppercase
         cmp     al, 'a'
@@ -111,6 +128,8 @@ cp866toUpper:
 .rus:
         sub     eax, 0xE0-0x90
         ret
+
+end if
 
 utf16toUpper:
 ; convert UTF-16 character in ax to uppercase

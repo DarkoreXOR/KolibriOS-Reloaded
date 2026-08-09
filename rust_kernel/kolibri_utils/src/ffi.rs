@@ -6,6 +6,7 @@
 //! Calling convention: `stdcall` (callee pops args). Partial CRC is an explicit
 //! argument because a Rust prologue must not rely on live `EAX` from FASM.
 
+use crate::casefold::cp866_to_upper;
 use crate::crc::crc32_update;
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
 use crate::PHASE_C_PROBE_MAGIC;
@@ -97,4 +98,15 @@ pub extern "stdcall" fn rust_unicode_utf16_encode(cp: u32) -> u32 {
 #[link_section = ".text.rust_unicode_cp866_encode"]
 pub extern "stdcall" fn rust_unicode_cp866_encode(cp: u32) -> u32 {
     cp866_encode(cp)
+}
+
+/// `stdcall` rust_cp866_to_upper(ch) -> uppercased CP866 byte in AL (EAX).
+///
+/// Cut B: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Input is truncated to 8 bits like FASM `cp866toUpper` (`AL`).
+#[no_mangle]
+#[link_section = ".text.rust_cp866_to_upper"]
+pub extern "stdcall" fn rust_cp866_to_upper(ch: u32) -> u32 {
+    u32::from(cp866_to_upper(ch as u8))
 }

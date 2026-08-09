@@ -133,4 +133,6 @@ Findings from [`../compatibility/abi-audit.md`](../compatibility/abi-audit.md):
 
 **LOCAL FACT (Cut A complete):** `rust_crc_32`, `rust_unicode_utf16_encode`, `rust_unicode_cp866_encode`, and `rust_unicode_utf8_decode` are reloc-free and use the same extract + `file` path ([`cut-a-final-architecture.md`](cut-a-final-architecture.md)). CP866 required a stack-local mapping table to avoid `.rodata`/GOTOFF; UTF-8 was rewritten to the same reloc-free discipline.
 
+**LOCAL FACT (Cut B complete):** `rust_cp866_to_upper` (`cp866toUpper`) is also reloc-free (71 B, 0 relocs) via the same path ([`cut-b-implementation.md`](cut-b-implementation.md)). Note: this “Cut B” is the next pure-util migration, **not** the allocator cut named “Cut B” elsewhere in this document.
+
 **INFERENCE (future functions):** anything that reintroduces `.rodata`/GOTOFF/cross-section refs needs either a reloc-free rewrite or `rust-lld` at the FASM placement VMA — evaluate per function.
