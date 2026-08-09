@@ -1,0 +1,310 @@
+# ABI Inventory
+# Each entry: id, kind, surface, evidence, preserve
+# kind ∈:
+#   public_abi_api
+#   exported_symbol
+#   shared_structure_layout
+#   internal_structure_used_externally
+#   fixed_virtual_address
+#   mmio_hardware_address
+#   accidental_implementation_detail
+
+meta:
+  kernel_version_string: "v0.7.7.0"  # LOCAL FACT bootbios.inc
+  evidence_policy: ../_meta/evidence-policy.md
+
+items:
+  - id: boot_load_address
+    kind: fixed_virtual_address  # physical load
+    surface: bootloader
+    symbol: KERNEL_BASE
+    value: "0x10000"
+    evidence: kernel/const.inc
+    preserve: hard
+
+  - id: boot_header
+    kind: public_abi_api
+    surface: bootloader
+    evidence: kernel/bootbios.inc, kernel/const.inc:kernel_header
+    preserve: hard
+
+  - id: boot_kl_handshake
+    kind: public_abi_api
+    surface: bootloader
+    evidence: kernel/docs/loader_doc.txt
+    preserve: hard
+
+  - id: boot_data
+    kind: shared_structure_layout
+    surface: bootloader
+    symbol: boot_data
+    address: "0x9000"
+    evidence: kernel/const.inc
+    preserve: hard
+
+  - id: syscall_int40
+    kind: public_abi_api
+    surface: application
+    evidence: kernel/docs/sysfuncs.txt, kernel/core/syscall.inc:i40
+    preserve: hard
+
+  - id: syscall_table
+    kind: public_abi_api
+    surface: application
+    evidence: kernel/core/syscall.inc:servetable2
+    preserve: hard
+    see: syscalls.yaml
+
+  - id: process_information
+    kind: shared_structure_layout
+    surface: application
+    evidence: kernel/const.inc:process_information
+    preserve: hard
+
+  - id: app_header_01
+    kind: shared_structure_layout
+    surface: application
+    evidence: kernel/core/taskman.inc:APP_HEADER_01_
+    preserve: hard
+
+  - id: user_kernel_split
+    kind: public_abi_api
+    surface: application
+    value: "user<0x80000000 kernel>=OS_BASE"
+    evidence: kernel/const.inc, kernel/memmap.inc
+    preserve: hard
+
+  - id: event_bits
+    kind: public_abi_api
+    surface: application
+    evidence: kernel/const.inc:EVENT_*
+    preserve: hard
+
+  - id: ioctl_struct
+    kind: shared_structure_layout
+    surface: [application, driver]
+    evidence: kernel/const.inc:IOCTL
+    preserve: hard
+
+  - id: kernel_exports
+    kind: exported_symbol
+    surface: driver
+    evidence: kernel/core/exports.inc
+    preserve: hard
+
+  - id: lfb_address_export
+    kind: [exported_symbol, fixed_virtual_address]
+    surface: driver
+    symbol: LFBAddress
+    value: "0xFE000000 conventional VA"
+    evidence: kernel/core/exports.inc, kernel.asm high_code
+    preserve: hard
+
+  - id: srv_struct
+    kind: shared_structure_layout
+    surface: driver
+    evidence: kernel/const.inc:SRV
+    preserve: hard
+
+  - id: diskfunc
+    kind: [public_abi_api, shared_structure_layout]
+    surface: driver
+    evidence: kernel/blkdev/disk.inc, kernel/docs/drivers_api.txt
+    preserve: hard
+
+  - id: usb_driver_api
+    kind: public_abi_api
+    surface: driver
+    evidence: kernel/docs/usbapi.txt, kernel/core/exports.inc
+    preserve: hard
+
+  - id: slot_base
+    kind: [fixed_virtual_address, internal_structure_used_externally]
+    surface: [application_legacy, driver_legacy]
+    symbol: SLOT_BASE
+    value: "0x80090000"
+    struct: APPDATA
+    size: 256
+    evidence: kernel/const.inc
+    preserve: shim_until_audit
+
+  - id: window_data
+    kind: [fixed_virtual_address, internal_structure_used_externally]
+    surface: application_legacy
+    symbol: window_data
+    value: "0x80001000"
+    struct: WDATA
+    size: 128
+    evidence: kernel/const.inc
+    preserve: shim_until_audit
+
+  - id: key_btn_buffers
+    kind: [fixed_virtual_address, internal_structure_used_externally]
+    surface: application_legacy
+    symbols: [KEY_BUFF, BTN_BUFF]
+    evidence: kernel/const.inc
+    preserve: shim_until_audit
+
+  - id: sysenter_entry
+    kind: public_abi_api
+    surface: application_undocumented
+    evidence: kernel/core/syscall.inc:sysenter_entry
+    preserve: keep
+
+  - id: scheduler_cli_locks
+    kind: accidental_implementation_detail
+    surface: driver
+    evidence: kernel/const.inc spin_lock macros
+    preserve: behavioral_up_model
+
+  - id: memmap_stale_0x80080000
+    kind: accidental_implementation_detail
+    surface: documentation
+    evidence: kernel/memmap.inc
+    note: "Do not treat as ABI; live SLOT_BASE is 0x80090000"
+    preserve: false
+
+  - id: heap_base
+    kind: accidental_implementation_detail
+    surface: none_official
+    symbol: HEAP_BASE
+    value: "0x80800000"
+    preserve: internal
+
+  - id: page_tabs
+    kind: accidental_implementation_detail
+    surface: none_official
+    value: "0xFDC00000"
+    preserve: internal
+
+  - id: pic_irq_base
+    kind: mmio_hardware_address
+    surface: driver
+    evidence: kernel/core/apic.inc PIC_init
+    preserve: behavioral
+
+exports_kernel:
+  # abbreviated — full table in architecture notes / exports.inc
+  module: KERNEL
+  evidence: kernel/core/exports.inc
+  names:
+    - AllocKernelSpace
+    - AllocPage
+    - AllocPages
+    - CommitPages
+    - DiskAdd
+    - DiskDel
+    - DiskMediaChanged
+    - FsRead32Sys
+    - FsRead32App
+    - FsRead64Sys
+    - FsRead64App
+    - FsWrite32Sys
+    - FsWrite32App
+    - FsWrite64Sys
+    - FsWrite64App
+    - FsAdd
+    - DiskSync
+    - CreateEvent
+    - DestroyEvent
+    - RaiseEvent
+    - WaitEvent
+    - WaitEventTimeout
+    - GetEvent
+    - ClearEvent
+    - SendEvent
+    - CreateObject
+    - CreateRingBuffer
+    - DestroyObject
+    - FreeKernelSpace
+    - FreePage
+    - KernelAlloc
+    - KernelFree
+    - Kmalloc
+    - Kfree
+    - MapIoMem
+    - MapPage
+    - GetPgAddr
+    - GetPhysAddr
+    - MapSpace
+    - ReleasePages
+    - AllocDMA24
+    - InitRwsem
+    - DownRead
+    - DownWrite
+    - UpRead
+    - UpWrite
+    - MutexInit
+    - MutexLock
+    - MutexUnlock
+    - GetDisplay
+    - SetScreen
+    - SetFramebuffer
+    - GetWindowRect
+    - PciApi
+    - PciRead8
+    - PciRead16
+    - PciRead32
+    - PciWrite8
+    - PciWrite16
+    - PciWrite32
+    - GetPid
+    - GetService
+    - RegService
+    - AttachIntHandler
+    - UserAlloc
+    - UserAllocAt
+    - UserFree
+    - UnmapPages
+    - SysMsgBoardStr
+    - SysMsgBoard
+    - GetClockNs
+    - GetTimerTicks
+    - GetStackBase
+    - Delay
+    - SetMouseData
+    - SetKeyboardData
+    - RegKeyboard
+    - DelKeyboard
+    - GetCpuFreq
+    - CreateThread
+    - ServiceHandler
+    - FpuSave
+    - FpuRestore
+    - AvxSaveSize
+    - AvxSave
+    - AvxRestore
+    - ReservePortArea
+    - Boot_Log
+    - LoadCursor
+    - GetCurrSlot
+    - ChangeTask
+    - LoadFile
+    - Sleep
+    - strncat
+    - strncpy
+    - strncmp
+    - strnlen
+    - strchr
+    - strrchr
+    - TimerHS
+    - TimerHs
+    - CancelTimerHS
+    - RegUSBDriver
+    - USBOpenPipe
+    - USBClosePipe
+    - USBNormalTransferAsync
+    - USBControlTransferAsync
+    - USBGetParam
+    - USBHCFunc
+    - FS_Service
+    - NetRegDev
+    - NetUnRegDev
+    - NetPtrToNum
+    - NetLinkChanged
+    - EthInput
+    - NetAlloc
+    - NetFree
+    - GetPCIList
+    - AcpiGetRootPtr
+    - LFBAddress

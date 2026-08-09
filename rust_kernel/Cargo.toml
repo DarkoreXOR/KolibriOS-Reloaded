@@ -1,0 +1,3 @@
+[workspace]
+members = ["kolibri_utils"]
+resolver = "2"

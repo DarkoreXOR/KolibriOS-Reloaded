@@ -1,0 +1,43 @@
+; Cut A / Phase D trampolines.
+; CRC is wired in kernel/crc.inc when USE_RUST_CRC=1 (see docs/migration/crc32-migration.md).
+; Unicode still NOT wired into kernel/ — keep original unicode.inc until relocating link exists.
+;
+; Rollback CRC: set USE_RUST_CRC=0 in kernel/crc.inc.
+
+; ---------------------------------------------------------------------------
+; crc_32 — preserves stdcall call sites; passes EAX partial explicitly.
+; (Live copy lives in kernel/crc.inc under USE_RUST_CRC=1.)
+; ---------------------------------------------------------------------------
+; proc crc_32 _poly, _buffer, _length
+;         push    ebx ecx edx esi
+;         stdcall rust_crc_32, eax, [_poly], [_buffer], [_length]
+;         pop     esi edx ecx ebx
+;         ret
+; endp
+
+; ---------------------------------------------------------------------------
+; unicode.utf8.decode — register ABI at call sites (ESI/ECX/EAX).
+; ---------------------------------------------------------------------------
+; unicode.utf8.decode:
+;         push    ecx                 ; [esp] = length
+;         push    esi                 ; [esp] = ptr, [esp+4] = length
+;         mov     eax, esp            ; &ptr
+;         lea     edx, [esp+4]        ; &length
+;         stdcall rust_unicode_utf8_decode, eax, edx
+;         pop     esi
+;         pop     ecx
+;         ret
+
+; ---------------------------------------------------------------------------
+; unicode.utf16.encode
+; ---------------------------------------------------------------------------
+; unicode.utf16.encode:
+;         stdcall rust_unicode_utf16_encode, eax
+;         ret
+
+; ---------------------------------------------------------------------------
+; unicode.cp866.encode
+; ---------------------------------------------------------------------------
+; unicode.cp866.encode:
+;         stdcall rust_unicode_cp866_encode, eax
+;         ret

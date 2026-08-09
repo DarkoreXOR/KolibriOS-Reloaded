@@ -1,0 +1,67 @@
+# Driver contract (machine-readable excerpt)
+# LOCAL FACT sources: dll.inc, disk.inc, irq.inc, exports.inc, const.inc, peload.inc
+
+drv_version:
+  DRV_COMPAT: 5
+  DRV_CURRENT: 6
+  DRV_ENTRY: 1
+  DRV_EXIT: -1
+
+srv:
+  sizeof: 48  # 0x30
+  magic: " SRV"  # leading space; dword ' SRV'
+  fields:
+    - {off: 0x00, name: srv_name, size: 16}
+    - {off: 0x10, name: magic, size: 4}
+    - {off: 0x14, name: size, size: 4}
+    - {off: 0x18, name: fd, size: 4}
+    - {off: 0x1C, name: bk, size: 4}
+    - {off: 0x20, name: base, size: 4}
+    - {off: 0x24, name: entry, size: 4}
+    - {off: 0x28, name: srv_proc, size: 4}
+    - {off: 0x2C, name: srv_proc_ex, size: 4}
+
+ioctl:
+  sizeof: 24
+  convention: stdcall_handler_ptr
+  fields: [handle, io_code, input, inp_size, output, out_size]
+
+reg_service:
+  symbol: RegService
+  convention: stdcall
+  args: [name_ptr, handler_ptr]
+  returns: srv_ptr
+  ret_bytes: 8
+
+get_service:
+  symbol: GetService
+  convention: stdcall
+  args: [name_ptr]
+  returns: srv_ptr
+
+attach_int_handler:
+  symbol: AttachIntHandler
+  convention: stdcall
+  args: [irq, handler, user_data]
+  returns: irqh_ptr_or_null
+  handler_abi:
+    stack: [user_data]
+    return_eax: nonzero_means_handled
+
+disk_add:
+  symbol: DiskAdd
+  convention: stdcall
+  args: [DISKFUNC_ptr, name, userdata, flags]
+  diskfunc_first_field: strucsize
+  status_ok: 0
+
+export_module_name: KERNEL
+export_address_bias: OS_BASE
+lfb_export:
+  name: LFBAddress
+  must_be_last: true
+  kind: address_cell
+
+pe_load:
+  resolve_imports_from: __exports
+  stripped_sig: 0x4503

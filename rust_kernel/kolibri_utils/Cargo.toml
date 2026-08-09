@@ -1,0 +1,15 @@
+[package]
+name = "kolibri_utils"
+version = "0.1.0"
+edition = "2021"
+description = "Cut A: freestanding CRC32 and Unicode helpers matching KolibriOS FASM ABI"
+license = "GPL-2.0-or-later"
+publish = false
+
+[lib]
+crate-type = ["rlib", "staticlib"]
+
+[dependencies]
+
+[features]
+default = []

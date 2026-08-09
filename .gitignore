@@ -1,0 +1,18 @@
+# Rust / Cargo build outputs
+rust_kernel/target/
+tools/**/target/
+/target/
+**/Cargo.lock
+.DS_Store
+*.pdb
+
+# Disposable image experiments (never commit CoW copies of the reference .img)
+/tmp_images/*
+!/tmp_images/README.md
+*.img.cow
+*.qcow2
+
+# Local toolchain caches (repo ships ./fasm/; do not re-download into tools/)
+tools/fasm_extract/
+tools/fasmw.zip
+tools/fasm/

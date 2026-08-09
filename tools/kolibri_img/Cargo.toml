@@ -1,0 +1,13 @@
+[package]
+name = "kolibri_img"
+version = "0.1.0"
+edition = "2021"
+description = "Inspect and mutate KolibriOS .img files (FAT12/16): inspect/ls/cow/extract/delete/replace"
+license = "GPL-2.0-or-later"
+publish = false
+
+[[bin]]
+name = "kolibri_img"
+path = "src/main.rs"
+
+[dependencies]

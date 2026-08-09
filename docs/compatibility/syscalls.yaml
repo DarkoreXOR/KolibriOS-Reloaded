@@ -1,0 +1,104 @@
+# Syscall table (machine-readable)
+# LOCAL FACT source: kernel/core/syscall.inc servetable2
+# Classes: stable | legacy | undocumented_external | internal_unused
+
+meta:
+  entry_documented: int_0x40
+  entry_also: [sysenter, syscall_amd]
+  index: eax_low8
+  exit_number: 255  # EAX = -1
+
+syscalls:
+  - {num: 0, name: SF_CREATE_WINDOW, handler: syscall_draw_window, class: stable}
+  - {num: 1, name: SF_PUT_PIXEL, handler: syscall_setpixel, class: stable}
+  - {num: 2, name: SF_GET_KEY, handler: sys_getkey, class: stable}
+  - {num: 3, name: SF_GET_TIME, handler: sys_clock, class: stable}
+  - {num: 4, name: SF_DRAW_TEXT, handler: syscall_writetext, class: stable}
+  - {num: 5, name: SF_DELAY, handler: delay_hs_unprotected, class: stable}
+  - {num: 6, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 7, name: SF_PUT_IMAGE, handler: syscall_putimage, class: stable}
+  - {num: 8, name: SF_DEFINE_BUTTON, handler: syscall_button, class: stable}
+  - {num: 9, name: SF_THREAD_INFO, handler: sys_cpuusage, class: stable, user_struct: process_information}
+  - {num: 10, name: SF_WAIT_EVENT, handler: sys_waitforevent, class: stable}
+  - {num: 11, name: SF_CHECK_EVENT, handler: sys_getevent, class: stable}
+  - {num: 12, name: SF_REDRAW, handler: sys_redrawstat, class: stable}
+  - {num: 13, name: SF_DRAW_RECT, handler: syscall_drawrect, class: stable}
+  - {num: 14, name: SF_GET_SCREEN_SIZE, handler: syscall_getscreensize, class: stable}
+  - {num: 15, name: SF_BACKGROUND, handler: sys_background, class: stable}
+  - {num: 16, name: SF_CACHE_FLOPPY, handler: sys_cachetodiskette, class: legacy}
+  - {num: 17, name: SF_GET_BUTTON, handler: sys_getbutton, class: stable}
+  - {num: 18, name: SF_SYSTEM, handler: sys_system, class: stable, subfn_reg: ebx, nested_table: sys_system_table}
+  - {num: 19, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 20, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 21, name: SF_SETUP, handler: sys_setup, class: stable}
+  - {num: 22, name: SF_SET_TIME, handler: sys_settime, class: stable}
+  - {num: 23, name: SF_WAIT_EVENT_TIMEOUT, handler: sys_wait_event_timeout, class: stable}
+  - {num: 24, name: SF_CD_AUDIO, handler: syscall_cdaudio, class: legacy}
+  - {num: 25, name: SF_PUT_IMAGE_BACKGROUND, handler: syscall_putarea_backgr, class: stable}
+  - {num: 26, name: SF_GET_SETUP, handler: sys_getsetup, class: stable}
+  - {num: 27, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 28, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 29, name: SF_GET_DATE, handler: sys_date, class: stable}
+  - {num: 30, name: SF_CURRENT_DIRECTORY, handler: sys_current_directory, class: stable}
+  - {num: 31, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 32, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 33, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 34, name: SF_GET_PIXEL_WINMAP, handler: syscall_getpixel_WinMap, class: stable}
+  - {num: 35, name: SF_GET_PIXEL, handler: syscall_getpixel, class: stable}
+  - {num: 36, name: SF_GET_AREA, handler: syscall_getarea, class: stable}
+  - {num: 37, name: SF_MOUSE, handler: readmousepos, class: stable}
+  - {num: 38, name: SF_DRAW_LINE, handler: syscall_drawline, class: stable}
+  - {num: 39, name: SF_GET_BACKGROUND, handler: sys_getbackground, class: stable}
+  - {num: 40, name: SF_SET_EVENT_MASK, handler: set_app_param, class: stable}
+  - {num: 41, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 42, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 43, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 44, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 45, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 46, name: SF_RESERVE_PORT_AREA, handler: syscall_reserveportarea, class: stable}
+  - {num: 47, name: SF_DISPLAY_NUMBER, handler: display_number, class: stable}
+  - {num: 48, name: SF_DISPLAY_SETTINGS, handler: syscall_display_settings, class: stable}
+  - {num: 49, name: SF_APM, handler: sys_apm, class: legacy}
+  - {num: 50, name: SF_SET_WINDOW_SHAPE, handler: syscall_set_window_shape, class: stable}
+  - {num: 51, name: SF_THREADS, handler: syscall_threads, class: stable}
+  - {num: 52, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 53, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 54, name: SF_CLIPBOARD, handler: sys_clipboard, class: stable}
+  - {num: 55, name: SF_SOUND, handler: sound_interface, class: legacy}
+  - {num: 56, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 57, name: SF_PCI_BIOS, handler: sys_pcibios, class: legacy}
+  - {num: 58, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 59, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 60, name: SF_IPC, handler: sys_IPC, class: stable}
+  - {num: 61, name: SF_GS, handler: sys_gs, class: stable}
+  - {num: 62, name: SF_PCI, handler: pci_api, class: stable}
+  - {num: 63, name: SF_MSG_BOARD, handler: sys_msg_board, class: stable}
+  - {num: 64, name: SF_RESIZE_MEMORY, handler: sys_resize_app_memory, class: stable}
+  - {num: 65, name: SF_PUT_IMAGE_PALETTE, handler: sys_putimage_palette, class: stable}
+  - {num: 66, name: SF_PROCESS_DEF, handler: sys_process_def, class: stable}
+  - {num: 67, name: SF_MOVE_WINDOW, handler: syscall_move_window, class: stable}
+  - {num: 68, name: SF_SYS_MISC, handler: f68, class: stable, subfn_reg: ebx, nested_table: f68call, notes: "heap, drivers, IOCTL"}
+  - {num: 69, name: SF_DEBUG, handler: sys_debug_services, class: stable}
+  - {num: 70, name: SF_FILE_SYSTEM_LFN, handler: sys_file_system_lfn, class: stable}
+  - {num: 71, name: SF_WINDOW_SETTINGS, handler: syscall_window_settings, class: stable}
+  - {num: 72, name: SF_SEND_WINDOW_MSG, handler: sys_sendwindowmsg, class: stable}
+  - {num: 73, name: SF_BLIT, handler: blit_32, class: stable}
+  - {num: 74, name: SF_NETWORK, handler: sys_network, class: stable}
+  - {num: 75, name: SF_SOCKET, handler: sys_socket, class: stable}
+  - {num: 76, name: SF_PROTOCOLS, handler: sys_protocols, class: stable}
+  - {num: 77, name: SF_POSIX, handler: sys_posix, class: stable}
+  - {num: 78, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 79, name: null, handler: undefined_syscall, class: internal_unused}
+  - {num: 80, name: SF_FILESYSTEM_UNICODE, handler: sys_fileSystemUnicode, class: stable}
+  # 81-254: undefined_syscall (filler)
+  - {num: 255, name: SF_TERMINATE, handler: sys_end, class: stable, eax_alias: -1}
+
+undefined_range: {from: 81, to: 254, handler: undefined_syscall, return: -1}
+
+f68_notable_subfunctions:
+  # LOCAL FACT: core/memory.inc f68 — verify numbers against sysfuncs.txt when implementing
+  - {ebx: 16, symbol: get_service, role: load_or_open_driver}
+  - {ebx: 17, symbol: srv_handlerEx, role: IOCTL}
+  - {ebx: 21, symbol: load_pe_driver, role: load_pe_driver}
+  - {ebx: 30, role: unload_service}
+  - {ebx: 31, role: enumerate_services}
