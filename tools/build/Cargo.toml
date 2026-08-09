@@ -2,7 +2,7 @@
 name = "kolibri_build"
 version = "0.1.0"
 edition = "2021"
-description = "Orchestrate hybrid FASM+Rust kernel build (Cuts A–AB), disposable test images, and QEMU"
+description = "Orchestrate hybrid FASM+Rust kernel build (Cuts A–AC), disposable test images, and QEMU"
 license = "GPL-2.0-or-later"
 publish = false
 

@@ -15,7 +15,7 @@ use std::process::ExitCode;
 #[command(
     name = "kolibri_build",
     about = "Build the hybrid KolibriOS kernel, package a fresh test image, and run QEMU",
-    long_about = "Coordinates Cuts A–AB Rust freestanding blob builds, FASM assemble, \
+    long_about = "Coordinates Cuts A–AC Rust freestanding blob builds, FASM assemble, \
 kolibri_img CoW packaging, and QEMU smoke. Configuration: tools/build/config.toml \
 ([[rust.blobs]] + [[rust.migrations]] USE_RUST_* gates)."
 )]

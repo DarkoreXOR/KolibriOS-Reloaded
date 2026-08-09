@@ -241,6 +241,7 @@ high_code:
 ; Cut Z: is_partition_table_entry smoke ON when USE_RUST_IS_PARTITION_TABLE_ENTRY=1.
 ; Cut AA: pid_to_slot smoke ON when USE_RUST_PID_TO_SLOT=1 (after SLOT_BASE setup).
 ; Cut AB: utf8to16 smoke ON when USE_RUST_UTF8TO16=1.
+; Cut AC: ipv4_route smoke ON (synthetic tables; gate USE_RUST_IPV4_ROUTE).
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -273,6 +274,8 @@ high_code:
         call    fat_gen_short_name_rust_smoke_test
         ; Cut V: tcp_set_persist smoke (Rust when USE_RUST_TCP_SET_PERSIST=1).
         call    tcp_set_persist_rust_smoke_test
+        ; Cut AC: ipv4_route smoke (Rust when USE_RUST_IPV4_ROUTE=1; FASM path when OFF).
+        call    ipv4_route_rust_smoke_test
         ; Cut W: xfs._.get_addr_by_hash smoke (Rust when USE_RUST_XFS_GET_ADDR_BY_HASH=1).
         call    xfs_get_addr_by_hash_rust_smoke_test
         ; Cut Y smoke deferred until after LTR (larger stack; with Cut X).

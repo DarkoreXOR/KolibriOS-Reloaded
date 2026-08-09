@@ -135,6 +135,8 @@ include "rust/is_partition_table_entry.inc"
 include "rust/pid_to_slot.inc"
 ; Cut AB: utf8to16 — Rust blob + smoke (USE_RUST_UTF8TO16)
 include "rust/utf8to16.inc"
+; Cut AC: ipv4_route — Rust blob + smoke (USE_RUST_IPV4_ROUTE)
+include "rust/ipv4_route.inc"
 ; Phase C — Rust probe blob + FASM trampoline (see docs/migration/phase-c-integration.md)
 include "rust/phase_c.inc"
 

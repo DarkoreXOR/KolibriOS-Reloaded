@@ -1,11 +1,11 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB utilities: CRC32, Unicode, casefold, string, checksum,
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC utilities: CRC32, Unicode, casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), video geometry, NTFS MCB decode, NTFS USA restore, FAT
 //! 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator +
 //! persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall userspace
 //! region gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS extent unpack +
 //! dir hash binary search, window screen-fit helpers, TSS I/O permission bitmap updates, COFF
-//! reloc application, MBR/EBR partition-table entry validation, and process TID→slot lookup for
-//! KolibriOS hybrid migration.
+//! reloc application, MBR/EBR partition-table entry validation, process TID→slot lookup, and
+//! IPv4 on-link/gateway/broadcast routing for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -25,6 +25,7 @@ mod fat_name;
 mod font;
 mod geometry;
 mod io_access;
+mod ipv4_route;
 mod mouse;
 mod ntfs_mcb;
 mod ntfs_usa;
@@ -65,6 +66,10 @@ pub use geometry::{block_clip, BlockClipResult, Rect};
 pub use io_access::{
     io_map_bit, set_io_access_rights, set_io_access_rights_ptr, IO_MAP_BITS, IO_MAP_BYTES,
     SET_IO_ACCESS_RIGHTS_PRNG_SEED,
+};
+pub use ipv4_route::{
+    ipv4_route, ipv4_route_ptr, net_ptr_to_num4, Ipv4RouteResult, IPV4_BROADCAST,
+    IPV4_ROUTE_PRNG_SEED, NET_DEVICES_MAX, OFF_LINK_STATE, TABLE_BYTES,
 };
 pub use mouse::mouse_acceleration;
 pub use ntfs_mcb::{ntfs_decode_mcb_entry, McbDecodeResult};

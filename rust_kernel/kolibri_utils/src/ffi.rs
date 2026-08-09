@@ -15,6 +15,7 @@ use crate::fat_name::{fat_gen_short_name_ptr, fat_next_short_name_ptr};
 use crate::font::anti_aliasing;
 use crate::geometry::block_clip_ptr;
 use crate::io_access::set_io_access_rights_ptr;
+use crate::ipv4_route::ipv4_route_ptr;
 use crate::mouse::mouse_acceleration;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
 use crate::ntfs_usa::ntfs_restore_usa_ptr;
@@ -463,6 +464,49 @@ pub unsafe extern "stdcall" fn rust_utf8to16(
 ) -> u32 {
     // SAFETY: kernel trampoline passes &ESI stack slot + live EAX.
     unsafe { utf8to16_ptr(esi_inout, initial_eax) }
+}
+
+/// `stdcall` rust_ipv4_route(dest, device, source, addr, subnet, gw, devlist,
+///                           source_out, device_idx_out) -> EAX.
+///
+/// Cut AC: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 36 bytes (`ret 36`). Writes `EDX`/`EDI` equivalents through
+/// out-pointers; trampoline injects `IPv4_*` / `net_device_list` bases.
+///
+/// # Safety
+/// Table bases must be readable for 16 dwords; out-pointers must be writable;
+/// non-null device entries must expose `link_state` at offset 24.
+#[no_mangle]
+#[link_section = ".text.rust_ipv4_route"]
+pub unsafe extern "stdcall" fn rust_ipv4_route(
+    dest_ip: u32,
+    device_ptr: u32,
+    source_ip: u32,
+    ipv4_address: *const u32,
+    ipv4_subnet: *const u32,
+    ipv4_gateway: *const u32,
+    net_device_list: *const u32,
+    source_out: *mut u32,
+    device_idx_out: *mut u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes live table bases + stack out slots.
+    let r = unsafe {
+        ipv4_route_ptr(
+            dest_ip,
+            device_ptr,
+            source_ip,
+            ipv4_address,
+            ipv4_subnet,
+            ipv4_gateway,
+            net_device_list,
+        )
+    };
+    unsafe {
+        *source_out = r.source_ip;
+        *device_idx_out = r.device_idx4;
+    }
+    r.dest_ip
 }
 
 /// `stdcall` rust_anti_aliasing(fg, bg) -> EAX blended RGB.

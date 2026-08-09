@@ -954,6 +954,36 @@ endp
 ;       ebx, ecx                                                  ;
 ;                                                                 ;
 ;-----------------------------------------------------------------;
+; Cut AC: USE_RUST_IPV4_ROUTE=1 routes through Rust rust_ipv4_route
+; (see rust/ipv4_route.inc). Set USE_RUST_IPV4_ROUTE=0 to restore the
+; original FASM body without deleting it. Independent of Cuts A–AB.
+; Production default ON after Cut AC gates.
+
+USE_RUST_IPV4_ROUTE = 1
+
+if USE_RUST_IPV4_ROUTE
+
+; Compatibility trampoline: register ABI → Rust stdcall → EAX/EDX/EDI.
+; Injects IPv4_address/subnet/gateway + net_device_list; preserves ESI/EBP.
+; EBX/ECX may be clobbered (legacy destroyed).
+align 4
+ipv4_route:
+        push    esi
+        push    ebp
+        sub     esp, 8                  ; [esp]=source_out, [esp+4]=device_idx_out
+        mov     esi, esp                ; source_out
+        lea     ebp, [esp+4]            ; device_idx_out
+        stdcall rust_ipv4_route, eax, ebx, edx, IPv4_address, IPv4_subnet, IPv4_gateway, net_device_list, esi, ebp
+        mov     edx, [esp]
+        mov     edi, [esp+4]
+        add     esp, 8
+        pop     ebp
+        pop     esi
+        ret
+
+else
+
+; --- original FASM implementation (rollback) ---
 align 4
 ipv4_route:
 
@@ -1065,6 +1095,8 @@ ipv4_route:
         DEBUGF  DEBUG_NETWORK_ERROR, "IPv4_route failed\n"
         xor     eax, eax
         ret
+
+end if
 
 
 
