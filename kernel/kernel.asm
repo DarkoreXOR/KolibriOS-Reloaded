@@ -251,6 +251,8 @@ high_code:
         call    block_clip_rust_smoke_test
 ; Cut I smoke: FASM ntfs_decode_mcb_entry trampoline → Rust (hangs on mismatch).
         call    ntfs_decode_mcb_rust_smoke_test
+; Cut J smoke: FASM ntfs_restore_usa trampoline → Rust (hangs on mismatch).
+        call    ntfs_restore_usa_rust_smoke_test
 
 
         mov     ecx, pg_data.mutex

@@ -11,6 +11,7 @@ use crate::checksum::{checksum_1, checksum_2};
 use crate::crc::crc32_update;
 use crate::geometry::block_clip_ptr;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
+use crate::ntfs_usa::ntfs_restore_usa_ptr;
 use crate::string::strncmp;
 use crate::time::fs_calculate_time_ptr;
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
@@ -225,4 +226,21 @@ pub unsafe extern "stdcall" fn rust_ntfs_decode_mcb_entry(
 ) -> u32 {
     // SAFETY: kernel trampoline passes &ESI slot and caller stack buffer.
     unsafe { ntfs_decode_mcb_entry_ptr(esi_inout, buffer) }
+}
+
+/// `stdcall` rust_ntfs_restore_usa(record, size) -> EAX = 0 OK / 1 fail.
+///
+/// Cut J: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). FASM trampoline maps EAX → `clc`/`stc`
+/// (Cut H polarity: 0 = CF clear = OK, 1 = CF set = fail).
+/// Mutates sector end-words in the record (partial on mid-loop USN reject).
+///
+/// # Safety
+/// `record` must be a readable/writable NTFS record of `size` bytes.
+#[no_mangle]
+#[link_section = ".text.rust_ntfs_restore_usa"]
+pub unsafe extern "stdcall" fn rust_ntfs_restore_usa(record: *mut u8, size: u32) -> u32 {
+    // SAFETY: kernel trampoline passes EBX/EAX → valid record + size.
+    unsafe { ntfs_restore_usa_ptr(record, size) }
 }

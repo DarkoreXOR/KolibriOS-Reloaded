@@ -1082,6 +1082,35 @@ ntfs_read_file_record:
 
 ntfs_restore_usa_frs:
         mov     eax, [ebp+NTFS.frs_size]
+; fallthrough to ntfs_restore_usa
+
+; Cut J: USE_RUST_NTFS_RESTORE_USA=1 routes through Rust
+; rust_ntfs_restore_usa (see rust/ntfs_restore_usa.inc).
+; Set USE_RUST_NTFS_RESTORE_USA=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–I.
+
+USE_RUST_NTFS_RESTORE_USA = 1
+
+if USE_RUST_NTFS_RESTORE_USA
+
+; Compatibility trampoline: EBX+EAX → Rust stdcall → EAX → CF.
+; Callers keep `call ntfs_restore_usa` with EBX→record, EAX=size,
+; CF=0 OK / CF=1 fail. pushad/popad preserves all GPRs.
+align 4
+ntfs_restore_usa:
+        pushad
+        stdcall rust_ntfs_restore_usa, ebx, eax
+        test    eax, eax
+        popad
+        jz      .rust_usa_ok
+        stc
+        ret
+.rust_usa_ok:
+        clc
+        ret
+
+else
+
 ntfs_restore_usa:
 ;   in:
 ; ebx -> record
@@ -1112,6 +1141,8 @@ ntfs_restore_usa:
         popad
         stc
         ret
+
+end if
 
 ; Cut I: USE_RUST_NTFS_DECODE_MCB_ENTRY=1 routes through Rust
 ; rust_ntfs_decode_mcb_entry (see rust/ntfs_decode_mcb_entry.inc).
