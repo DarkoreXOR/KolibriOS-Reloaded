@@ -22,6 +22,7 @@ Evidence policy: [`../_meta/evidence-policy.md`](../_meta/evidence-policy.md).
 | Cut B (`cp866toUpper`) | ✓ — see [`cut-b-implementation.md`](cut-b-implementation.md) |
 | Cut C (`utf16toUpper`) | ✓ — see [`cut-c-implementation.md`](cut-c-implementation.md) |
 | Cut D (`strncmp`) | ✓ — see [`cut-d-implementation.md`](cut-d-implementation.md) |
+| Cut E (`checksum_1`) | ✓ — see [`cut-e-implementation.md`](cut-e-implementation.md) |
 | Next cut | **not started** |
 | Phase D (remove FASM bodies) | **not started** — originals kept under `USE_RUST_*=0` |
 

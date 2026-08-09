@@ -664,6 +664,25 @@ net_ptr_to_num4:                ; Todo, place number in device structure so we o
 ;  OUT: edx = semi-checksum                                       ;
 ;                                                                 ;
 ;-----------------------------------------------------------------;
+; Cut E: USE_RUST_CHECKSUM_1=1 routes through Rust rust_checksum_1
+; (see rust/checksum1.inc). Set USE_RUST_CHECKSUM_1=0 to restore the
+; original FASM body without deleting it.
+
+USE_RUST_CHECKSUM_1 = 1
+
+if USE_RUST_CHECKSUM_1
+
+; Compatibility trampoline: register ABI → Rust stdcall → EDX.
+; Callers keep `call checksum_1` with EDX/ESI/ECX; EAX may be clobbered
+; (audited: no live caller depends on EAX across this call).
+align 4
+checksum_1:
+        stdcall rust_checksum_1, edx, esi, ecx
+        mov     edx, eax
+        ret
+
+else
+
 align 4
 checksum_1:
 
@@ -732,6 +751,8 @@ checksum_1:
         adc     edx, 0
   .end:
         ret
+
+end if
 
 ;-----------------------------------------------------------------;
 ;                                                                 ;

@@ -1,12 +1,15 @@
-//! Cut A/B/C/D utilities: CRC32, Unicode, casefold, and string helpers for KolibriOS hybrid migration.
+//! Cut A/B/C/D/E utilities: CRC32, Unicode, casefold, string, and checksum helpers
+//! for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
-//! See `docs/migration/cut-a-final-architecture.md`, `cut-b-plan.md`, `cut-c-plan.md`, `cut-d-plan.md`.
+//! See `docs/migration/cut-a-final-architecture.md`, `cut-b-plan.md`, `cut-c-plan.md`,
+//! `cut-d-plan.md`, `cut-e-plan.md`.
 
 #![cfg_attr(target_os = "none", no_std)]
 
 mod casefold;
+mod checksum;
 mod crc;
 mod string;
 mod unicode;
@@ -15,6 +18,7 @@ mod unicode;
 mod ffi;
 
 pub use casefold::{cp866_to_upper, utf16_to_upper};
+pub use checksum::checksum_1;
 pub use crc::crc32_update;
 pub use string::strncmp;
 pub use unicode::{cp866_encode, utf16_encode, utf8_decode};

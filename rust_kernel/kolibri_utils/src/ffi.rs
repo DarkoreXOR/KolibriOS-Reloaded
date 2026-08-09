@@ -7,6 +7,7 @@
 //! argument because a Rust prologue must not rely on live `EAX` from FASM.
 
 use crate::casefold::{cp866_to_upper, utf16_to_upper};
+use crate::checksum::checksum_1;
 use crate::crc::crc32_update;
 use crate::string::strncmp;
 use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
@@ -136,4 +137,26 @@ pub extern "stdcall" fn rust_utf16_to_upper(ch: u32) -> u32 {
 pub unsafe extern "stdcall" fn rust_strncmp(s1: *const u8, s2: *const u8, n: u32) -> i32 {
     // SAFETY: kernel callers pass valid C-string regions for this compare.
     unsafe { strncmp(s1, s2, n) }
+}
+
+/// `stdcall` rust_checksum_1(seed, data, length) -> EAX = partial sum.
+///
+/// Cut E: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). FASM trampoline moves EAX → EDX.
+///
+/// # Safety
+/// `data` must be readable for `length` bytes when `length > 0`.
+#[no_mangle]
+#[link_section = ".text.rust_checksum_1"]
+pub unsafe extern "stdcall" fn rust_checksum_1(
+    seed: u32,
+    data: *const u8,
+    length: u32,
+) -> u32 {
+    if length == 0 {
+        return seed;
+    }
+    // SAFETY: kernel callers pass a readable buffer of `length` bytes.
+    unsafe { checksum_1(seed, data, length) }
 }
