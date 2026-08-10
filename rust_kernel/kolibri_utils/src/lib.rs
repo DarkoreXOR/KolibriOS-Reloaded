@@ -1,6 +1,6 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH utilities: CRC32, Unicode, casefold, string, checksum,
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI utilities: CRC32, Unicode, casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
-//! SetChecksum rolling hash, video geometry, NTFS MCB decode, NTFS USA restore, FAT
+//! SetChecksum + NameHash rolling hash, video geometry, NTFS MCB decode, NTFS USA restore, FAT
 //! 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator +
 //! persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall userspace
 //! region gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS extent unpack +
@@ -62,8 +62,9 @@ pub use coff_reloc::{
 };
 pub use crc::crc32_update;
 pub use exfat_checksum::{
-    calculate_set_checksum_field, calculate_set_checksum_field_ptr, exfat_rolling_checksum,
-    CALCULATE_SET_CHECKSUM_FIELD_PRNG_SEED, EXFAT_FILE_DIR_ENTRY_SIZE, SET_CHECKSUM_MIN_STORE,
+    calculate_set_checksum_field, calculate_set_checksum_field_ptr, exfat_hash_calculate,
+    exfat_hash_calculate_ptr, exfat_rolling_checksum, CALCULATE_SET_CHECKSUM_FIELD_PRNG_SEED,
+    EXFAT_FILE_DIR_ENTRY_SIZE, EXFAT_HASH_CALCULATE_PRNG_SEED, SET_CHECKSUM_MIN_STORE,
 };
 pub use fat_name::{
     fat_gen_short_name, fat_next_short_name, FatNextShortNameResult, FAT_GEN_FILL_LEN,

@@ -11,7 +11,7 @@ use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
 use crate::coff_reloc::fix_coff_relocs_ptr;
 use crate::crc::crc32_update;
-use crate::exfat_checksum::calculate_set_checksum_field_ptr;
+use crate::exfat_checksum::{calculate_set_checksum_field_ptr, exfat_hash_calculate_ptr};
 use crate::fat_name::{fat_gen_short_name_ptr, fat_next_short_name_ptr};
 use crate::font::anti_aliasing;
 use crate::geometry::block_clip_ptr;
@@ -300,6 +300,22 @@ pub unsafe extern "stdcall" fn rust_calculate_set_checksum_field(
 ) -> u32 {
     // SAFETY: kernel trampoline passes &file_dir_entry + derived length.
     u32::from(unsafe { calculate_set_checksum_field_ptr(buf, len) })
+}
+
+/// `stdcall` rust_exfat_hash_calculate(buf, len) -> EAX (AX = NameHash).
+///
+/// Cut AI: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). No store side effect; FASM trampoline
+/// preserves EBX/ECX/EDX/ESI/EDI around the call.
+///
+/// # Safety
+/// `buf` must be readable for `len` bytes when `len > 0`.
+#[no_mangle]
+#[link_section = ".text.rust_exfat_hash_calculate"]
+pub unsafe extern "stdcall" fn rust_exfat_hash_calculate(buf: *const u8, len: u32) -> u32 {
+    // SAFETY: kernel trampoline passes NameUTF16 pointer + byte length.
+    u32::from(unsafe { exfat_hash_calculate_ptr(buf, len) })
 }
 
 /// `stdcall` rust_block_clip(clip, rect) -> EAX = 0 draw / 1 reject.

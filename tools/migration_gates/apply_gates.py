@@ -64,7 +64,7 @@ def apply_gate(repo: Path, gate: str, gate_file: str, enabled: bool) -> None:
         raise SystemExit(f"error: gate `{gate}` not found in {gate_file}")
     if changed:
         path.write_text("".join(out_lines), encoding="utf-8")
-        print(f"  gate {gate} → {want} ({gate_file})")
+        print(f"  gate {gate} -> {want} ({gate_file})")
 
 
 def main() -> int:

@@ -247,6 +247,7 @@ high_code:
 ; Cut AF: ntfsCalculateTime smoke ON when USE_RUST_NTFS_CALCULATE_TIME=1.
 ; Cut AG: ntfs_test_bootsec smoke ON when USE_RUST_NTFS_TEST_BOOTSEC=1.
 ; Cut AH: calculate_SetChecksum_field smoke ON when USE_RUST_CALCULATE_SET_CHECKSUM_FIELD=1.
+; Cut AI: exFAT_hash_calculate (NameHash) smoke ON when USE_RUST_EXFAT_HASH_CALCULATE=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -283,6 +284,8 @@ high_code:
         call    ntfs_test_bootsec_rust_smoke_test
         ; Cut AH: calculate_SetChecksum_field smoke (Rust when USE_RUST_CALCULATE_SET_CHECKSUM_FIELD=1).
         call    calculate_set_checksum_field_rust_smoke_test
+        ; Cut AI: exFAT_hash_calculate NameHash smoke (Rust when USE_RUST_EXFAT_HASH_CALCULATE=1).
+        call    exfat_hash_calculate_rust_smoke_test
         ; Cut U: fat_gen_short_name smoke (Rust when USE_RUST_FAT_GEN_SHORT_NAME=1).
         call    fat_gen_short_name_rust_smoke_test
         ; Cut V: tcp_set_persist smoke (Rust when USE_RUST_TCP_SET_PERSIST=1).

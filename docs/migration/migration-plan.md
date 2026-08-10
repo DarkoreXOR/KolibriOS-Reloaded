@@ -23,7 +23,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 
 - Cut A from boundaries.
 - **Risk:** low.
-- **Status (2026-08-10):** **COMPLETE** — Phase C + Cuts A–AH production-validated (desktop + network NIC). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–AH re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
+- **Status (2026-08-10):** **COMPLETE** — Phase C + Cuts A–AI production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–AI re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
 - **Done:** Phase C probe + CRC32 + UTF-16 + CP866 + UTF-8. Baseline: [`cut-a-final-architecture.md`](cut-a-final-architecture.md).
 - **Cut B (pure util, not allocator):** `cp866toUpper` — **done** 2026-08-09 ([`cut-b-plan.md`](cut-b-plan.md), [`cut-b-implementation.md`](cut-b-implementation.md)).
 - **Cut C:** `utf16toUpper` — **done** ([`cut-c-implementation.md`](cut-c-implementation.md)).
@@ -57,7 +57,8 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut AE:** `ntfs_datetime_to_bdfe` — **done** 2026-08-10 ([`cut-ae-plan.md`](cut-ae-plan.md), [`cut-ae-implementation.md`](cut-ae-implementation.md)). NTFS FILETIME (1601×10⁷) → BDFE; composes Cut T; Path B after post-AD cluster audit; reloc-free.
 - **Cut AF:** `ntfsCalculateTime` — **done** 2026-08-10 ([`cut-af-plan.md`](cut-af-plan.md), [`cut-af-implementation.md`](cut-af-implementation.md)). NTFS BDFE → FILETIME (AE inverse; compose G); Path B after post-AE cluster audit; reloc-free.
 - **Cut AG:** `ntfs_test_bootsec` — **done** 2026-08-10 ([`cut-ag-plan.md`](cut-ag-plan.md), [`cut-ag-implementation.md`](cut-ag-implementation.md)). NTFS bootsector multi-rule CF validate; Path B after post-AF raised-bar cluster audit (no Rust-owned subsystem yet); reloc-free.
-- **Cut AH:** `calculate_SetChecksum_field` — **done** 2026-08-10 ([`cut-ah-plan.md`](cut-ah-plan.md), [`cut-ah-implementation.md`](cut-ah-implementation.md)). exFAT SetChecksum rolling hash (skip indices 2–3); Path B after post-AG raised-bar cluster audit (socket near-miss blockers unchanged); reloc-free. **Stop; do not start Cut AI.**
+- **Cut AH:** `calculate_SetChecksum_field` — **done** 2026-08-10 ([`cut-ah-plan.md`](cut-ah-plan.md), [`cut-ah-implementation.md`](cut-ah-implementation.md)). exFAT SetChecksum rolling hash (skip indices 2–3); Path B after post-AG raised-bar cluster audit (socket near-miss blockers unchanged); reloc-free.
+- **Cut AI:** `exFAT_hash_calculate` (NameHash) — **done** 2026-08-10 ([`cut-ai-plan.md`](cut-ai-plan.md), [`cut-ai-implementation.md`](cut-ai-implementation.md)). exFAT NameHash via shared `exfat_rolling_checksum` (no skip); extracted from former inline in `exFAT_find_lfn`; Path B after post-AH audit (Path A SetChecksum+NameHash rejected — helper reuse ≠ Rust-owned subsystem); reloc-free. **Stop; do not start Cut AJ.**
 
 ### Stage 3 — Compat syscall façade (selected)
 

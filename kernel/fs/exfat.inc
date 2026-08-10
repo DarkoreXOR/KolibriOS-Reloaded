@@ -902,42 +902,10 @@ align 4
         mov     ecx, edi
         sub     ecx, esi
         sub     ecx, 2 ; correction for zero or "/"
-; exFAT_hash_calculate
-;   in:
-; esi -> NameUTF16
-; ecx -> NameUTF16 length
-; out: ax = hash
-        xor     eax, eax
-        xor     ebx, ebx
-;--------------------------------------
-align 4
-.start:
-; DEBUGF 1, "Hash start EAX:%x ECX:%x\n", eax, ecx
-        mov     bx, ax
-; (Hash&1) ? 0x8000 : 0)
-        and     ax, 0x1
-        jz      .else
-
-        mov     ax, 0x8000
-        jmp     @f
-;--------------------------------------
-.else:
-        xor     ax, ax
-;--------------------------------------
-@@:
-; DEBUGF 1, "(Hash&1) EAX:%x\n", eax
-; (Hash>>1)
-        shr     bx, 1
-; DEBUGF 1, "(Hash>>1) EBX:%x\n", ebx
-        add     ax, bx
-; DEBUGF 1, "+ (Hash>>1)) EAX:%x\n", eax
-        movzx   bx, byte [esi]
-        add     ax, bx
-; DEBUGF 1, "+ (UInt16)Buffer[Index] EAX:%x\n", eax
-        inc     esi
-        dec     ecx
-        jnz     .start
-;--------------------------------------
+; Cut AI: exFAT_hash_calculate extracted (was inlined NameHash loop).
+;   in:  esi -> NameUTF16, ecx = byte length (excl. terminator)
+;   out: ax = hash
+        call    exFAT_hash_calculate
         pop     ecx ebx
         mov     [ebp+exFAT.current_hash], eax
 ; DEBUGF  1, "K : exFAT current hash :%x\n", eax
@@ -2330,6 +2298,77 @@ exFAT_Delete:
         xor     eax, eax
         ret
 ;------------------------------------------------------------------------------
+; Cut AI: USE_RUST_EXFAT_HASH_CALCULATE=1 routes through Rust
+; rust_exfat_hash_calculate (see rust/exfat_hash_calculate.inc).
+; Set USE_RUST_EXFAT_HASH_CALCULATE=0 to restore the original FASM body
+; without deleting it. Independent of Cut AH (SetChecksum).
+; Critical ABI: ESI→NameUTF16 bytes, ECX=byte length; AX=hash;
+; preserves EBX/ECX/EDX/ESI/EDI (trampoline). Production default ON after
+; Cut AI gates. Inline call site in exFAT_find_lfn stores [current_hash].
+
+USE_RUST_EXFAT_HASH_CALCULATE = 1
+
+if USE_RUST_EXFAT_HASH_CALCULATE
+
+; Compatibility trampoline: (ESI,ECX) → (buf,len) stdcall → AX.
+align 4
+exFAT_hash_calculate:
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    edi
+        stdcall rust_exfat_hash_calculate, esi, ecx
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
+align 4
+exFAT_hash_calculate:
+;   in:
+; esi -> NameUTF16
+; ecx -> NameUTF16 length (bytes)
+; out: ax = hash
+; clobbers: ebx (restored), ecx (burn), esi (advances)
+; quirk: ECX==0 do-while hangs (same as former inline); Rust treats as 0
+        push    ebx
+        xor     eax, eax
+        xor     ebx, ebx
+;--------------------------------------
+align 4
+.nh_start:
+        mov     bx, ax
+; (Hash&1) ? 0x8000 : 0)
+        and     ax, 0x1
+        jz      .nh_else
+
+        mov     ax, 0x8000
+        jmp     .nh_join
+;--------------------------------------
+.nh_else:
+        xor     ax, ax
+;--------------------------------------
+.nh_join:
+; (Hash>>1)
+        shr     bx, 1
+        add     ax, bx
+        movzx   bx, byte [esi]
+        add     ax, bx
+        inc     esi
+        dec     ecx
+        jnz     .nh_start
+;--------------------------------------
+        pop     ebx
+        ret
+
+end if
+
+;------------------------------------------------------------------------------
 ; Cut AH: USE_RUST_CALCULATE_SET_CHECKSUM_FIELD=1 routes through Rust
 ; rust_calculate_set_checksum_field (see rust/calculate_set_checksum_field.inc).
 ; Set USE_RUST_CALCULATE_SET_CHECKSUM_FIELD=0 to restore the original FASM body
@@ -2548,6 +2587,96 @@ calculate_set_checksum_field_rust_smoke_test:
         hlt
         jmp     @b
 ; hang marker context: Cut AH ABI smoke failure
+;------------------------------------------------------------------------------
+; Cut AI ABI smoke — NameHash / exFAT_hash_calculate.
+; Marker hang: HLT loop (Cut AI). Success: smoke_result='EXNH'.
+uglobal
+align 4
+exfat_nh_smoke_buf: rb 64
+endg
+
+align 4
+exfat_hash_calculate_rust_smoke_test:
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    edi
+        push    ebp
+
+        ; UTF-16LE "AB" (4 bytes) — typical trimmed NameHash span
+        mov     edi, exfat_nh_smoke_buf
+        mov     word [edi], 0x0041          ; 'A'
+        mov     word [edi+2], 0x0042        ; 'B'
+        mov     dword [edi+4], 0
+        mov     dword [edi+8], 0
+
+        ; Canaries
+        mov     ebx, 0xA9000011
+        mov     ecx, 0xC9000012
+        mov     edx, 0xD9000013
+        mov     esi, exfat_nh_smoke_buf
+        mov     edi, 0xF9000015
+        mov     ebp, 0xB9000016
+
+        mov     ecx, 4
+        call    exFAT_hash_calculate
+
+        cmp     ebx, 0xA9000011
+        jne     .fail
+        cmp     edx, 0xD9000013
+        jne     .fail
+        cmp     edi, 0xF9000015
+        jne     .fail
+        cmp     ebp, 0xB9000016
+        jne     .fail
+        ; Rust trampoline preserves ECX/ESI; legacy FASM burns ECX and advances ESI.
+if USE_RUST_EXFAT_HASH_CALCULATE
+        cmp     ecx, 4
+        jne     .fail
+        cmp     esi, exfat_nh_smoke_buf
+        jne     .fail
+end if
+
+        ; Direct rust_* must match AX
+        push    eax
+        stdcall rust_exfat_hash_calculate, exfat_nh_smoke_buf, 4
+        mov     ecx, eax
+        pop     eax
+        cmp     ax, cx
+        jne     .fail
+
+        ; Empty length → 0 (Rust); do not call legacy FASM with ECX=0 (hangs)
+        stdcall rust_exfat_hash_calculate, exfat_nh_smoke_buf, 0
+        test    eax, eax
+        jnz     .fail
+
+        ; Odd byte length via rust_* only (avoids ESI/ECX ABI branch)
+        stdcall rust_exfat_hash_calculate, exfat_nh_smoke_buf, 3
+        ; Non-zero for this buffer (A,0,B) — just ensure call returns
+        mov     ebx, eax
+
+        mov     esi, exfat_nh_smoke_buf
+        mov     ecx, 3
+        call    exFAT_hash_calculate
+        cmp     ax, bx
+        jne     .fail
+
+        mov     [rust_exfat_hash_calculate_smoke_result], 0x45584E48 ; 'EXNH'
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+.fail:
+        cli
+@@:
+        hlt
+        jmp     @b
+; hang marker context: Cut AI ABI smoke failure
 ;------------------------------------------------------------------------------
 ;------------------------------------------------------------------------------
 exFAT_clear_Cluster_Heap:

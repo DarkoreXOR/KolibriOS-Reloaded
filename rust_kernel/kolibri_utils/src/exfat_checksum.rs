@@ -1,16 +1,19 @@
-//! Cut AH: `calculate_SetChecksum_field` — exFAT directory SetChecksum.
+//! Cut AH/AI: exFAT rolling checksum — SetChecksum + NameHash.
 //!
 //! Matches `kernel/fs/exfat.inc` FASM leaf semantics:
 //! * Rolling 16-bit checksum: `((c & 1) ? 0x8000 : 0) + (c >> 1) + byte`
-//! * Skip absolute indices 2 and 3 (the SetChecksum field itself)
-//! * Write result to `buf[2..4]` (LE u16); return AX
+//! * SetChecksum (AH): skip absolute indices 2 and 3; store AX at `buf+2`
+//! * NameHash (AI): no skip; return AX only (`exFAT_hash_calculate`)
 //!
-//! Buffer/length are passed explicitly so the Rust blob stays reloc-free
+//! Buffer/length are passed explicitly so the Rust blobs stay reloc-free
 //! (no `exFAT` EBP layout / GOT). Internal [`exfat_rolling_checksum`] is the
-//! shared core for a future NameHash extraction (inlined today in FASM).
+//! shared core used by both leaves.
 
 /// Cut AH differential PRNG seed (`'CUTH'`).
 pub const CALCULATE_SET_CHECKSUM_FIELD_PRNG_SEED: u32 = 0x4355_5448;
+
+/// Cut AI differential PRNG seed (`'CUTI'`).
+pub const EXFAT_HASH_CALCULATE_PRNG_SEED: u32 = 0x4355_5449;
 
 /// Minimum writable span so `[buf+2]` store is always in-bounds for the leaf.
 pub const SET_CHECKSUM_MIN_STORE: usize = 4;
@@ -77,6 +80,28 @@ pub unsafe fn calculate_set_checksum_field_ptr(buf: *mut u8, len: u32) -> u16 {
     unsafe { calculate_set_checksum_field(buf, len) }
 }
 
+/// Cut AI: `exFAT_hash_calculate` — NameHash over a UTF-16 name byte span.
+///
+/// Same rolling core as SetChecksum with `skip_indices_2_3 = false`.
+/// No store side effect (caller writes `[exFAT.current_hash]`).
+///
+/// # Safety
+/// `data` must be readable for `len` bytes when `len > 0`.
+#[inline(always)]
+pub unsafe fn exfat_hash_calculate(data: *const u8, len: u32) -> u16 {
+    // SAFETY: caller length/readability contract.
+    unsafe { exfat_rolling_checksum(data, len, false) }
+}
+
+/// Pointer-form wrapper for the NameHash FFI boundary.
+///
+/// # Safety
+/// Same as [`exfat_hash_calculate`].
+#[inline(always)]
+pub unsafe fn exfat_hash_calculate_ptr(data: *const u8, len: u32) -> u16 {
+    unsafe { exfat_hash_calculate(data, len) }
+}
+
 /// Independent FASM-flow oracle (duplicated control flow; not a call to Rust).
 ///
 /// Mirrors `calculate_SetChecksum_field` inner loop + final store semantics
@@ -123,10 +148,40 @@ pub fn calculate_set_checksum_field_slice(data: &[u8]) -> u16 {
     unsafe { calculate_set_checksum_field_sum(data.as_ptr(), data.len() as u32) }
 }
 
-/// Host-friendly NameHash path (no skip) for future-cluster foreshadow tests.
+/// Host-friendly NameHash path (no skip).
 #[cfg(test)]
 pub fn exfat_namehash_slice(data: &[u8]) -> u16 {
-    unsafe { exfat_rolling_checksum(data.as_ptr(), data.len() as u32, false) }
+    unsafe { exfat_hash_calculate(data.as_ptr(), data.len() as u32) }
+}
+
+/// Independent FASM-flow NameHash oracle (do-while control flow; no skip).
+///
+/// Mirrors the inlined `exFAT_hash_calculate` loop in `exFAT_find_lfn`.
+/// `len==0` returns 0 (FASM hangs; documented quirk — empty component path).
+#[cfg(test)]
+pub fn fasm_oracle_namehash(buf: &[u8]) -> u16 {
+    let mut eax: u16 = 0;
+    let mut ecx = buf.len() as u32;
+    let mut esi: usize = 0;
+    if ecx == 0 {
+        return 0;
+    }
+    loop {
+        let mut bx = eax;
+        let mut ax = eax;
+        ax &= 0x1;
+        ax = if ax == 0 { 0 } else { 0x8000 };
+        bx >>= 1;
+        ax = ax.wrapping_add(bx);
+        ax = ax.wrapping_add(u16::from(buf[esi]));
+        eax = ax;
+        esi = esi.wrapping_add(1);
+        ecx = ecx.wrapping_sub(1);
+        if ecx == 0 {
+            break;
+        }
+    }
+    eax
 }
 
 #[cfg(test)]
@@ -272,15 +327,65 @@ mod tests {
 
     #[test]
     fn namehash_matches_no_skip_oracle() {
-        // Foreshadow: NameHash is the same loop without skip.
         let data = b"Hello-exFAT-NameHash\0\0";
-        let mut eax: u16 = 0;
-        for &byte in data {
-            let rotated = if (eax & 1) != 0 { 0x8000u16 } else { 0 };
-            eax = rotated
-                .wrapping_add(eax >> 1)
-                .wrapping_add(u16::from(byte));
+        assert_eq!(exfat_namehash_slice(data), fasm_oracle_namehash(data));
+    }
+
+    #[test]
+    fn namehash_empty_and_utf16_name() {
+        assert_eq!(exfat_namehash_slice(&[]), 0);
+        assert_eq!(fasm_oracle_namehash(&[]), 0);
+
+        // UTF-16LE "AB" (4 bytes) — typical NameHash span after -2 terminator trim.
+        let name = [b'A', 0, b'B', 0];
+        assert_eq!(
+            exfat_namehash_slice(&name),
+            fasm_oracle_namehash(&name)
+        );
+
+        // Odd length (byte-oriented, not word-oriented).
+        let odd = [0x41u8, 0x00, 0xFF];
+        assert_eq!(exfat_namehash_slice(&odd), fasm_oracle_namehash(&odd));
+    }
+
+    #[test]
+    fn namehash_differs_from_setchecksum_when_field_nonzero() {
+        let mut buf = [0u8; 8];
+        for (i, b) in buf.iter_mut().enumerate() {
+            *b = (i as u8).wrapping_mul(7).wrapping_add(1);
         }
-        assert_eq!(exfat_namehash_slice(data), eax);
+        let hash = exfat_namehash_slice(&buf);
+        let setc = calculate_set_checksum_field_slice(&buf);
+        assert_ne!(hash, setc);
+        assert_eq!(hash, fasm_oracle_namehash(&buf));
+        assert_eq!(setc, fasm_oracle_set_checksum(&buf));
+    }
+
+    #[test]
+    fn namehash_wrap_and_odd_bit() {
+        let all_ff = [0xFFu8; 32];
+        assert_eq!(
+            exfat_namehash_slice(&all_ff),
+            fasm_oracle_namehash(&all_ff)
+        );
+        let ones = [1u8; 32];
+        assert_eq!(exfat_namehash_slice(&ones), fasm_oracle_namehash(&ones));
+    }
+
+    #[test]
+    fn namehash_differential_prng_50k() {
+        let mut state = EXFAT_HASH_CALCULATE_PRNG_SEED;
+        for _ in 0..50_000 {
+            let len = (xorshift32(&mut state) % 512) as usize;
+            let mut buf = vec![0u8; len];
+            for b in &mut buf {
+                *b = (xorshift32(&mut state) & 0xFF) as u8;
+            }
+            let rust = exfat_namehash_slice(&buf);
+            let ora = fasm_oracle_namehash(&buf);
+            assert_eq!(rust, ora, "len={len}");
+            let via_ptr = unsafe { exfat_hash_calculate_ptr(buf.as_ptr(), len as u32) };
+            assert_eq!(via_ptr, rust);
+        }
     }
 }
