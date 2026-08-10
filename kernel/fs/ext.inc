@@ -2408,6 +2408,32 @@ ext_unlock:
         lea     ecx, [ebp+EXTFS.Lock]
         jmp     mutex_unlock
 
+; Cut AL: USE_RUST_EXT_READ_TIME=1 routes through Rust
+; rust_ext_unix_to_secs (see rust/ext_read_time.inc).
+; Set USE_RUST_EXT_READ_TIME=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–AK.
+; Critical ABI: EAX=unix secs, EDX=extra (or 0), EDI→BDFE; EDI+=8 via fsTime2bdfe;
+; ECX preserved (ext_read_all_times reuses ECX across calls).
+; Production default ON after Cut AL gates.
+
+USE_RUST_EXT_READ_TIME = 1
+
+if USE_RUST_EXT_READ_TIME
+
+; Compatibility trampoline: EAX/EDX → Rust secs → fsTime2bdfe (EDI+=8).
+; Matches original FASM composition (epoch-bits/sign/clamp in Rust; calendar via Cut T).
+; Callers keep `call ext_read_time` with EAX/EDX/EDI.
+; ECX/ESI/EBP/EBX preserved (stdcall callee-saved + explicit ECX push).
+align 4
+ext_read_time:
+        push    ecx
+        stdcall rust_ext_unix_to_secs, eax, edx
+        call    fsTime2bdfe
+        pop     ecx
+        ret
+
+else
+
 ext_read_time:
 ; in:  eax = i_*time (32-bit, UNIX epoch)
 ;      edx = i_*TimeExtra (32-bit), or 0 if not valid
@@ -2432,6 +2458,8 @@ ext_read_time:
 .clamp_max:
         mov     eax, 0xFFFFFFFF
         jmp     .convert
+
+end if
 
 ;----------------------------------------------------------------
 ext_read_all_times:

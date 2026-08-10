@@ -3,11 +3,12 @@
 //! Cut AE: `ntfs_datetime_to_bdfe` — NTFS FILETIME (1601×10⁷) → BDFE (EDI+=8).
 //! Cut AF: `ntfsCalculateTime` — BDFE → NTFS FILETIME (1601×10⁷); inverse of AE.
 //! Cut AK: `xfs._.conv_bigtime_to_kos_epoch` — XFS v5 bigtime (ns) → BDFE (EDI+=8).
+//! Cut AL: `ext_read_time` — EXT/ext4 Unix (+extra epoch bits) → BDFE (EDI+=8).
 //!
-//! Matches `kernel/fs/fs_common.inc` / `ntfs.inc` / `xfs.asm` FASM leaf semantics
-//! for the production domain (year &lt; 3025 so `BH` pollution after `shr ebx,2`
-//! does not apply). Month tables are stack-materialized so the freestanding FFI
-//! section stays reloc-free (no `.rodata` absolute loads).
+//! Matches `kernel/fs/fs_common.inc` / `ntfs.inc` / `xfs.asm` / `ext.inc` FASM leaf
+//! semantics for the production domain (year &lt; 3025 so `BH` pollution after
+//! `shr ebx,2` does not apply). Month tables are stack-materialized so the
+//! freestanding FFI section stays reloc-free (no `.rodata` absolute loads).
 
 /// NTFS FILETIME bias: 2001-01-01 00:00:00 as 100ns ticks since 1601-01-01.
 /// FASM `sub eax, 3365781504` / `sbb edx, 29389701`.
@@ -33,6 +34,13 @@ pub const XFS_BIGTIME_TO_KOS_OFFSET_NS: u64 =
 
 /// PRNG seed for Cut AK differential corpus (`'CUTK'`).
 pub const XFS_CONV_BIGTIME_TO_KOS_EPOCH_PRNG_SEED: u32 = 0x4355_544B;
+
+/// Unix epoch → Kolibri 2001-01-01 seconds (`fs_lfn.inc` / `ext.inc`).
+/// FASM `(365*31+8)*24*60*60` = 978_307_200.
+pub const UNIXTIME_TO_KOS_OFFSET: u32 = 978_307_200;
+
+/// PRNG seed for Cut AL differential corpus (`'CUTL'`).
+pub const EXT_READ_TIME_PRNG_SEED: u32 = 0x4355_544C;
 
 /// BDFE-style datetime block layout (same offsets as FASM / `fsTime2bdfe`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -391,6 +399,55 @@ pub fn xfs_bigtime_to_secs(bigtime_lo: u32, bigtime_hi: u32) -> u32 {
 #[inline(always)]
 pub fn xfs_conv_bigtime_to_kos_epoch(bigtime_lo: u32, bigtime_hi: u32) -> BdfeTime {
     fs_time2bdfe(xfs_bigtime_to_secs(bigtime_lo, bigtime_hi))
+}
+
+/// Convert EXT/ext4 Unix seconds (+ optional `i_*TimeExtra`) to Kolibri seconds
+/// since 2001-01-01.
+///
+/// Mirrors `ext_read_time` in `ext.inc` before `call fsTime2bdfe`:
+/// * `edx &= 3` (ext4 extra epoch bits);
+/// * if `i_time` is signed-negative, `dec edx` (sign-extension trick);
+/// * 64-bit `sub`/`sbb` of [`UNIXTIME_TO_KOS_OFFSET`];
+/// * `js` → clamp 0 (pre-2001); `jnz` → clamp `0xFFFFFFFF` (past KOS u32 range).
+#[inline(always)]
+pub fn ext_unix_to_secs(i_time: u32, extra: u32) -> u32 {
+    let mut edx = extra & 3;
+    if (i_time as i32) < 0 {
+        edx = edx.wrapping_sub(1);
+    }
+    let (eax, borrow) = i_time.overflowing_sub(UNIXTIME_TO_KOS_OFFSET);
+    let edx = edx.wrapping_sub(if borrow { 1 } else { 0 });
+    // `js .clamp_0` — SF of `sbb edx, 0`
+    if (edx as i32) < 0 {
+        return 0;
+    }
+    // `jnz .clamp_max`
+    if edx != 0 {
+        return u32::MAX;
+    }
+    eax
+}
+
+/// Convert EXT/ext4 Unix time to BDFE datetime (FASM `ext_read_time`).
+///
+/// Composes [`ext_unix_to_secs`] + [`fs_time2bdfe`].
+#[inline(always)]
+pub fn ext_read_time(i_time: u32, extra: u32) -> BdfeTime {
+    fs_time2bdfe(ext_unix_to_secs(i_time, extra))
+}
+
+/// Pointer form — writes 8 BDFE bytes at `out` (host/tests; kernel uses Cut T).
+///
+/// # Safety
+/// `out` must point to a writable 8-byte BDFE datetime block.
+#[inline(always)]
+pub unsafe fn ext_read_time_ptr(i_time: u32, extra: u32, out: *mut u8) {
+    let t = ext_read_time(i_time, extra);
+    let b = t.to_bytes();
+    // SAFETY: caller guarantees 8 writable bytes.
+    unsafe {
+        core::ptr::copy_nonoverlapping(b.as_ptr(), out, 8);
+    }
 }
 
 /// Pointer form used by the FFI trampoline — writes 8 BDFE bytes at `out`.
@@ -1299,6 +1356,159 @@ mod tests {
             );
         }
     }
+
+    // ----- Cut AL: ext_read_time -----
+
+    #[test]
+    fn ext_rt_epoch_2001() {
+        // Unix 978_307_200 = 2001-01-01 00:00:00
+        assert_eq!(ext_unix_to_secs(UNIXTIME_TO_KOS_OFFSET, 0), 0);
+        assert_eq!(ext_read_time(UNIXTIME_TO_KOS_OFFSET, 0), t(2001, 1, 1, 0, 0, 0));
+    }
+
+    #[test]
+    fn ext_rt_one_second() {
+        assert_eq!(
+            ext_read_time(UNIXTIME_TO_KOS_OFFSET + 1, 0),
+            t(2001, 1, 1, 0, 0, 1)
+        );
+    }
+
+    #[test]
+    fn ext_rt_pre_epoch_clamp() {
+        assert_eq!(ext_unix_to_secs(0, 0), 0);
+        assert_eq!(ext_unix_to_secs(UNIXTIME_TO_KOS_OFFSET - 1, 0), 0);
+        assert_eq!(ext_read_time(0, 0), t(2001, 1, 1, 0, 0, 0));
+    }
+
+    #[test]
+    fn ext_rt_signed_negative_sign_extend() {
+        // i_time MSB set + extra=0 → dec edx → SF after sbb → clamp 0
+        assert_eq!(ext_unix_to_secs(0xFFFF_FFFF, 0), 0);
+        assert_eq!(ext_unix_to_secs(0x8000_0000, 0), 0);
+    }
+
+    #[test]
+    fn ext_rt_extra_epoch_bit_one() {
+        // i_time=-1, extra=1 → after dec edx=0 → unsigned 0xFFFFFFFF
+        // 0xFFFFFFFF - OFFSET = KOS secs
+        let secs = ext_unix_to_secs(0xFFFF_FFFF, 1);
+        assert_eq!(secs, 0xFFFF_FFFF - UNIXTIME_TO_KOS_OFFSET);
+        assert_eq!(secs, fasm_oracle_ext_unix_to_secs(0xFFFF_FFFF, 1));
+    }
+
+    #[test]
+    fn ext_rt_extra_masks_to_two_bits() {
+        // Only low 2 bits of extra matter
+        assert_eq!(
+            ext_unix_to_secs(UNIXTIME_TO_KOS_OFFSET, 0xFFFF_FFFC),
+            ext_unix_to_secs(UNIXTIME_TO_KOS_OFFSET, 0)
+        );
+        assert_eq!(
+            ext_unix_to_secs(UNIXTIME_TO_KOS_OFFSET, 0xFFFF_FFFD),
+            ext_unix_to_secs(UNIXTIME_TO_KOS_OFFSET, 1)
+        );
+    }
+
+    #[test]
+    fn ext_rt_high_epoch_clamps_max() {
+        // extra&3 == 2 with non-negative i_time large enough that edx stays >0
+        // after offset → clamp max
+        let secs = ext_unix_to_secs(0, 2);
+        assert_eq!(secs, u32::MAX);
+        assert_eq!(secs, fasm_oracle_ext_unix_to_secs(0, 2));
+        assert_eq!(ext_read_time(0, 2), fasm_oracle_ext_read_time(0, 2));
+    }
+
+    #[test]
+    fn ext_rt_end_of_day() {
+        assert_eq!(
+            ext_read_time(UNIXTIME_TO_KOS_OFFSET + 86_399, 0),
+            t(2001, 1, 1, 23, 59, 59)
+        );
+    }
+
+    #[test]
+    fn ext_rt_leap_2004_02_29() {
+        assert_eq!(
+            ext_read_time(UNIXTIME_TO_KOS_OFFSET + 99_705_600, 0),
+            t(2004, 2, 29, 0, 0, 0)
+        );
+    }
+
+    #[test]
+    fn ext_rt_ptr_writes_layout() {
+        let mut buf = [0xAAu8; 8];
+        unsafe { ext_read_time_ptr(UNIXTIME_TO_KOS_OFFSET + 86_399, 0, buf.as_mut_ptr()) };
+        assert_eq!(buf[0], 59);
+        assert_eq!(buf[1], 59);
+        assert_eq!(buf[2], 23);
+        assert_eq!(buf[3], 0);
+        assert_eq!(buf[4], 1);
+        assert_eq!(buf[5], 1);
+        assert_eq!(u16::from_le_bytes([buf[6], buf[7]]), 2001);
+    }
+
+    #[test]
+    fn ext_rt_oracle_named_and_boundary() {
+        let vectors: &[(u32, u32)] = &[
+            (0, 0),
+            (UNIXTIME_TO_KOS_OFFSET, 0),
+            (UNIXTIME_TO_KOS_OFFSET + 1, 0),
+            (UNIXTIME_TO_KOS_OFFSET - 1, 0),
+            (UNIXTIME_TO_KOS_OFFSET + 86_399, 0),
+            (UNIXTIME_TO_KOS_OFFSET + 99_705_600, 0),
+            (0x8000_0000, 0),
+            (0x8000_0000, 1),
+            (0xFFFF_FFFF, 0),
+            (0xFFFF_FFFF, 1),
+            (0xFFFF_FFFF, 2),
+            (0xFFFF_FFFF, 3),
+            (0, 1),
+            (0, 2),
+            (0, 3),
+            (0x1234_5678, 0xDEAD_BEEF),
+            (u32::MAX, u32::MAX),
+        ];
+        for &(time, extra) in vectors {
+            assert_eq!(
+                ext_unix_to_secs(time, extra),
+                fasm_oracle_ext_unix_to_secs(time, extra),
+                "secs time={time:#x} extra={extra:#x}"
+            );
+            assert_eq!(
+                ext_read_time(time, extra),
+                fasm_oracle_ext_read_time(time, extra),
+                "bdfe time={time:#x} extra={extra:#x}"
+            );
+        }
+    }
+
+    #[test]
+    fn ext_rt_prng_oracle_50k() {
+        const CASES: usize = 50_000;
+        let mut state = EXT_READ_TIME_PRNG_SEED;
+        let mut next = || -> u32 {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            state
+        };
+        for i in 0..CASES {
+            let time = next();
+            let extra = next();
+            assert_eq!(
+                ext_unix_to_secs(time, extra),
+                fasm_oracle_ext_unix_to_secs(time, extra),
+                "prng#{i} secs time={time:#x} extra={extra:#x}"
+            );
+            assert_eq!(
+                ext_read_time(time, extra),
+                fasm_oracle_ext_read_time(time, extra),
+                "prng#{i} bdfe time={time:#x} extra={extra:#x}"
+            );
+        }
+    }
 }
 
 /// FASM-faithful host oracle for `fsTime2bdfe` — separate control-flow mirror
@@ -1464,4 +1674,32 @@ pub fn fasm_oracle_xfs_bigtime_to_secs(bigtime_lo: u32, bigtime_hi: u32) -> u32 
 #[cfg(test)]
 pub fn fasm_oracle_xfs_conv_bigtime_to_kos_epoch(bigtime_lo: u32, bigtime_hi: u32) -> BdfeTime {
     fasm_oracle_fs_time2bdfe(fasm_oracle_xfs_bigtime_to_secs(bigtime_lo, bigtime_hi))
+}
+
+/// FASM-faithful EXT Unix→secs oracle (`ext.inc` epoch-bits / sign / clamp).
+///
+/// Independently mirrors `and edx,3` / `test eax` / `dec edx` / `sub`/`sbb` /
+/// `js`/`jnz` — not a call through [`ext_unix_to_secs`].
+#[cfg(test)]
+pub fn fasm_oracle_ext_unix_to_secs(i_time: u32, extra: u32) -> u32 {
+    let offset = 978_307_200u32; // (365*31+8)*86400 — literal, not the const alias
+    let mut edx = extra & 3;
+    if (i_time as i32) < 0 {
+        edx = edx.wrapping_sub(1);
+    }
+    let (eax, borrow) = i_time.overflowing_sub(offset);
+    let edx = edx.wrapping_sub(if borrow { 1 } else { 0 });
+    if (edx as i32) < 0 {
+        return 0;
+    }
+    if edx != 0 {
+        return 0xFFFF_FFFF;
+    }
+    eax
+}
+
+/// FASM-faithful host oracle for `ext_read_time` — epoch convert then calendar.
+#[cfg(test)]
+pub fn fasm_oracle_ext_read_time(i_time: u32, extra: u32) -> BdfeTime {
+    fasm_oracle_fs_time2bdfe(fasm_oracle_ext_unix_to_secs(i_time, extra))
 }

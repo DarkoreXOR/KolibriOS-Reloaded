@@ -136,6 +136,8 @@ include "rust/exfat_hash_calculate.inc"
 include "rust/iso9660_compare_name.inc"
 ; Cut AK: xfs._.conv_bigtime_to_kos_epoch — Rust blob + smoke (USE_RUST_XFS_CONV_BIGTIME_TO_KOS_EPOCH)
 include "rust/xfs_conv_bigtime_to_kos_epoch.inc"
+; Cut AL: ext_read_time — Rust blob + smoke (USE_RUST_EXT_READ_TIME)
+include "rust/ext_read_time.inc"
 ; Cut U: fat_gen_short_name — Rust blob + smoke (USE_RUST_FAT_GEN_SHORT_NAME)
 include "rust/fat_gen_short_name.inc"
 ; Cut V: tcp_set_persist — Rust blob + smoke (USE_RUST_TCP_SET_PERSIST)

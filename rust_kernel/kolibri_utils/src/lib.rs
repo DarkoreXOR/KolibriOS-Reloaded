@@ -111,12 +111,13 @@ pub use tcp::{
     TIMER_FLAG_PERSIST, TIMER_FLAG_RETRANSMISSION,
 };
 pub use time::{
-    bigtime_from_secs_2001, filetime_from_secs_2001, fs_calculate_time, fs_time2bdfe,
-    fs_time2bdfe_ptr, ntfs_calculate_time, ntfs_calculate_time_ptr, ntfs_datetime_to_bdfe,
-    ntfs_datetime_to_bdfe_ptr, ntfs_filetime_to_secs, pack_bigtime_be, pack_filetime,
-    xfs_bigtime_to_secs, xfs_conv_bigtime_to_kos_epoch, xfs_conv_bigtime_to_kos_epoch_ptr, BdfeTime,
-    NTFS_CALCULATE_TIME_PRNG_SEED, NTFS_DATETIME_TO_BDFE_PRNG_SEED, NTFS_FILETIME_BIAS_HI,
-    NTFS_FILETIME_BIAS_LO, NTFS_FILETIME_PER_SEC, XFS_BIGTIME_TO_KOS_OFFSET_NS,
+    bigtime_from_secs_2001, ext_read_time, ext_read_time_ptr, ext_unix_to_secs,
+    filetime_from_secs_2001, fs_calculate_time, fs_time2bdfe, fs_time2bdfe_ptr, ntfs_calculate_time,
+    ntfs_calculate_time_ptr, ntfs_datetime_to_bdfe, ntfs_datetime_to_bdfe_ptr, ntfs_filetime_to_secs,
+    pack_bigtime_be, pack_filetime, xfs_bigtime_to_secs, xfs_conv_bigtime_to_kos_epoch,
+    xfs_conv_bigtime_to_kos_epoch_ptr, BdfeTime, EXT_READ_TIME_PRNG_SEED, NTFS_CALCULATE_TIME_PRNG_SEED,
+    NTFS_DATETIME_TO_BDFE_PRNG_SEED, NTFS_FILETIME_BIAS_HI, NTFS_FILETIME_BIAS_LO,
+    NTFS_FILETIME_PER_SEC, UNIXTIME_TO_KOS_OFFSET, XFS_BIGTIME_TO_KOS_OFFSET_NS,
     XFS_BIGTIME_TO_KOS_OFFSET_NS_HI, XFS_BIGTIME_TO_KOS_OFFSET_NS_LO,
     XFS_CONV_BIGTIME_TO_KOS_EPOCH_PRNG_SEED, XFS_NANOSEC_PER_SEC,
 };

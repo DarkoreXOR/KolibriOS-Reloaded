@@ -135,6 +135,6 @@ Findings from [`../compatibility/abi-audit.md`](../compatibility/abi-audit.md):
 
 **LOCAL FACT (Cut B complete):** `rust_cp866_to_upper` (`cp866toUpper`) is also reloc-free (71 B, 0 relocs) via the same path ([`cut-b-implementation.md`](cut-b-implementation.md)). Note: this “Cut B” is the next pure-util migration, **not** the allocator cut named “Cut B” elsewhere in this document.
 
-**LOCAL FACT (Cuts A–AK complete, 2026-08-10):** Stage 2 production envelope through Cut AK (`xfs._.conv_bigtime_to_kos_epoch`) — see [`migration-plan.md`](migration-plan.md). Prefer `scripts/` + `project/build.toml` blob/migration registry over manual per-cut scripts for day-to-day builds. Post-AJ raised-bar cluster audit concluded Path B remains appropriate (XFS v5 bigtime leaf; ISO pair / AH+AI helper reuse / thin v4 sibling ≠ Path A).
+**LOCAL FACT (Cuts A–AL complete, 2026-08-11):** Stage 2 production envelope through Cut AL (`ext_read_time`) — see [`migration-plan.md`](migration-plan.md). Prefer `scripts/` + `project/build.toml` blob/migration registry over manual per-cut scripts for day-to-day builds. Post-AK raised-bar cluster audit concluded Path B remains appropriate (first EXT Unix→BDFE leaf; ISO/exFAT/XFS-v4/EXT write-pair ≠ Path A).
 
 **INFERENCE (future functions):** anything that reintroduces `.rodata`/GOTOFF/cross-section refs needs either a reloc-free rewrite or `rust-lld` at the FASM placement VMA — evaluate per function.
