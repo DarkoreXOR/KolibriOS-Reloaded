@@ -203,7 +203,7 @@ restores the original FASM body. Rust blob remains embedded via `rust/check_wind
 * `kernel/gui/window.inc` (gate + trampoline)
 * `kernel/kernel32.inc` (include)
 * `kernel/kernel.asm` (smoke call)
-* `tools/build/config.toml` (blob entry)
+* `orch/config.toml` (blob entry)
 * `docs/migration/cut-s-plan.md`
 * `docs/migration/cut-s-implementation.md`
 * `docs/migration/migration-plan.md`

@@ -161,7 +161,7 @@ Production image: `tmp_images/cut-ah-final.img`.
 USE_RUST_CALCULATE_SET_CHECKSUM_FIELD = 1
 ```
 
-Rollback: `USE_RUST_CALCULATE_SET_CHECKSUM_FIELD = 0` (or `enabled = false` in `tools/build/config.toml`).
+Rollback: `USE_RUST_CALCULATE_SET_CHECKSUM_FIELD = 0` (or `enabled = false` in `orch/config.toml`).
 
 ---
 
@@ -176,9 +176,9 @@ Rollback: `USE_RUST_CALCULATE_SET_CHECKSUM_FIELD = 0` (or `enabled = false` in `
 * `kernel/fs/exfat.inc` (trampoline + gate + ABI smoke)
 * `kernel/kernel32.inc` (include)
 * `kernel/kernel.asm` (smoke call)
-* `tools/build/config.toml`
-* `tools/build/README.md`
-* `tools/build/src/config.rs` / `main.rs`
+* `orch/config.toml`
+* `orch/README.md`
+* `orch/src/config.rs` / `main.rs`
 * `docs/migration/cut-ah-plan.md`
 * `docs/migration/cut-ah-implementation.md`
 * `docs/migration/migration-plan.md`

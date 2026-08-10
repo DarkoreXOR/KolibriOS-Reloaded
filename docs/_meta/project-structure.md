@@ -11,7 +11,9 @@ Evidence labels: see [`evidence-policy.md`](evidence-policy.md).
 | [`tools/`](../../tools/) | Host utilities (image inspect/CoW, etc.). **Not** linked into the kernel. |
 | [`docs/`](../../docs/) | Architecture, compatibility, migration, and tooling notes for this repo. |
 | [`fasm/`](../../fasm/) | Vendored FASM toolchain (`FASM.EXE`, includes, examples). |
-| [`tmp_images/`](../../tmp_images/) | Disposable CoW / test images (gitignored). Never put the reference image here as the only copy. |
+| [`dev_build/`](../../dev_build/) | Disposable CoW / test images (gitignored). Orchestrator default: `dev_build/test/`. |
+| [`images/`](../../images/) | Persistent filesystem regression disks (`exfat-image.img`, `ntfs-image.img`). |
+| [`tmp_images/`](../../tmp_images/) | **Deprecated** — use `dev_build/` and `images/` instead. |
 | `kolibrios-0.7.7.0-9160-g944d74f01-en_US.img` | **Original reference floppy image — read-only.** Do not modify in place. |
 
 Name choice: `rust_kernel/` (not `kernel-rs/` or a root `crates/`) so the FASM vs Rust split is obvious next to `kernel/`.
@@ -28,7 +30,7 @@ rust_kernel/
     i686-kolibri-none.json   # custom freestanding i686 target
     build-utf8to16.ps1       # Cut AB: host test + freestanding build + extract all blobs
     build-pid-to-slot.ps1    # Cut AA helper (prior; still builds full blob set)
-    build-*.ps1              # per-cut helpers (A–AA); prefer newest or kolibri_build
+    build-*.ps1              # per-cut helpers (A–AA); prefer newest or orch
     scripts/extract_phase_c_probe.py
     scripts/extract_reloc_free_text.py
     out/                     # generated *.bin blobs (gitignored)
@@ -36,7 +38,7 @@ rust_kernel/
   target/                    # local build output (gitignored; may be overridden by CARGO_TARGET_DIR)
 ```
 
-Orchestrator (preferred): [`../../tools/build/`](../../tools/build/) + [`../../tools/build/config.toml`](../../tools/build/config.toml) — extracts every registered blob and syncs `USE_RUST_*` gates.
+Orchestrator (preferred): [`../../orch/`](../../orch/) + [`../../orch/config.toml`](../../orch/config.toml) — extracts every registered blob and syncs `USE_RUST_*` gates.
 
 Phase C FASM glue: [`kernel/rust/phase_c.inc`](../../kernel/rust/phase_c.inc). Docs: [`../migration/phase-c-integration.md`](../migration/phase-c-integration.md).  
 Cut A Unicode/CRC embeds: `kernel/rust/{crc,utf16,cp866,utf8}.inc` + gates in `kernel/{crc,unicode}.inc`.  
@@ -55,7 +57,7 @@ cargo +nightly build -Z build-std=core,compiler_builtins -Z json-target-spec `
 
 Preferred one-shot for **all** current blobs:  
 `powershell -File rust_kernel/kolibri_utils/build-utf8to16.ps1`  
-Or: `cargo run --manifest-path tools/build/Cargo.toml -- build`
+Or: `cargo run --manifest-path orch/Cargo.toml -- build`
 
 See [`../architecture/build-system.md`](../architecture/build-system.md) and [`../architecture/boot-sequence.md`](../architecture/boot-sequence.md).
 
@@ -84,21 +86,21 @@ System QEMU (this machine): `C:\Program Files\qemu\qemu-system-i386.exe` (v11.x)
 Boot the **reference** image read-only via a disposable copy (preferred):
 
 ```text
-tools\kolibri_img cow kolibrios-0.7.7.0-9160-g944d74f01-en_US.img tmp_images\boot-smoke.img
+tools\kolibri_img cow kolibrios-0.7.7.0-9160-g944d74f01-en_US.img dev_build\boot-smoke.img
 
 & "C:\Program Files\qemu\qemu-system-i386.exe" `
-  -fda tmp_images\boot-smoke.img -boot a `
+  -fda dev_build\boot-smoke.img -boot a `
   -m 256 -display none -serial stdio `
   -no-reboot -no-shutdown
 ```
 
 For interactive VGA, omit `-display none` (uses the QEMU window).  
-`-snapshot` is an alternative that avoids writing the backing file, but an explicit CoW file under `tmp_images/` is clearer for patch experiments.
+`-snapshot` is an alternative that avoids writing the backing file, but an explicit CoW file under `dev_build/` is clearer for patch experiments.
 
 Delete disposable images when finished:
 
 ```text
-Remove-Item tmp_images\boot-smoke.img -Force
+Remove-Item dev_build\boot-smoke.img -Force
 ```
 
 ## Reference image rules
@@ -110,7 +112,7 @@ Remove-Item tmp_images\boot-smoke.img -Force
 | Payload | Root contains `KERNEL.MNT` (~106 618 bytes) plus apps/dirs |
 | SHA-256 (this tree) | `1901F3A8D7CA0DA23DBB6259D85579F09ED36EBAA58B972AAD16E7059B47C8BA` |
 | Never | Open the reference for write, `fasm` into it, or mount it with write tools |
-| Always | `kolibri_img cow …` (or `Copy-Item`) to `tmp_images/`, experiment on the copy, compare back to the original if needed |
+| Always | `kolibri_img cow …` (or `Copy-Item`) to `dev_build/`, experiment on the copy, compare back to the original if needed |
 
 ## Image utility: `tools/kolibri_img`
 
@@ -120,10 +122,10 @@ Host crate (own `Cargo.toml`, **not** a `rust_kernel` workspace member):
 cd tools/kolibri_img
 cargo run --release -- inspect ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img
 cargo run --release -- ls ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img
-cargo run --release -- cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\tmp_images\work.img
-cargo run --release -- extract ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img KERNEL.MNT ..\..\tmp_images\KERNEL.MNT
-cargo run --release -- delete ..\..\tmp_images\work.img DOCPACK
-cargo run --release -- replace ..\..\tmp_images\work.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
+cargo run --release -- cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\dev_build\work.img
+cargo run --release -- extract ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img KERNEL.MNT ..\..\dev_build\KERNEL.MNT
+cargo run --release -- delete ..\..\dev_build\work.img DOCPACK
+cargo run --release -- replace ..\..\dev_build\work.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
 ```
 
 Commands: `inspect`, `ls [--path DIR]`, `cow`, `extract`, `delete`, `replace`.  
@@ -152,6 +154,6 @@ Supports FAT12/FAT16 BPB detection; directory walk for simple 8.3 paths; refuses
 - Latest cut (AB): [`../migration/cut-ab-implementation.md`](../migration/cut-ab-implementation.md)
 - Cut A Rust utils: [`../migration/cut-a-implementation.md`](../migration/cut-a-implementation.md)
 - Cut A final architecture: [`../migration/cut-a-final-architecture.md`](../migration/cut-a-final-architecture.md)
-- Orchestrator: [`../../tools/build/README.md`](../../tools/build/README.md)
+- Orchestrator: [`../../orch/README.md`](../../orch/README.md)
 - FASM baseline restoration: [`../migration/fasm-baseline-restoration.md`](../migration/fasm-baseline-restoration.md)
 - Source inventory: [`source-inventory.md`](source-inventory.md)

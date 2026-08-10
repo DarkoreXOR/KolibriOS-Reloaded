@@ -57,8 +57,8 @@ python -m pip install -r tools/testdata/requirements.txt
 Preferred (via orchestrator):
 
 ```powershell
-cargo run --manifest-path tools/build/Cargo.toml -- testdisk
-cargo run --manifest-path tools/build/Cargo.toml -- testdisk --force
+cargo run --manifest-path orch/Cargo.toml -- testdisk
+cargo run --manifest-path orch/Cargo.toml -- testdisk --force
 ```
 
 Or call the generator directly:
@@ -70,7 +70,7 @@ python tools/testdata/create_exfat_test_image.py --verify-only
 ```
 
 The QEMU stages (`run` / `qemu` / `ref`) **auto-create** the image when it is
-missing or invalid (`[testdisk]` in `tools/build/config.toml`).
+missing or invalid (`[testdisk]` in `orch/config.toml`).
 
 ## QEMU integration
 
@@ -83,13 +83,13 @@ Configured in [`../build/config.toml`](../build/config.toml) under `[testdisk]`:
 Normal boot (builds kernel + attaches both floppy and exFAT disk):
 
 ```powershell
-cargo run --manifest-path tools/build/Cargo.toml -- run
+cargo run --manifest-path orch/Cargo.toml -- run
 ```
 
 Reference floppy boot (also attaches the exFAT disk):
 
 ```powershell
-cargo run --manifest-path tools/build/Cargo.toml -- ref
+cargo run --manifest-path orch/Cargo.toml -- ref
 ```
 
 Boot order remains floppy (`-boot a`). The exFAT disk does not replace the
@@ -106,7 +106,7 @@ boot medium.
    and `EMPTY.TXT`.
 
 If `/hd0/1` is missing, the IDE disk was not detected — check that QEMU was
-launched by `kolibri_build` (so `[testdisk]` drive args are present) and that
+launched by `orch` (so `[testdisk]` drive args are present) and that
 the image verifies:
 
 ```powershell

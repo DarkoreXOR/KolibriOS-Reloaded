@@ -55,7 +55,7 @@ Rules:
   - Treat the original reference image as read-only.
   - Use `cow` (or any explicit copy) before modify/replace/delete.
   - `delete` / `replace` refuse known reference image filenames.
-  - Delete disposable copies under tmp_images/ when done.
+  - Delete disposable copies under dev_build/ when done.
   - `delete` accepts root 8.3 names or nested paths (e.g. DEVELOP/FASM).
 "
     );
@@ -69,7 +69,7 @@ fn refuse_reference_image(path: &str) -> Result<(), BoxError> {
     // Match the immutable reference artifact naming used in this repo.
     if name.starts_with("kolibrios-") && name.ends_with(".img") && !name.contains("tmp") {
         return Err(format!(
-            "refusing to mutate apparent reference image '{name}' — cow to tmp_images/ first"
+            "refusing to mutate apparent reference image '{name}' — cow to dev_build/ first"
         )
         .into());
     }

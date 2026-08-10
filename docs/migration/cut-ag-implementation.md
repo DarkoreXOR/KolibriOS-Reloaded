@@ -158,7 +158,7 @@ Production image: `tmp_images/cut-ag-final.img`.
 USE_RUST_NTFS_TEST_BOOTSEC = 1
 ```
 
-Rollback: `USE_RUST_NTFS_TEST_BOOTSEC = 0` (or `enabled = false` in `tools/build/config.toml`).
+Rollback: `USE_RUST_NTFS_TEST_BOOTSEC = 0` (or `enabled = false` in `orch/config.toml`).
 
 ---
 
@@ -173,9 +173,9 @@ Rollback: `USE_RUST_NTFS_TEST_BOOTSEC = 0` (or `enabled = false` in `tools/build
 * `kernel/fs/ntfs.inc` (trampoline + gate)
 * `kernel/kernel32.inc` (include)
 * `kernel/kernel.asm` (smoke call)
-* `tools/build/config.toml`
-* `tools/build/README.md`
-* `tools/build/src/config.rs` / `main.rs`
+* `orch/config.toml`
+* `orch/README.md`
+* `orch/src/config.rs` / `main.rs`
 * `docs/migration/cut-ag-plan.md`
 * `docs/migration/cut-ag-implementation.md`
 * `docs/migration/migration-plan.md`

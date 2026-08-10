@@ -134,7 +134,7 @@ Production image: `tmp_images/cut-ab-final.img`.
 USE_RUST_UTF8TO16 = 1
 ```
 
-Rollback: `USE_RUST_UTF8TO16 = 0` (or `enabled = false` in `tools/build/config.toml`).
+Rollback: `USE_RUST_UTF8TO16 = 0` (or `enabled = false` in `orch/config.toml`).
 
 ---
 
@@ -149,8 +149,8 @@ Rollback: `USE_RUST_UTF8TO16 = 0` (or `enabled = false` in `tools/build/config.t
 * `kernel/fs/parse_fn.inc` (trampoline + gate)
 * `kernel/kernel32.inc` (include)
 * `kernel/kernel.asm` (smoke call)
-* `tools/build/config.toml`
-* `tools/build/README.md`
+* `orch/config.toml`
+* `orch/README.md`
 * `docs/migration/cut-ab-plan.md`
 * `docs/migration/cut-ab-implementation.md`
 * `docs/migration/migration-plan.md`

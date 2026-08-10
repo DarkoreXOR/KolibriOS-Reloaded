@@ -145,7 +145,7 @@ Production image: `tmp_images/cut-af-final.img`.
 USE_RUST_NTFS_CALCULATE_TIME = 1
 ```
 
-Rollback: `USE_RUST_NTFS_CALCULATE_TIME = 0` (or `enabled = false` in `tools/build/config.toml`).
+Rollback: `USE_RUST_NTFS_CALCULATE_TIME = 0` (or `enabled = false` in `orch/config.toml`).
 
 ---
 
@@ -160,9 +160,9 @@ Rollback: `USE_RUST_NTFS_CALCULATE_TIME = 0` (or `enabled = false` in `tools/bui
 * `kernel/fs/ntfs.inc` (trampoline + gate; GetTime FASM scale when ON)
 * `kernel/kernel32.inc` (include)
 * `kernel/kernel.asm` (smoke call)
-* `tools/build/config.toml`
-* `tools/build/README.md`
-* `tools/build/src/config.rs` / `main.rs` (A–AF comments)
+* `orch/config.toml`
+* `orch/README.md`
+* `orch/src/config.rs` / `main.rs` (A–AF comments)
 * `docs/migration/cut-af-plan.md`
 * `docs/migration/cut-af-implementation.md`
 * `docs/migration/migration-plan.md`

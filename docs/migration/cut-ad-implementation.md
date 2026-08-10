@@ -146,7 +146,7 @@ Production image: `tmp_images/cut-ad-final.img`.
 USE_RUST_IS_PROTECTIVE_MBR = 1
 ```
 
-Rollback: `USE_RUST_IS_PROTECTIVE_MBR = 0` (or `enabled = false` in `tools/build/config.toml`).
+Rollback: `USE_RUST_IS_PROTECTIVE_MBR = 0` (or `enabled = false` in `orch/config.toml`).
 
 ---
 
@@ -161,9 +161,9 @@ Rollback: `USE_RUST_IS_PROTECTIVE_MBR = 0` (or `enabled = false` in `tools/build
 * `kernel/blkdev/disk.inc` (trampoline + gate)
 * `kernel/kernel32.inc` (include)
 * `kernel/kernel.asm` (smoke call)
-* `tools/build/config.toml`
-* `tools/build/README.md`
-* `tools/build/src/config.rs` / `main.rs` / `Cargo.toml` (A–AD comments)
+* `orch/config.toml`
+* `orch/README.md`
+* `orch/src/config.rs` / `main.rs` / `Cargo.toml` (A–AD comments)
 * `docs/migration/cut-ad-plan.md`
 * `docs/migration/cut-ad-implementation.md`
 * `docs/migration/migration-plan.md`

@@ -7,11 +7,12 @@
 | Path | Role |
 |------|------|
 | `rust_kernel/` | Cargo workspace for freestanding Rust kernel utils (`kolibri_utils`, Cuts A–AB) |
-| `tools/build/` | Hybrid build orchestrator (`kolibri_build`): blobs, FASM, image, QEMU |
+| `orch/` | Hybrid build orchestrator (`orch`): blobs, FASM, image, QEMU |
 | `tools/kolibri_img/` | Host utility: FAT image inspect / CoW / extract / delete / replace |
 | `fasm/` | Vendored FASM assembler |
 | `kolibrios-*.img` | Read-only reference floppy image |
-| `tmp_images/` | Disposable test images (gitignored) |
+| `dev_build/` | Development/test artifacts (gitignored) |
+| `images/` | Persistent filesystem regression images (gitignored `.img`) |
 | `kernel/kernel.asm` | Sole main FASM unit; builds `kernel.mnt` |
 | `kernel/bootbios.inc` | 16-bit entry + protected-mode switch |
 | `kernel/kernel32.inc` | Include hub for 32-bit OS body |

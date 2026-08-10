@@ -155,5 +155,5 @@ Legacy FASM body remains in `taskman.inc` under the `else` branch.
 * `kernel/core/taskman.inc` — trampoline + `USE_RUST_PID_TO_SLOT`  
 * `kernel/kernel32.inc` — include  
 * `kernel/kernel.asm` — smoke call after SLOT_BASE setup  
-* `tools/build/config.toml` — blob + migration registry  
+* `orch/config.toml` — blob + migration registry  
 * `docs/migration/cut-aa-plan.md` / `cut-aa-implementation.md` / `migration-plan.md`

@@ -190,7 +190,7 @@ restores the original FASM body. Rust blob remains embedded via `rust/xfs_extent
 * `kernel/fs/xfs.asm` (gate + trampoline; FASM body retained)
 * `kernel/kernel32.inc` (include)
 * `kernel/kernel.asm` (smoke call)
-* `tools/build/config.toml` (blob + missing Cut Q `utf16_to_8` entry)
+* `orch/config.toml` (blob + missing Cut Q `utf16_to_8` entry)
 * `docs/migration/cut-r-plan.md` / `cut-r-implementation.md` / `migration-plan.md`
 
 ---

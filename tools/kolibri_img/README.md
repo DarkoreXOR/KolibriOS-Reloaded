@@ -25,7 +25,7 @@ Binary: `tools/kolibri_img/target/release/kolibri_img.exe`
 
 `delete` / `replace` refuse filenames that look like the immutable `kolibrios-*.img` reference.
 
-Always keep `kolibrios-*-en_US.img` at the repo root read-only; operate on `tmp_images/` copies.
+Always keep `kolibrios-*-en_US.img` at the repo root read-only; operate on `dev_build/` copies.
 
 See [`../../docs/_meta/project-structure.md`](../../docs/_meta/project-structure.md),
 [`../../docs/migration/migration-plan.md`](../../docs/migration/migration-plan.md),

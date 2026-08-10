@@ -1,0 +1,46 @@
+---
+description: KolibriOS project operations — use the orchestrator as the canonical entry point
+alwaysApply: true
+---
+
+# Project Operations
+
+The **orchestrator** (`./orch`, binary `orch`) is the **canonical
+entry point for project operations**.
+
+Before creating or executing an ad-hoc script or shell one-liner:
+
+1. Inspect the orchestrator: `cargo run --manifest-path orch/Cargo.toml -- help`
+2. Check Rhai workflows: `… help scripts`
+3. Check project tools: `… help tools`
+4. Reuse existing commands (`build`, `run`, `mkfs`, `clean`, `script`, `tool`, …)
+
+## Extension hierarchy
+
+If the orchestrator cannot perform a required operation:
+
+1. **Prefer a reusable Rhai workflow** under `orch/scripts/` when existing
+   APIs can compose the operation.
+2. **Extend the Rust orchestrator** when the operation needs process control,
+   filesystem manipulation, QEMU management, or a stable public API.
+3. **Add a reusable utility under `./tools/`** for specialized generators or
+   diagnostics; invoke it through `tool` or integrate it into `mkfs`/other commands.
+
+Do **not** repeatedly recreate the same development procedure with disposable
+shell or Python scripts in the repository root.
+
+## Artifact paths
+
+| Path | Purpose |
+|------|---------|
+| `build/` | Production build artifacts |
+| `dev_build/` | Development/test artifacts (disposable boot images, logs) |
+| `images/` | Persistent filesystem regression images (`exfat-image.img`, `ntfs-image.img`) |
+
+Do not use `tmp_images/` for new work.
+
+## Image handling
+
+See also `.cursor/rules/image-handling.mdc` — the reference `kolibrios-*.img`
+remains immutable; only writable copies under `dev_build/` or orchestrator output
+may be mutated (with authorized deletions only).

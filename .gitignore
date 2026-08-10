@@ -1,5 +1,6 @@
 # Rust / Cargo build outputs
 rust_kernel/target/
+orch/target/
 tools/**/target/
 /target/
 **/Cargo.lock
@@ -7,15 +8,13 @@ tools/**/target/
 *.pdb
 
 # Disposable image experiments (never commit CoW copies of the reference .img)
-/tmp_images/*
-!/tmp_images/README.md
-/build/test/
-*.img.cow
-*.qcow2
-
-# Generated 128 MiB exFAT regression disk (recreate via tools/testdata script)
-/tools/testdata/*.img
-/tools/testdata/*.img.tmp
+/dev_build/*
+!/dev_build/README.md
+/build/*
+!/build/.gitkeep
+/images/*.img
+/images/*.img.tmp
+!/images/README.md
 
 # Local toolchain caches (repo ships ./fasm/; do not re-download into tools/)
 tools/fasm_extract/

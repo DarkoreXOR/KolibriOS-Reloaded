@@ -6,20 +6,20 @@ current hybrid kernel, put it on a **fresh disposable floppy image**, and
 smoke-test it under QEMU before further migration work.
 
 Do **not** modify the reference image at the repository root. Always work on a
-CoW / disposable copy (`build/test/` via the orchestrator, or `tmp_images/`).
+CoW / disposable copy (`dev_build/` via the orchestrator).
 
 ## Build and QEMU
 
 Preferred one-command developer workflow (from the repository root):
 
 ```powershell
-cargo run --manifest-path tools/build/Cargo.toml -- run
+cargo run --manifest-path orch/Cargo.toml -- run
 ```
 
-This orchestrator (`tools/build`, config in `tools/build/config.toml`) performs:
+This orchestrator (`orch`, config in `orch/config.toml`) performs:
 
 ```text
-Rust blobs (Cuts A–AB) → assemble kernel.mnt → fresh build/test/*.img → QEMU
+Rust blobs (Cuts A–AH) → assemble kernel.mnt → fresh dev_build/test/*.img → QEMU
 ```
 
 It always rebuilds current Rust components before packaging, refuses to ship a
@@ -28,23 +28,28 @@ stale `kernel.mnt` if the kernel stage fails, and never mutates the reference
 
 | Command | Action |
 |---------|--------|
-| `run` | Build → fresh image → QEMU (recommended; also attaches exFAT testdisk) |
+| `run` | Build → fresh image → QEMU (also attaches regression disks via `--disk:TYPE`) |
 | `qemu` | Same as `run` |
+| `mkfs` | Create/reuse persistent `./images/{fs}-image.img` (`mkfs exfat 4M`, `mkfs ntfs 8M`) |
+| `clean` | Remove `./build/` and `./dev_build/` (preserves `./images/`) |
+| `help` | Discover commands, scripts, and tools |
+| `script` | Run a Rhai workflow from `orch/scripts/` |
+| `tool` | Invoke a utility under `./tools/` |
 | `image` | Build → fresh temporary `.img` only |
 | `build` | Rust blobs + `kernel/bin/kernel.mnt` only |
-| `ref` | Boot the **original reference** floppy in QEMU (no rebuild; `-snapshot`; + exFAT testdisk) |
-| `testdisk` | Ensure / recreate the 128 MiB exFAT secondary disk (`--force` to rebuild) |
+| `ref` | Boot the **original reference** floppy in QEMU (no rebuild; `-snapshot`) |
+| `testdisk` | Legacy exFAT ensure (prefer `mkfs exfat`) |
 | `doctor` | Check tools, paths, and migration-gate registry |
 
 Examples:
 
 ```powershell
-cargo run --manifest-path tools/build/Cargo.toml -- doctor
-cargo run --manifest-path tools/build/Cargo.toml -- build
-cargo run --manifest-path tools/build/Cargo.toml -- image
-cargo run --manifest-path tools/build/Cargo.toml -- run
-cargo run --manifest-path tools/build/Cargo.toml -- ref
-cargo run --manifest-path tools/build/Cargo.toml -- testdisk --force
+cargo run --manifest-path orch/Cargo.toml -- doctor
+cargo run --manifest-path orch/Cargo.toml -- build
+cargo run --manifest-path orch/Cargo.toml -- image
+cargo run --manifest-path orch/Cargo.toml -- run
+cargo run --manifest-path orch/Cargo.toml -- ref
+cargo run --manifest-path orch/Cargo.toml -- testdisk --force
 ```
 
 `run` / `qemu` / `ref` automatically attach
@@ -64,7 +69,7 @@ Useful flags:
 | `--headless` | Add headless/QMP QEMU args from config |
 
 Settings (QEMU path, image dir, blob list, migration gates, etc.) live in
-[`tools/build/config.toml`](tools/build/config.toml).
+[`orch/config.toml`](orch/config.toml).
 
 ## Prerequisites
 
@@ -82,7 +87,7 @@ Also required in the tree:
 
 * Reference floppy: `kolibrios-0.7.7.0-9160-g944d74f01-en_US.img` (read-only)
 * Host image tool sources: `tools/kolibri_img/`
-* Orchestrator: `tools/build/`
+* Orchestrator: `orch/`
 * exFAT testdisk generator: `tools/testdata/` (`python -m pip install -r tools/testdata/requirements.txt`)
 
 Install `rust-src` for nightly if needed:
@@ -94,7 +99,7 @@ rustup component add rust-src --toolchain nightly
 ## Manual workflow (optional)
 
 The steps below are the low-level commands the orchestrator coordinates.
-Prefer `cargo run --manifest-path tools/build/Cargo.toml -- run` unless you are
+Prefer `cargo run --manifest-path orch/Cargo.toml -- run` unless you are
 debugging a single stage.
 
 All commands start from the **repository root** unless noted.
@@ -121,7 +126,7 @@ rust_kernel/kolibri_utils/out/rust_phase_c_probe.bin
 ```
 
 This step does **not** assemble `kernel.mnt`. The orchestrator’s `build` /
-`run` commands perform the same extract list from `tools/build/config.toml`.
+`run` commands perform the same extract list from `orch/config.toml`.
 
 ### 2. Assemble `kernel.mnt`
 
@@ -138,7 +143,7 @@ Or let the orchestrator sync every `USE_RUST_*` gate from `config.toml` and
 assemble:
 
 ```powershell
-cargo run --manifest-path tools/build/Cargo.toml -- build --skip-tests
+cargo run --manifest-path orch/Cargo.toml -- build --skip-tests
 ```
 
 **Artifact:**
@@ -173,34 +178,34 @@ this crate (it has its own `target/`).
 Still in `tools/kolibri_img` (or use the same relative paths from that directory):
 
 ```powershell
-.\target\release\kolibri_img.exe cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\tmp_images\dev-test.img
-.\target\release\kolibri_img.exe delete ..\..\tmp_images\dev-test.img DOCPACK
-.\target\release\kolibri_img.exe delete ..\..\tmp_images\dev-test.img DEVELOP/FASM
-.\target\release\kolibri_img.exe delete ..\..\tmp_images\dev-test.img 3D/VIEW3DS
-.\target\release\kolibri_img.exe delete ..\..\tmp_images\dev-test.img GAMES/DINO
-.\target\release\kolibri_img.exe replace ..\..\tmp_images\dev-test.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
+.\target\release\kolibri_img.exe cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\dev_build\dev-test.img
+.\target\release\kolibri_img.exe delete ..\..\dev_build\dev-test.img DOCPACK
+.\target\release\kolibri_img.exe delete ..\..\dev_build\dev-test.img DEVELOP/FASM
+.\target\release\kolibri_img.exe delete ..\..\dev_build\dev-test.img 3D/VIEW3DS
+.\target\release\kolibri_img.exe delete ..\..\dev_build\dev-test.img GAMES/DINO
+.\target\release\kolibri_img.exe replace ..\..\dev_build\dev-test.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
 ```
 
 | Step | Why |
 |------|-----|
-| `cow` | Creates disposable `tmp_images/dev-test.img` (refuses same-path overwrite) |
+| `cow` | Creates disposable `dev_build/dev-test.img` (refuses same-path overwrite) |
 | `delete …` | Authorized free-space paths (see `.cursor/rules/image-handling.mdc`); `DOCPACK` alone is no longer enough for current hybrid kernels |
 | `replace … KERNEL.MNT` | Puts **your** `kernel/bin/kernel.mnt` onto that image |
 
 **Resulting image:**
 
 ```text
-tmp_images/dev-test.img
+dev_build/dev-test.img
 ```
 
-Choose any other name under `tmp_images/` if you prefer; keep the reference
+Choose any other name under `dev_build/` if you prefer; keep the reference
 `kolibrios-*.img` untouched. Production cut checkpoints (e.g.
-`tmp_images/cut-ab-final.img`) are also disposable CoW descendants.
+`dev_build/cut-ab-final.img`) are also disposable CoW descendants.
 
 Optional sanity check that the image sees your kernel:
 
 ```powershell
-.\target\release\kolibri_img.exe inspect ..\..\tmp_images\dev-test.img
+.\target\release\kolibri_img.exe inspect ..\..\dev_build\dev-test.img
 ```
 
 ## Run QEMU
@@ -211,7 +216,7 @@ Return to the repository root (or adjust `-fda` accordingly).
 
 ```powershell
 & "C:\Program Files\qemu\qemu-system-i386.exe" `
-  -fda tmp_images\dev-test.img `
+  -fda dev_build\dev-test.img `
   -boot a `
   -m 256 `
   -vga std
@@ -232,7 +237,7 @@ Cut audits sometimes use headless mode plus QMP, for example:
 
 ```powershell
 & "C:\Program Files\qemu\qemu-system-i386.exe" `
-  -fda tmp_images\dev-test.img `
+  -fda dev_build\dev-test.img `
   -boot a `
   -m 256 `
   -vga std `
@@ -259,28 +264,28 @@ Launching several `/sys` apps exercises live paths covered by completed cuts
 (e.g. MENUET header validation, path UTF-8→UTF-16 decode, process TID lookup).
 This is a **smoke** check, not proof that every `/sys` application is compatible.
 
-When finished, quit QEMU. Disposable images under `tmp_images/` may be deleted.
+When finished, quit QEMU. Disposable images under `dev_build/` may be deleted.
 
 ## Troubleshooting
 
 | Symptom | Likely cause / fix |
 |---------|--------------------|
-| FASM error opening `rust_kernel/kolibri_utils/out/*.bin` | Blobs missing — run `build-utf8to16.ps1` or `kolibri_build build` first (`out/` is generated, not committed) |
+| FASM error opening `rust_kernel/kolibri_utils/out/*.bin` | Blobs missing — run `build-utf8to16.ps1` or `orch build` first (`out/` is generated, not committed) |
 | `cargo +nightly build` / `build-std` fails | Install nightly and `rust-src` (`rustup component add rust-src --toolchain nightly`) |
 | `python: command not found` during blob extract | Install Python 3 and ensure `python` is on `PATH` |
-| `lang.inc` / assemble errors | Run the assemble sequence from the **repo root**; create ephemeral `kernel/lang.inc` as shown, then remove it — or use `kolibri_build build` |
+| `lang.inc` / assemble errors | Run the assemble sequence from the **repo root**; create ephemeral `kernel/lang.inc` as shown, then remove it — or use `orch build` |
 | `kolibri_img` missing | `cd tools\kolibri_img` then `cargo build --release` |
-| `replace` fails (not enough space / write refused) | Always `cow` to `tmp_images/`/`build/test/`, then delete authorized free-space paths (`DOCPACK`, `DEVELOP/FASM`, `3D/VIEW3DS`, `GAMES/DINO` — see `.cursor/rules/image-handling.mdc`), then `replace`. Never mutate `kolibrios-*.img`. The orchestrator does this via `tools/build/config.toml` `delete_before_replace`. |
+| `replace` fails (not enough space / write refused) | Always `cow` to `dev_build/`/`build/test/`, then delete authorized free-space paths (`DOCPACK`, `DEVELOP/FASM`, `3D/VIEW3DS`, `GAMES/DINO` — see `.cursor/rules/image-handling.mdc`), then `replace`. Never mutate `kolibrios-*.img`. The orchestrator does this via `orch/config.toml` `delete_before_replace`. |
 | QEMU not found | Use the full path to `qemu-system-i386.exe`, or add QEMU to `PATH` |
 | Boots but looks like an old build | Image was not recreated or still has old `KERNEL.MNT` — rebuild `kernel.mnt`, then new `cow` + `delete` + `replace` |
 | Wrong directory | FASM and `powershell -File …` expect repo-root paths; `kolibri_img` commands in the docs use paths relative to `tools/kolibri_img` |
-| Stale artifacts | Re-run the blob build script, reassemble `kernel/bin/kernel.mnt`, and create a **new** `tmp_images/*.img` rather than reusing an old CoW |
+| Stale artifacts | Re-run the blob build script, reassemble `kernel/bin/kernel.mnt`, and create a **new** `dev_build/*.img` rather than reusing an old CoW |
 | `doctor` gate mismatch | `config.toml` `[[rust.migrations]].enabled` must match live `USE_RUST_*=0\|1` in each `gate_file` |
 
 ## Development verification workflow
 
 ```text
-1. cargo run --manifest-path tools/build/Cargo.toml -- run
+1. cargo run --manifest-path orch/Cargo.toml -- run
 2. Manually verify the desktop
 3. Launch several /sys applications
 4. Stop QEMU
@@ -300,5 +305,5 @@ After this manual QEMU verification succeeds, development continues with the
 * Build system notes: [`docs/architecture/build-system.md`](docs/architecture/build-system.md)
 * Migration status: [`docs/migration/migration-plan.md`](docs/migration/migration-plan.md)
 * Latest cut: [`docs/migration/cut-ab-implementation.md`](docs/migration/cut-ab-implementation.md)
-* Orchestrator: [`tools/build/README.md`](tools/build/README.md)
+* Orchestrator: [`orch/README.md`](orch/README.md)
 * Image tool: [`tools/kolibri_img/README.md`](tools/kolibri_img/README.md)

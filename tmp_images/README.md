@@ -1,16 +1,20 @@
-# Disposable test images
+# Deprecated: use `dev_build/` instead
 
-Put CoW copies and extracted files here. The reference
-`kolibrios-*.img` at the repo root must never be modified.
+This directory is **no longer used** for new work.
 
-Created by `tools/kolibri_img cow …`. Mutate only copies via
-`delete` / `replace`. Delete contents after experiments.
+| Old path | New path |
+|----------|----------|
+| `tmp_images/*.img` (disposable boot images) | `dev_build/test/` (orchestrator) |
+| ad-hoc screendumps | `dev_build/` |
+| persistent exFAT/NTFS regression disks | `images/exfat-image.img`, `images/ntfs-image.img` |
 
-Current production checkpoint (Cut AH):
+Use the orchestrator:
 
-```text
-tmp_images/cut-ah-final.img
+```powershell
+cargo run --manifest-path orch/Cargo.toml -- help
+cargo run --manifest-path orch/Cargo.toml -- mkfs exfat 4M
+cargo run --manifest-path orch/Cargo.toml -- run -- --disk:exfat
 ```
 
-Prior cut finals (`cut-ag-final.img`, `cut-af-final.img`, …) may remain for
-bisect; prefer descending new work from the latest final.
+Historical migration docs may still reference `tmp_images/` for completed cut
+validation records.

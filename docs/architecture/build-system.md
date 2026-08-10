@@ -26,10 +26,10 @@ floppy kernels are typically **kerpack**’d (~107 KiB on the reference image)
 Preferred orchestrated build (blobs + gate sync + FASM):
 
 ```text
-cargo run --manifest-path tools/build/Cargo.toml -- build
+cargo run --manifest-path orch/Cargo.toml -- build
 ```
 
-Blob/gate registry: [`../../tools/build/config.toml`](../../tools/build/config.toml).
+Blob/gate registry: [`../../orch/config.toml`](../../orch/config.toml).
 Migration status: [`../migration/migration-plan.md`](../migration/migration-plan.md).
 
 ## Primary build (Makefile)

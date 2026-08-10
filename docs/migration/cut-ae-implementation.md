@@ -145,7 +145,7 @@ Production image: `tmp_images/cut-ae-final.img`.
 USE_RUST_NTFS_DATETIME_TO_BDFE = 1
 ```
 
-Rollback: `USE_RUST_NTFS_DATETIME_TO_BDFE = 0` (or `enabled = false` in `tools/build/config.toml`).
+Rollback: `USE_RUST_NTFS_DATETIME_TO_BDFE = 0` (or `enabled = false` in `orch/config.toml`).
 
 ---
 
@@ -160,9 +160,9 @@ Rollback: `USE_RUST_NTFS_DATETIME_TO_BDFE = 0` (or `enabled = false` in `tools/b
 * `kernel/fs/ntfs.inc` (trampoline + gate)
 * `kernel/kernel32.inc` (include)
 * `kernel/kernel.asm` (smoke call)
-* `tools/build/config.toml`
-* `tools/build/README.md`
-* `tools/build/src/config.rs` / `main.rs` (A–AE comments)
+* `orch/config.toml`
+* `orch/README.md`
+* `orch/src/config.rs` / `main.rs` (A–AE comments)
 * `docs/migration/cut-ae-plan.md`
 * `docs/migration/cut-ae-implementation.md`
 * `docs/migration/migration-plan.md`

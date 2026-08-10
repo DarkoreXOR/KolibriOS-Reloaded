@@ -17,7 +17,7 @@
 | Question | Finding |
 |----------|---------|
 | Enough proven ABI classes? | Yes (A–AC cover ZF/CF/EAX/streaming/tables/globals inject) |
-| Enough build/diff/trampoline infra? | Yes (`tools/build`, Strategy A+C, smoke harness) |
+| Enough build/diff/trampoline infra? | Yes (`orch`, Strategy A+C, smoke harness) |
 | Subsystem with Rust-owned internals ready? | **No** — footholds exist (Z, AA, AC, G/T, Q/AB) but remaining siblings are thin or Stage-4/5 |
 | Would a cluster reduce repeated work? | **Not enough** — strongest multi-fn groups either anti-cluster after a recent cut or add blast without eliminating FASM↔Rust edges |
 
