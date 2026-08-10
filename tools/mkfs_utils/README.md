@@ -29,8 +29,8 @@ On **Linux**, uses `losetup` + `mkfs.ntfs` (ntfs-3g, root required).
 Prefer the orchestrator:
 
 ```powershell
-cargo run --manifest-path orch/Cargo.toml -- mkfs ntfs 8M
-cargo run --manifest-path orch/Cargo.toml -- mkfs exfat 4M
+cargo run --manifest-path tools/orch/Cargo.toml -- mkfs ntfs 8M
+cargo run --manifest-path tools/orch/Cargo.toml -- mkfs exfat 4M
 ```
 
 Each image contains a deterministic regression tree: root files, nested

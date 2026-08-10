@@ -218,16 +218,16 @@ Extractor: [`extract_reloc_free_text.py`](../../rust_kernel/kolibri_utils/script
 powershell -File rust_kernel/kolibri_utils/build-strncmp.ps1
 
 Set-Content kernel\lang.inc "lang fix en_US`n"
-.\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
+.\tools\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
 Remove-Item kernel\lang.inc
 
 cd tools\kolibri_img
-.\target\release\kolibri_img.exe cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\tmp_images\cut-d-on.img
-.\target\release\kolibri_img.exe delete ..\..\tmp_images\cut-d-on.img DOCPACK
-.\target\release\kolibri_img.exe replace ..\..\tmp_images\cut-d-on.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
+.\target\release\kolibri_img.exe cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\dev_build\cut-d-on.img
+.\target\release\kolibri_img.exe delete ..\..\dev_build\cut-d-on.img DOCPACK
+.\target\release\kolibri_img.exe replace ..\..\dev_build\cut-d-on.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
 
 & "C:\Program Files\qemu\qemu-system-i386.exe" `
-  -fda ..\..\tmp_images\cut-d-on.img -boot a `
+  -fda ..\..\dev_build\cut-d-on.img -boot a `
   -m 256 -vga std -display none `
   -no-reboot -no-shutdown `
   -qmp tcp:127.0.0.1:4480,server,nowait
@@ -295,8 +295,8 @@ Called from `high_code` after Cut C smoke. Hang-on-fail; desktop reached (**PROV
 
 | Config | Result |
 |--------|--------|
-| Rust ON (`USE_RUST_STRNCMP=1`) | **PASS** — `query-status=running`; screendump `tmp_images/cut-d-on-desktop.png` |
-| Rust OFF (`USE_RUST_STRNCMP=0`) | **PASS** — `query-status=running`; screendump `tmp_images/cut-d-off-desktop.png` |
+| Rust ON (`USE_RUST_STRNCMP=1`) | **PASS** — `query-status=running`; screendump `dev_build/cut-d-on-desktop.png` |
+| Rust OFF (`USE_RUST_STRNCMP=0`) | **PASS** — `query-status=running`; screendump `dev_build/cut-d-off-desktop.png` |
 
 ---
 

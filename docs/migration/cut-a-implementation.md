@@ -238,7 +238,7 @@ unicode.cp866.encode:
 |--------|--------|
 | Host unit tests of Rust vs **line-by-line FASM algorithm oracle** (second transcription in test modules) | **PASS — 27/27** (`cargo test -p kolibri_utils`) |
 | Cross-check: IEEE CRC-32 of `"123456789"` via FASM-style update + final XOR → `0xCBF43926` | **PASS** |
-| Host execution of assembled `crc.inc` / `unicode.inc` | **Not done in Cut A** — FASM is now vendored at [`../../fasm/`](../../fasm/); binary differential PE still not built |
+| Host execution of assembled `crc.inc` / `unicode.inc` | **Not done in Cut A** — FASM is now vendored at [`../../tools/fasm/`](../../tools/fasm/); binary differential PE still not built |
 | In-kernel hybrid smoke | **Pass (Phase C + CRC + UTF-16 + CP866 + UTF-8)** — see per-function migration docs; final baseline [`cut-a-final-architecture.md`](cut-a-final-architecture.md) |
 
 **Confidence:** algorithm match **HIGH** (direct port + dual oracle + known CRC vector + exhaustive Unicode sweeps). End-to-end FFI-in-image **PASS** (QEMU desktop + hang-on-fail smokes).
@@ -267,7 +267,7 @@ unicode.cp866.encode:
 
 1. ~~`kernel/init.inc` corrupted~~ — **resolved** (FASM baseline restoration).
 2. ~~FASM flat binary cannot consume a Rust `staticlib` directly~~ — **resolved for all Cut A functions** (reloc-free extract + `file`; `rust-lld` not required).
-3. (Resolved for tooling) Vendored [`../../fasm/`](../../fasm/) is available; system `fasm` on `PATH` is not required.
+3. (Resolved for tooling) Vendored [`../../tools/fasm/`](../../tools/fasm/) is available; system `fasm` on `PATH` is not required.
 
 ---
 

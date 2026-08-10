@@ -162,16 +162,16 @@ Oracle is an independent second transcription of the FASM `unicode.utf8.decode` 
 powershell -File rust_kernel/kolibri_utils/build-utf8.ps1
 
 Set-Content kernel\lang.inc "lang fix en_US`n"
-.\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
+.\tools\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
 Remove-Item kernel\lang.inc
 
 cd tools\kolibri_img
-cargo run --release -- cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\tmp_images\phase-g-utf8-boot.img
-cargo run --release -- delete ..\..\tmp_images\phase-g-utf8-boot.img DOCPACK
-cargo run --release -- replace ..\..\tmp_images\phase-g-utf8-boot.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
+cargo run --release -- cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\dev_build\phase-g-utf8-boot.img
+cargo run --release -- delete ..\..\dev_build\phase-g-utf8-boot.img DOCPACK
+cargo run --release -- replace ..\..\dev_build\phase-g-utf8-boot.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
 
 & "C:\Program Files\qemu\qemu-system-i386.exe" `
-  -fda ..\..\tmp_images\phase-g-utf8-boot.img -boot a `
+  -fda ..\..\dev_build\phase-g-utf8-boot.img -boot a `
   -m 256 -vga std -display none `
   -no-reboot -no-shutdown `
   -qmp tcp:127.0.0.1:4450,server,nowait
@@ -187,7 +187,7 @@ cargo run --release -- replace ..\..\tmp_images\phase-g-utf8-boot.img KERNEL.MNT
 | UTF-8 + CP866 + UTF-16 + CRC + probe blobs present once each | Pass |
 | Reference SHA-256 | Unchanged `1901F3A8…C8BA` |
 | QEMU `query-status` | `running` |
-| Screendump | Full KolibriOS desktop (`tmp_images/phase-g-utf8-desktop.png`) |
+| Screendump | Full KolibriOS desktop (`dev_build/phase-g-utf8-desktop.png`) |
 
 ## Rollback
 

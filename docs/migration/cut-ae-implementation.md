@@ -128,14 +128,14 @@ Images: fresh CoW from reference + `KERNEL.MNT` replace.
 
 | Gate | Setting | Desktop | Network NIC |
 |------|---------|---------|-------------|
-| OFF | `USE_RUST_NTFS_DATETIME_TO_BDFE=0` | **OK** (QMP `running` + screendump `tmp_images/cut-ae-off.ppm`, 779380 non-black samples) | e1000 + user net present |
-| ON | `USE_RUST_NTFS_DATETIME_TO_BDFE=1` | **OK** (QMP `running` + screendump `tmp_images/cut-ae-on.ppm`, 779426 non-black samples) | e1000 + user net present |
+| OFF | `USE_RUST_NTFS_DATETIME_TO_BDFE=0` | **OK** (QMP `running` + screendump `dev_build/cut-ae-off.ppm`, 779380 non-black samples) | e1000 + user net present |
+| ON | `USE_RUST_NTFS_DATETIME_TO_BDFE=1` | **OK** (QMP `running` + screendump `dev_build/cut-ae-on.ppm`, 779426 non-black samples) | e1000 + user net present |
 
 Smoke (ON): **PASS** (no `0xDEAD0CAE`; boot continued).
 
 Real subsystem soak: **NOT AVAILABLE** — stock floppy is not an NTFS volume; dirent FILETIME→BDFE path is not evidenced on the reference image. Boot smoke exercises the public `ntfs_datetime_to_bdfe` symbol on synthetic FILETIME values (ABI path), recorded under ABI smoke above.
 
-Production image: `tmp_images/cut-ae-final.img`.
+Production image: `dev_build/cut-ae-final.img`.
 
 ---
 
@@ -166,7 +166,7 @@ Rollback: `USE_RUST_NTFS_DATETIME_TO_BDFE = 0` (or `enabled = false` in `orch/co
 * `docs/migration/cut-ae-plan.md`
 * `docs/migration/cut-ae-implementation.md`
 * `docs/migration/migration-plan.md`
-* `tmp_images/README.md`
+* `.cursor/rules/dev-build.mdc`
 
 ---
 

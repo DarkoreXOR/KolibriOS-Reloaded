@@ -123,8 +123,8 @@ FASM leaf retained under `USE_RUST_XFS_EXTENT_UNPACK=0` (`movbe` / `shrd` / mask
 
 | Build | Switch | Desktop | Internet |
 |-------|--------|---------|----------|
-| ON | `USE_RUST_XFS_EXTENT_UNPACK=1` | **OK** (QMP `running` + screendump `tmp_images/cut-r-on.ppm`, 12257 non-black samples) | **OK** (e1000 + user net) |
-| OFF | `=0` (original FASM body) | **OK** (screendump `tmp_images/cut-r-off.ppm`, same non-black sample count) | **OK** |
+| ON | `USE_RUST_XFS_EXTENT_UNPACK=1` | **OK** (QMP `running` + screendump `dev_build/cut-r-on.ppm`, 12257 non-black samples) | **OK** (e1000 + user net) |
+| OFF | `=0` (original FASM body) | **OK** (screendump `dev_build/cut-r-off.ppm`, same non-black sample count) | **OK** |
 
 Smoke (ON): **PASS** (no `0xDEAD0C52`; boot continued to desktop).
 
@@ -134,7 +134,7 @@ Smoke (ON): **PASS** (no `0xDEAD0C52`; boot continued to desktop).
 
 Production default after completion: **`USE_RUST_XFS_EXTENT_UNPACK = 1`**.
 
-Production image: `tmp_images/cut-r-final.img`.
+Production image: `dev_build/cut-r-final.img`.
 
 ---
 

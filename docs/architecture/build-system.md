@@ -8,13 +8,13 @@ Evidence labels: see [`../_meta/evidence-policy.md`](../_meta/evidence-policy.md
 
 Repo layout (FASM `kernel/` vs Rust `rust_kernel/`, image/QEMU rules): [`../_meta/project-structure.md`](../_meta/project-structure.md).
 
-**Assembler:** use the vendored [`../../fasm/FASM.EXE`](../../fasm/FASM.EXE) (this repo does not require a system-wide `fasm` on `PATH`).
+**Assembler:** use the vendored [`../../tools/fasm/FASM.EXE`](../../tools/fasm/FASM.EXE) (this repo does not require a system-wide `fasm` on `PATH`).
 
 **Verified Windows one-liner** (ephemeral `lang.inc`):
 
 ```text
 Set-Content kernel\lang.inc "lang fix en_US`n"
-.\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
+.\tools\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
 Remove-Item kernel\lang.inc
 ```
 
@@ -26,10 +26,11 @@ floppy kernels are typically **kerpack**’d (~107 KiB on the reference image)
 Preferred orchestrated build (blobs + gate sync + FASM):
 
 ```text
-cargo run --manifest-path orch/Cargo.toml -- build
+cargo run --manifest-path tools/orch/Cargo.toml -- --% @build
 ```
 
-Blob/gate registry: [`../../orch/config.toml`](../../orch/config.toml).
+Blob/gate registry: [`../../project/build.toml`](../../project/build.toml).
+Orch config: [`../../.orch/config.toml`](../../.orch/config.toml).
 Migration status: [`../migration/migration-plan.md`](../migration/migration-plan.md).
 
 ## Primary build (Makefile)

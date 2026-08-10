@@ -1,19 +1,14 @@
-# Development and test artifacts
+# `dev_build/`
 
-Disposable boot images, screendumps, QEMU logs, and agent workspace output
-belong here — not in `./build/` (production artifacts) or `./images/`
-(persistent filesystem regression disks).
+Disposable development artifacts (gitignored except this README).
 
-The orchestrator writes timestamped hybrid-kernel boot images to
-`dev_build/test/` by default (see `orch/config.toml`).
+| Path | Role |
+|------|------|
+| `dev_build/test/` | Orchestrator CoW boot images (`@prepare_image`) |
+| `dev_build/last_image.txt` | Path of the latest prepared image |
+| `dev_build/orch-mode.txt` | Active build mode marker |
 
-Safe to delete:
+Delete unused temporary files here after use. Full wipe: `orch @clean`.
+Persistent regression disks live in `images/`, not here.
 
-```powershell
-cargo run --manifest-path orch/Cargo.toml -- clean
-```
-
-This removes `./dev_build/` and `./build/` but preserves `./images/`.
-
-Migration cut checkpoints that previously lived under `tmp_images/` should
-also use `dev_build/` for new work.
+See `.cursor/rules/dev-build.mdc`.

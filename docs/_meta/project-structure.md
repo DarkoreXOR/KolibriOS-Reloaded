@@ -10,10 +10,9 @@ Evidence labels: see [`evidence-policy.md`](evidence-policy.md).
 | [`rust_kernel/`](../../rust_kernel/) | **Rust** Cargo workspace for the freestanding kernel migration. Clear boundary vs `kernel/`. |
 | [`tools/`](../../tools/) | Host utilities (image inspect/CoW, etc.). **Not** linked into the kernel. |
 | [`docs/`](../../docs/) | Architecture, compatibility, migration, and tooling notes for this repo. |
-| [`fasm/`](../../fasm/) | Vendored FASM toolchain (`FASM.EXE`, includes, examples). |
-| [`dev_build/`](../../dev_build/) | Disposable CoW / test images (gitignored). Orchestrator default: `dev_build/test/`. |
+| [`tools/fasm/`](../../tools/fasm/) | Vendored FASM toolchain (`FASM.EXE`, includes, examples). |
+| [`dev_build/`](../../dev_build/) | Disposable CoW / test images and temp artifacts (gitignored). Orchestrator default: `dev_build/test/`. Delete unused temps after use (see `.cursor/rules/dev-build.mdc`). |
 | [`images/`](../../images/) | Persistent filesystem regression disks (`exfat-image.img`, `ntfs-image.img`). |
-| [`tmp_images/`](../../tmp_images/) | **Deprecated** — use `dev_build/` and `images/` instead. |
 | `kolibrios-0.7.7.0-9160-g944d74f01-en_US.img` | **Original reference floppy image — read-only.** Do not modify in place. |
 
 Name choice: `rust_kernel/` (not `kernel-rs/` or a root `crates/`) so the FASM vs Rust split is obvious next to `kernel/`.
@@ -38,7 +37,7 @@ rust_kernel/
   target/                    # local build output (gitignored; may be overridden by CARGO_TARGET_DIR)
 ```
 
-Orchestrator (preferred): [`../../orch/`](../../orch/) + [`../../orch/config.toml`](../../orch/config.toml) — extracts every registered blob and syncs `USE_RUST_*` gates.
+Orchestrator (preferred): [`../../tools/orch/`](../../tools/orch/) + [`.orch/config.toml`](../../.orch/config.toml) — Rhai Actions extract registered blobs and sync `USE_RUST_*` gates from [`project/build.toml`](../../project/build.toml).
 
 Phase C FASM glue: [`kernel/rust/phase_c.inc`](../../kernel/rust/phase_c.inc). Docs: [`../migration/phase-c-integration.md`](../migration/phase-c-integration.md).  
 Cut A Unicode/CRC embeds: `kernel/rust/{crc,utf16,cp866,utf8}.inc` + gates in `kernel/{crc,unicode}.inc`.  
@@ -57,7 +56,7 @@ cargo +nightly build -Z build-std=core,compiler_builtins -Z json-target-spec `
 
 Preferred one-shot for **all** current blobs:  
 `powershell -File rust_kernel/kolibri_utils/build-utf8to16.ps1`  
-Or: `cargo run --manifest-path orch/Cargo.toml -- build`
+Or: `cargo run --manifest-path tools/orch/Cargo.toml -- --% @build`
 
 See [`../architecture/build-system.md`](../architecture/build-system.md) and [`../architecture/boot-sequence.md`](../architecture/boot-sequence.md).
 
@@ -74,10 +73,10 @@ Summary (**LOCAL FACT**):
 Repo-local assembler:
 
 ```text
-.\fasm\FASM.EXE -m 262144 kernel\kernel.asm <out>
+.\tools\fasm\FASM.EXE -m 262144 kernel\kernel.asm <out>
 ```
 
-Use this tree’s `./fasm/` rather than assuming a system-wide `fasm` on `PATH`. Include paths are relative to the assembled file’s directory (FASM default), matching how `kernel/` was written.
+Use this tree’s `./tools/fasm/` rather than assuming a system-wide `fasm` on `PATH`. Include paths are relative to the assembled file’s directory (FASM default), matching how `kernel/` was written.
 
 ## QEMU testing
 
@@ -138,7 +137,7 @@ Supports FAT12/FAT16 BPB detection; directory walk for simple 8.3 paths; refuses
 | Item | Status |
 |------|--------|
 | Rust workspace lives only under `rust_kernel/` | **Done** |
-| FASM `kernel/` build | **Done** — assembles with vendored `fasm/FASM.EXE` |
+| FASM `kernel/` build | **Done** — assembles with vendored `tools/fasm/FASM.EXE` |
 | Boot smoke (QEMU + CoW image) | **Done** — desktop reached with rebuilt uncompressed `KERNEL.MNT` |
 | Hybrid Rust↔FASM link | **Cuts A–AB complete** — reloc-free blobs + trampolines; see [`../migration/migration-plan.md`](../migration/migration-plan.md) |
 | Host `kerpack` | **Absent** — optional; without it, free floppy space before replacing `KERNEL.MNT` |

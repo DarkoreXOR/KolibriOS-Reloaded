@@ -109,12 +109,12 @@ Trampoline injects `SLOT_BASE` and `[thread_count]`; preserves EBX/ECX/EDX/ESI/E
 
 Kernels built with Cuts A–Z production gates intact (`USE_RUST_IS_PARTITION_TABLE_ENTRY=1`, etc.).
 
-Images: CoW from `tmp_images/cut-z-final.img`, replace `KERNEL.MNT`.
+Images: CoW from `dev_build/cut-z-final.img`, replace `KERNEL.MNT`.
 
 | Gate | Setting | Desktop | Network |
 |------|---------|---------|---------|
-| OFF | `USE_RUST_PID_TO_SLOT=0` | **OK** (QMP `running` + screendump `tmp_images/cut-aa-off.ppm`, 779380 non-black samples) | **OK** (e1000 + user net) |
-| ON | `USE_RUST_PID_TO_SLOT=1` | **OK** (screendump `tmp_images/cut-aa-on.ppm`, 779380 non-black samples) | **OK** |
+| OFF | `USE_RUST_PID_TO_SLOT=0` | **OK** (QMP `running` + screendump `dev_build/cut-aa-off.ppm`, 779380 non-black samples) | **OK** (e1000 + user net) |
+| ON | `USE_RUST_PID_TO_SLOT=1` | **OK** (screendump `dev_build/cut-aa-on.ppm`, 779380 non-black samples) | **OK** |
 
 Smoke (ON): **PASS** (no `0xDEAD0CAA`; boot continued to desktop).
 
@@ -122,7 +122,7 @@ Smoke (ON): **PASS** (no `0xDEAD0CAA`; boot continued to desktop).
 
 Production default after completion: **`USE_RUST_PID_TO_SLOT = 1`**.
 
-Production image: `tmp_images/cut-aa-final.img`.
+Production image: `dev_build/cut-aa-final.img`.
 
 ---
 

@@ -151,16 +151,16 @@ Observation: LLVM reordered the three mem_size checks and implemented `mem_size 
 powershell -File rust_kernel/kolibri_utils/build-test-app-header.ps1
 
 Set-Content kernel\lang.inc "lang fix en_US`n"
-.\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
+.\tools\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
 Remove-Item kernel\lang.inc
 
 cd tools\kolibri_img
-.\target\release\kolibri_img.exe cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\tmp_images\cut-o-on.img
-.\target\release\kolibri_img.exe delete ..\..\tmp_images\cut-o-on.img DOCPACK
-.\target\release\kolibri_img.exe replace ..\..\tmp_images\cut-o-on.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
+.\target\release\kolibri_img.exe cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\dev_build\cut-o-on.img
+.\target\release\kolibri_img.exe delete ..\..\dev_build\cut-o-on.img DOCPACK
+.\target\release\kolibri_img.exe replace ..\..\dev_build\cut-o-on.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
 
 & "C:\Program Files\qemu\qemu-system-i386.exe" `
-  -fda ..\..\tmp_images\cut-o-on.img -boot a `
+  -fda ..\..\dev_build\cut-o-on.img -boot a `
   -m 256 -vga std -display none `
   -no-reboot -no-shutdown `
   -qmp tcp:127.0.0.1:4550,server,nowait
@@ -234,8 +234,8 @@ Called from `high_code` after Cut N smoke. Hang-on-fail; desktop reached (**PROV
 
 | Config | Result |
 |--------|--------|
-| Rust ON (`USE_RUST_TEST_APP_HEADER=1`) | **PASS** — `running`; screendump `tmp_images/cut-o-on.ppm` (2359312 bytes) |
-| Rust OFF (`=0`) | **PASS** — `running`; screendump `tmp_images/cut-o-off.ppm` (2359312 bytes) |
+| Rust ON (`USE_RUST_TEST_APP_HEADER=1`) | **PASS** — `running`; screendump `dev_build/cut-o-on.ppm` (2359312 bytes) |
+| Rust OFF (`=0`) | **PASS** — `running`; screendump `dev_build/cut-o-off.ppm` (2359312 bytes) |
 
 ---
 

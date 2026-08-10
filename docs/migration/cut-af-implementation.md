@@ -128,14 +128,14 @@ Images: fresh CoW from reference + `KERNEL.MNT` replace.
 
 | Gate | Setting | Desktop | Network NIC |
 |------|---------|---------|-------------|
-| OFF | `USE_RUST_NTFS_CALCULATE_TIME=0` | **OK** (QMP `running` + screendump `tmp_images/cut-af-off.ppm`, 779426 non-black samples) | e1000 + user net present |
-| ON | `USE_RUST_NTFS_CALCULATE_TIME=1` | **OK** (QMP `running` + screendump `tmp_images/cut-af-on.ppm`, 779426 non-black samples) | e1000 + user net present |
+| OFF | `USE_RUST_NTFS_CALCULATE_TIME=0` | **OK** (QMP `running` + screendump `dev_build/cut-af-off.ppm`, 779426 non-black samples) | e1000 + user net present |
+| ON | `USE_RUST_NTFS_CALCULATE_TIME=1` | **OK** (QMP `running` + screendump `dev_build/cut-af-on.ppm`, 779426 non-black samples) | e1000 + user net present |
 
 Smoke (ON): **PASS** (no `0xDEAD0CAF`; boot continued).
 
 Real subsystem soak: **NOT AVAILABLE** — stock floppy is not an NTFS volume; SetFileInfo FILETIME write path is not evidenced on the reference image. Boot smoke exercises the public `ntfsCalculateTime` symbol on synthetic BDFE values (ABI path), recorded under ABI smoke above.
 
-Production image: `tmp_images/cut-af-final.img`.
+Production image: `dev_build/cut-af-final.img`.
 
 ---
 
@@ -166,7 +166,7 @@ Rollback: `USE_RUST_NTFS_CALCULATE_TIME = 0` (or `enabled = false` in `orch/conf
 * `docs/migration/cut-af-plan.md`
 * `docs/migration/cut-af-implementation.md`
 * `docs/migration/migration-plan.md`
-* `tmp_images/README.md`
+* `.cursor/rules/dev-build.mdc`
 
 ---
 

@@ -136,18 +136,18 @@ FASM leaf retained under `USE_RUST_CHECK_WINDOW_POSITION=0` in `window.inc`.
 
 Kernels built with Cuts A–R production gates intact (`USE_RUST_XFS_EXTENT_UNPACK=1`, etc.).
 
-Images: copied from `tmp_images/cut-r-final.img`, then freed clusters via authorized deletes only (`DEVELOP/FASM`, `3D/VIEW3DS`, `GAMES/DINO` — see `.cursor/rules/image-handling.mdc`; `DOCPACK` already absent on Cut R). `kolibri_img delete` now accepts nested paths for those files.
+Images: copied from `dev_build/cut-r-final.img`, then freed clusters via authorized deletes only (`DEVELOP/FASM`, `3D/VIEW3DS`, `GAMES/DINO` — see `.cursor/rules/image-handling.mdc`; `DOCPACK` already absent on Cut R). `kolibri_img delete` now accepts nested paths for those files.
 
 | Build | Switch | Desktop | Internet |
 |-------|--------|---------|----------|
-| ON | `USE_RUST_CHECK_WINDOW_POSITION=1` | **OK** (QMP `running` + screendump `tmp_images/cut-s-on.ppm`, 779380 non-black samples) | **OK** (e1000 + user net) |
-| OFF | `=0` (original FASM body) | **OK** (screendump `tmp_images/cut-s-off.ppm`, same non-black sample count) | **OK** |
+| ON | `USE_RUST_CHECK_WINDOW_POSITION=1` | **OK** (QMP `running` + screendump `dev_build/cut-s-on.ppm`, 779380 non-black samples) | **OK** (e1000 + user net) |
+| OFF | `=0` (original FASM body) | **OK** (screendump `dev_build/cut-s-off.ppm`, same non-black sample count) | **OK** |
 
 Smoke (ON): **PASS** (no `0xDEAD0C53`; boot continued to desktop). Window create/move path exercises this leaf on stock desktop (fn0).
 
 Production default after completion: **`USE_RUST_CHECK_WINDOW_POSITION = 1`**.
 
-Production image: `tmp_images/cut-s-final.img`.
+Production image: `dev_build/cut-s-final.img`.
 
 ---
 

@@ -141,8 +141,8 @@ Images: fresh CoW from reference + `KERNEL.MNT` replace.
 
 | Gate | Setting | Desktop | Network NIC |
 |------|---------|---------|-------------|
-| OFF | `USE_RUST_CALCULATE_SET_CHECKSUM_FIELD=0` | **OK** (QMP `running` + screendump `tmp_images/cut-ah-off.ppm`, 779426 non-black samples) | e1000 + user net present |
-| ON | `USE_RUST_CALCULATE_SET_CHECKSUM_FIELD=1` | **OK** (screendump `tmp_images/cut-ah-on.ppm`, 779426 non-black samples) | e1000 + user net present |
+| OFF | `USE_RUST_CALCULATE_SET_CHECKSUM_FIELD=0` | **OK** (QMP `running` + screendump `dev_build/cut-ah-off.ppm`, 779426 non-black samples) | e1000 + user net present |
+| ON | `USE_RUST_CALCULATE_SET_CHECKSUM_FIELD=1` | **OK** (screendump `dev_build/cut-ah-on.ppm`, 779426 non-black samples) | e1000 + user net present |
 
 Smoke (ON): **PASS** (no HLT hang; boot continued).
 
@@ -151,7 +151,7 @@ dirent-write path that evidences `calculate_SetChecksum_field` beyond the
 synthetic ABI smoke. Boot smoke exercises the public symbol on a stand-in
 `exFAT` object (ABI path), recorded under ABI smoke above.
 
-Production image: `tmp_images/cut-ah-final.img`.
+Production image: `dev_build/cut-ah-final.img`.
 
 ---
 
@@ -182,7 +182,7 @@ Rollback: `USE_RUST_CALCULATE_SET_CHECKSUM_FIELD = 0` (or `enabled = false` in `
 * `docs/migration/cut-ah-plan.md`
 * `docs/migration/cut-ah-implementation.md`
 * `docs/migration/migration-plan.md`
-* `tmp_images/README.md`
+* `.cursor/rules/dev-build.mdc`
 
 ---
 

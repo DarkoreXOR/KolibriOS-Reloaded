@@ -197,15 +197,15 @@ Clean rebuild with `-SkipTest` reproduces the same SHA-256.
 powershell -File rust_kernel/kolibri_utils/build-tcp-set-persist.ps1
 
 Set-Content kernel\lang.inc "lang fix en_US`n"
-.\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
+.\tools\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
 Remove-Item kernel\lang.inc
 
 cd tools\kolibri_img
-.\target\release\kolibri_img.exe cow ..\..\tmp_images\cut-u-final.img ..\..\tmp_images\cut-v-on.img
-.\target\release\kolibri_img.exe replace ..\..\tmp_images\cut-v-on.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
+.\target\release\kolibri_img.exe cow ..\..\dev_build\cut-u-final.img ..\..\dev_build\cut-v-on.img
+.\target\release\kolibri_img.exe replace ..\..\dev_build\cut-v-on.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
 
 & "C:\Program Files\qemu\qemu-system-i386.exe" `
-  -fda ..\..\tmp_images\cut-v-on.img -boot a `
+  -fda ..\..\dev_build\cut-v-on.img -boot a `
   -m 256 -vga std -display none `
   -netdev user,id=n0 -device e1000,netdev=n0 `
   -no-reboot -no-shutdown `
@@ -248,12 +248,12 @@ cd tools\kolibri_img
 
 Kernels built with Cuts A–U production gates intact (`USE_RUST_FAT_GEN_SHORT_NAME=1`, etc.).
 
-Images: CoW from `tmp_images/cut-u-final.img`, replace `KERNEL.MNT`.
+Images: CoW from `dev_build/cut-u-final.img`, replace `KERNEL.MNT`.
 
 | Build | Switch | Desktop | Internet |
 |-------|--------|---------|----------|
-| OFF | `USE_RUST_TCP_SET_PERSIST=0` | **OK** (QMP `running` + screendump `tmp_images/cut-v-off.ppm`, 2333217 non-black samples) | **OK** (e1000 + user net) |
-| ON | `USE_RUST_TCP_SET_PERSIST=1` | **OK** (screendump `tmp_images/cut-v-on.ppm`, 2333217 non-black samples) | **OK** |
+| OFF | `USE_RUST_TCP_SET_PERSIST=0` | **OK** (QMP `running` + screendump `dev_build/cut-v-off.ppm`, 2333217 non-black samples) | **OK** (e1000 + user net) |
+| ON | `USE_RUST_TCP_SET_PERSIST=1` | **OK** (screendump `dev_build/cut-v-on.ppm`, 2333217 non-black samples) | **OK** |
 
 Smoke (ON): **PASS** (no `0xDEAD0C56`; boot continued to desktop).
 
@@ -261,7 +261,7 @@ Smoke (ON): **PASS** (no `0xDEAD0C56`; boot continued to desktop).
 
 Production default after completion: **`USE_RUST_TCP_SET_PERSIST = 1`**.
 
-Production image: `tmp_images/cut-v-final.img`.
+Production image: `dev_build/cut-v-final.img`.
 
 ---
 

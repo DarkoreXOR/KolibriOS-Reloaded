@@ -129,14 +129,14 @@ Images: fresh CoW from reference + `KERNEL.MNT` replace.
 
 | Gate | Setting | Desktop | Network NIC |
 |------|---------|---------|-------------|
-| OFF | `USE_RUST_IS_PROTECTIVE_MBR=0` | **OK** (QMP `running` + screendump `tmp_images/cut-ad-off.ppm`, 779426 non-black samples) | e1000 + user net present |
-| ON | `USE_RUST_IS_PROTECTIVE_MBR=1` | **OK** (QMP `running` + screendump `tmp_images/cut-ad-on.ppm`, 779426 non-black samples) | e1000 + user net present |
+| OFF | `USE_RUST_IS_PROTECTIVE_MBR=0` | **OK** (QMP `running` + screendump `dev_build/cut-ad-off.ppm`, 779426 non-black samples) | e1000 + user net present |
+| ON | `USE_RUST_IS_PROTECTIVE_MBR=1` | **OK** (QMP `running` + screendump `dev_build/cut-ad-on.ppm`, 779426 non-black samples) | e1000 + user net present |
 
 Smoke (ON): **PASS** (no `0xDEAD0CAD`; boot continued).
 
 Real subsystem soak: **NOT AVAILABLE** — stock floppy is legacy MBR, not a GPT protective-MBR media; `disk_scan_gpt` path is not evidenced on the reference image. Boot smoke exercises the public `is_protective_mbr` symbol on synthetic buffers (ABI path), recorded under ABI smoke above.
 
-Production image: `tmp_images/cut-ad-final.img`.
+Production image: `dev_build/cut-ad-final.img`.
 
 ---
 
@@ -167,7 +167,7 @@ Rollback: `USE_RUST_IS_PROTECTIVE_MBR = 0` (or `enabled = false` in `orch/config
 * `docs/migration/cut-ad-plan.md`
 * `docs/migration/cut-ad-implementation.md`
 * `docs/migration/migration-plan.md`
-* `tmp_images/README.md`
+* `.cursor/rules/dev-build.mdc`
 
 ---
 

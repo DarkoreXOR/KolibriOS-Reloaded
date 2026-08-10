@@ -117,14 +117,14 @@ Images: CoW from `cut-aa-final.img`, replace `KERNEL.MNT`.
 
 | Gate | Setting | Desktop | Network |
 |------|---------|---------|---------|
-| OFF | `USE_RUST_UTF8TO16=0` | **OK** (QMP `running` + screendump `tmp_images/cut-ab-off.ppm`, 779380 non-black samples) | **OK** (e1000 + user net) |
-| ON | `USE_RUST_UTF8TO16=1` | **OK** (screendump `tmp_images/cut-ab-on.ppm`, 779380 non-black samples) | **OK** |
+| OFF | `USE_RUST_UTF8TO16=0` | **OK** (QMP `running` + screendump `dev_build/cut-ab-off.ppm`, 779380 non-black samples) | **OK** (e1000 + user net) |
+| ON | `USE_RUST_UTF8TO16=1` | **OK** (screendump `dev_build/cut-ab-on.ppm`, 779380 non-black samples) | **OK** |
 
 Smoke (ON): **PASS** (no `0xDEAD0CAB`; boot continued to desktop).
 
 Real subsystem soak: **PASS** — boot smoke exercises public trampoline with multi-byte/restart vectors; font UTF-8 draw path (`font.inc` `.drawUTF8`) remains linked on stock desktop.
 
-Production image: `tmp_images/cut-ab-final.img`.
+Production image: `dev_build/cut-ab-final.img`.
 
 ---
 

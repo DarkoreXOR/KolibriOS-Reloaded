@@ -143,12 +143,12 @@ Host `cargo test -p kolibri_utils` (213+ tests including Cut U):
 
 Kernels built with Cuts A–T production gates intact (`USE_RUST_FS_TIME2BDFE=1`, etc.).
 
-Images: CoW from `tmp_images/cut-t-final.img`, replace `KERNEL.MNT`.
+Images: CoW from `dev_build/cut-t-final.img`, replace `KERNEL.MNT`.
 
 | Build | Switch | Desktop | Internet |
 |-------|--------|---------|----------|
-| OFF | `USE_RUST_FAT_GEN_SHORT_NAME=0` | **OK** (QMP `running` + screendump `tmp_images/cut-u-off.ppm`, 779380 non-black samples) | **OK** (e1000 + user net) |
-| ON | `USE_RUST_FAT_GEN_SHORT_NAME=1` | **OK** (screendump `tmp_images/cut-u-on.ppm`, 779380 non-black samples) | **OK** |
+| OFF | `USE_RUST_FAT_GEN_SHORT_NAME=0` | **OK** (QMP `running` + screendump `dev_build/cut-u-off.ppm`, 779380 non-black samples) | **OK** (e1000 + user net) |
+| ON | `USE_RUST_FAT_GEN_SHORT_NAME=1` | **OK** (screendump `dev_build/cut-u-on.ppm`, 779380 non-black samples) | **OK** |
 
 Smoke (ON): **PASS** (no `0xDEAD0C55`; boot continued to desktop).
 
@@ -156,7 +156,7 @@ Smoke (ON): **PASS** (no `0xDEAD0C55`; boot continued to desktop).
 
 Production default after completion: **`USE_RUST_FAT_GEN_SHORT_NAME = 1`**.
 
-Production image: `tmp_images/cut-u-final.img`.
+Production image: `dev_build/cut-u-final.img`.
 
 ---
 

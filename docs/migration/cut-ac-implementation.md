@@ -127,14 +127,14 @@ Images: fresh CoW from reference + `KERNEL.MNT` replace (Cut AB final image was 
 
 | Gate | Setting | Desktop | Network NIC |
 |------|---------|---------|-------------|
-| OFF | `USE_RUST_IPV4_ROUTE=0` | **OK** (QMP `running` + screendump `tmp_images/cut-ac-off.ppm`, 779380 non-black samples) | e1000 + user net present |
-| ON | `USE_RUST_IPV4_ROUTE=1` | **OK** (QMP `running` + screendump `tmp_images/cut-ac-on.ppm`, 288000 non-black samples) | e1000 + user net present |
+| OFF | `USE_RUST_IPV4_ROUTE=0` | **OK** (QMP `running` + screendump `dev_build/cut-ac-off.ppm`, 779380 non-black samples) | e1000 + user net present |
+| ON | `USE_RUST_IPV4_ROUTE=1` | **OK** (QMP `running` + screendump `dev_build/cut-ac-on.ppm`, 288000 non-black samples) | e1000 + user net present |
 
 Smoke (ON): **PASS** (no `0xDEAD0CAC`; boot continued).
 
 Real subsystem soak: **NOT AVAILABLE** — no active UDP/TCP connect stimulus was applied to prove live `ipv4_output` / connect callers beyond boot smoke. Boot smoke does exercise the public `ipv4_route` symbol on planted tables (ABI path), which is recorded under ABI smoke above.
 
-Production image: `tmp_images/cut-ac-final.img`.
+Production image: `dev_build/cut-ac-final.img`.
 
 ---
 
@@ -165,7 +165,7 @@ Rollback: `USE_RUST_IPV4_ROUTE = 0` (or `enabled = false` in `orch/config.toml`)
 * `docs/migration/cut-ac-plan.md`
 * `docs/migration/cut-ac-implementation.md`
 * `docs/migration/migration-plan.md`
-* `tmp_images/README.md`
+* `.cursor/rules/dev-build.mdc`
 
 ---
 

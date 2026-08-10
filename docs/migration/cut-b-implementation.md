@@ -110,16 +110,16 @@ Extractor: [`extract_reloc_free_text.py`](../../rust_kernel/kolibri_utils/script
 powershell -File rust_kernel/kolibri_utils/build-cp866-upper.ps1
 
 Set-Content kernel\lang.inc "lang fix en_US`n"
-.\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
+.\tools\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
 Remove-Item kernel\lang.inc
 
 cd tools\kolibri_img
-.\target\release\kolibri_img.exe cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\tmp_images\cut-b-on.img
-.\target\release\kolibri_img.exe delete ..\..\tmp_images\cut-b-on.img DOCPACK
-.\target\release\kolibri_img.exe replace ..\..\tmp_images\cut-b-on.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
+.\target\release\kolibri_img.exe cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\dev_build\cut-b-on.img
+.\target\release\kolibri_img.exe delete ..\..\dev_build\cut-b-on.img DOCPACK
+.\target\release\kolibri_img.exe replace ..\..\dev_build\cut-b-on.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
 
 & "C:\Program Files\qemu\qemu-system-i386.exe" `
-  -fda ..\..\tmp_images\cut-b-on.img -boot a `
+  -fda ..\..\dev_build\cut-b-on.img -boot a `
   -m 256 -vga std -display none `
   -no-reboot -no-shutdown `
   -qmp tcp:127.0.0.1:4460,server,nowait
@@ -140,7 +140,7 @@ cd tools\kolibri_img
 | Reloc validation | **PASS** |
 | Clean rebuild ×2 blob hash | **PASS** (identical SHA-256) |
 
-Screendumps: `tmp_images/cut-b-on-desktop.png`, `tmp_images/cut-b-off-desktop.png`.
+Screendumps: `dev_build/cut-b-on-desktop.png`, `dev_build/cut-b-off-desktop.png`.
 
 ---
 

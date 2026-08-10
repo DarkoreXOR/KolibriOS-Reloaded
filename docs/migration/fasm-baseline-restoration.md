@@ -36,7 +36,7 @@ Replaced `kernel/init.inc` with the verified upstream file (same bytes as `docs/
 
 ```text
 Set-Content kernel\lang.inc "lang fix en_US`n"
-.\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
+.\tools\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
 Remove-Item kernel\lang.inc
 ```
 
@@ -52,9 +52,9 @@ Reference `KERNEL.MNT` on the floppy is **kerpack-compressed** (~106 618 bytes
 
 ```text
 cd tools\kolibri_img
-cargo run --release -- cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\tmp_images\boot-smoke.img
-cargo run --release -- delete ..\..\tmp_images\boot-smoke.img DOCPACK
-cargo run --release -- replace ..\..\tmp_images\boot-smoke.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
+cargo run --release -- cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\dev_build\boot-smoke.img
+cargo run --release -- delete ..\..\dev_build\boot-smoke.img DOCPACK
+cargo run --release -- replace ..\..\dev_build\boot-smoke.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
 ```
 
 Reference image SHA-256 remained `1901F3A8D7CA0DA23DBB6259D85579F09ED36EBAA58B972AAD16E7059B47C8BA` after all experiments.
@@ -62,7 +62,7 @@ Reference image SHA-256 remained `1901F3A8D7CA0DA23DBB6259D85579F09ED36EBAA58B97
 **QEMU** (`C:\Program Files\qemu\qemu-system-i386.exe`):
 
 ```text
--fda tmp_images\boot-smoke.img -boot a -m 256 -vga std -display none
+-fda dev_build\boot-smoke.img -boot a -m 256 -vga std -display none
 -no-reboot -no-shutdown -qmp tcp:127.0.0.1:4445,server,nowait
 ```
 

@@ -112,8 +112,8 @@ FASM leaf retained under `USE_RUST_UTF16_TO_8=0` in `parse_fn.inc` (ASCII / 2-by
 
 | Build | Switch | Desktop | Internet |
 |-------|--------|---------|----------|
-| ON | `USE_RUST_UTF16_TO_8=1` | **OK** (QMP `running` + screendump `tmp_images/cut-q-on.ppm`, 3038 non-black samples) | **OK** (e1000 + user net; idle HLT; Cut D EDX path intact) |
-| OFF | `=0` (original FASM body) | **OK** (screendump `tmp_images/cut-q-off.ppm`, same non-black sample count) | **OK** (same NIC config; FASM baseline) |
+| ON | `USE_RUST_UTF16_TO_8=1` | **OK** (QMP `running` + screendump `dev_build/cut-q-on.ppm`, 3038 non-black samples) | **OK** (e1000 + user net; idle HLT; Cut D EDX path intact) |
+| OFF | `=0` (original FASM body) | **OK** (screendump `dev_build/cut-q-off.ppm`, same non-black sample count) | **OK** (same NIC config; FASM baseline) |
 
 Smoke (ON): **PASS** (no `0xDEAD0C51`; boot continued).
 

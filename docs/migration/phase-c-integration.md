@@ -123,7 +123,7 @@ Call site: [`kernel/kernel.asm`](../../kernel/kernel.asm) `high_code` immediatel
 
 - Nightly Rust + `rust-src` (for `-Z build-std`)
 - Python 3
-- Vendored [`fasm/FASM.EXE`](../../fasm/FASM.EXE)
+- Vendored [`tools/fasm/FASM.EXE`](../../tools/fasm/FASM.EXE)
 - `tools/kolibri_img`
 - QEMU i386 (e.g. `C:\Program Files\qemu\qemu-system-i386.exe`)
 
@@ -135,18 +135,18 @@ powershell -File rust_kernel/kolibri_utils/build-phase-c.ps1
 
 # 2) Assemble hybrid kernel
 Set-Content kernel\lang.inc "lang fix en_US`n"
-.\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
+.\tools\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
 Remove-Item kernel\lang.inc
 
 # 3) CoW image (never touch the reference .img)
 cd tools\kolibri_img
-cargo run --release -- cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\tmp_images\phase-c-boot.img
-cargo run --release -- delete ..\..\tmp_images\phase-c-boot.img DOCPACK
-cargo run --release -- replace ..\..\tmp_images\phase-c-boot.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
+cargo run --release -- cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\dev_build\phase-c-boot.img
+cargo run --release -- delete ..\..\dev_build\phase-c-boot.img DOCPACK
+cargo run --release -- replace ..\..\dev_build\phase-c-boot.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
 
 # 4) QEMU smoke (~10s to desktop)
 & "C:\Program Files\qemu\qemu-system-i386.exe" `
-  -fda ..\..\tmp_images\phase-c-boot.img -boot a `
+  -fda ..\..\dev_build\phase-c-boot.img -boot a `
   -m 256 -vga std -display none `
   -no-reboot -no-shutdown
 ```

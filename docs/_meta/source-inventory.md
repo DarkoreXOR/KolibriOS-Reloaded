@@ -7,9 +7,10 @@
 | Path | Role |
 |------|------|
 | `rust_kernel/` | Cargo workspace for freestanding Rust kernel utils (`kolibri_utils`, Cuts A–AB) |
-| `orch/` | Hybrid build orchestrator (`orch`): blobs, FASM, image, QEMU |
+| `tools/orch/` | Generic orchestrator runtime (`orch`) |
+| `.orch/` | Project Rhai Actions / Workflows + orch config |
 | `tools/kolibri_img/` | Host utility: FAT image inspect / CoW / extract / delete / replace |
-| `fasm/` | Vendored FASM assembler |
+| `tools/fasm/` | Vendored FASM assembler |
 | `kolibrios-*.img` | Read-only reference floppy image |
 | `dev_build/` | Development/test artifacts (gitignored) |
 | `images/` | Persistent filesystem regression images (gitignored `.img`) |

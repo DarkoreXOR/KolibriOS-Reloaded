@@ -130,7 +130,7 @@ Required tools (this tree):
 | Rust stable | `cargo test -p kolibri_utils` |
 | Rust nightly + `rust-src` | freestanding `build-std` for `i686-kolibri-none` |
 | Python 3 | blob extractor |
-| Vendored [`fasm/FASM.EXE`](../../fasm/FASM.EXE) | assemble `kernel.mnt` |
+| Vendored [`tools/fasm/FASM.EXE`](../../tools/fasm/FASM.EXE) | assemble `kernel.mnt` |
 | [`tools/kolibri_img`](../../tools/kolibri_img) | CoW / delete / replace (protects reference image) |
 | QEMU `qemu-system-i386` | boot smoke (often `C:\Program Files\qemu\…` on Windows) |
 | PowerShell | build helpers under `rust_kernel/kolibri_utils/*.ps1` |
@@ -141,19 +141,19 @@ powershell -File rust_kernel/kolibri_utils/build-utf8.ps1
 
 # 2. Assemble hybrid kernel (switches default to 1)
 Set-Content kernel\lang.inc "lang fix en_US`n"
-.\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
+.\tools\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
 Remove-Item kernel\lang.inc
 
 # 3. Disposable image (never mutate the reference)
 cd tools\kolibri_img
 cargo build --release
-.\target\release\kolibri_img.exe cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\tmp_images\cut-a-boot.img
-.\target\release\kolibri_img.exe delete ..\..\tmp_images\cut-a-boot.img DOCPACK
-.\target\release\kolibri_img.exe replace ..\..\tmp_images\cut-a-boot.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
+.\target\release\kolibri_img.exe cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\dev_build\cut-a-boot.img
+.\target\release\kolibri_img.exe delete ..\..\dev_build\cut-a-boot.img DOCPACK
+.\target\release\kolibri_img.exe replace ..\..\dev_build\cut-a-boot.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
 
 # 4. QEMU (adjust QEMU path as needed)
 & "C:\Program Files\qemu\qemu-system-i386.exe" `
-  -fda ..\..\tmp_images\cut-a-boot.img -boot a -m 256 -vga std
+  -fda ..\..\dev_build\cut-a-boot.img -boot a -m 256 -vga std
 ```
 
 Reference image SHA-256 (must remain unchanged):

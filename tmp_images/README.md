@@ -1,20 +1,20 @@
-# Deprecated: use `dev_build/` instead
+# Deprecated — use `dev_build/`
 
-This directory is **no longer used** for new work.
+This directory is **not used**. Disposable boot images, screendumps, and other
+temporary artifacts belong under **`dev_build/`** (orchestrator default:
+`dev_build/test/`). Persistent FS regression disks belong under **`images/`**.
 
-| Old path | New path |
-|----------|----------|
-| `tmp_images/*.img` (disposable boot images) | `dev_build/test/` (orchestrator) |
-| ad-hoc screendumps | `dev_build/` |
-| persistent exFAT/NTFS regression disks | `images/exfat-image.img`, `images/ntfs-image.img` |
-
-Use the orchestrator:
+| Role | Path |
+|------|------|
+| Disposable CoW / boot images | `dev_build/test/` via `orch @prepare_image` |
+| Screendumps / ad-hoc temps | `dev_build/` — delete after use |
+| Persistent exFAT/NTFS disks | `images/exfat-image.img`, `images/ntfs-image.img` |
+| Full wipe of disposables | `orch @clean` (removes `build/` + `dev_build/`) |
 
 ```powershell
-cargo run --manifest-path orch/Cargo.toml -- help
-cargo run --manifest-path orch/Cargo.toml -- mkfs exfat 4M
-cargo run --manifest-path orch/Cargo.toml -- run -- --disk:exfat
+cargo run --manifest-path tools/orch/Cargo.toml -- --% @mkfs exfat 4M
+cargo run --manifest-path tools/orch/Cargo.toml -- --% run:dev
+cargo run --manifest-path tools/orch/Cargo.toml -- --% @clean
 ```
 
-Historical migration docs may still reference `tmp_images/` for completed cut
-validation records.
+See `.cursor/rules/dev-build.mdc`.

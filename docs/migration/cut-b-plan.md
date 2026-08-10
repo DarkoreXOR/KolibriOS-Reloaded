@@ -36,7 +36,7 @@ Reference floppy SHA-256 (immutable):
 1901F3A8D7CA0DA23DBB6259D85579F09ED36EBAA58B972AAD16E7059B47C8BA
 ```
 
-Build path remains PowerShell extract scripts + vendored `fasm/FASM.EXE` + `tools/kolibri_img` CoW + QEMU.
+Build path remains PowerShell extract scripts + vendored `tools/fasm/FASM.EXE` + `tools/kolibri_img` CoW + QEMU.
 
 ### Repository integrity — `kernel/init.inc`
 

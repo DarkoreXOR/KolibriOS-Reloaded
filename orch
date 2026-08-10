@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# Repo-root launcher: ./orch run:dev
+set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$ROOT"
+
+export CARGO_TARGET_DIR="$ROOT/tools/orch/target"
+ORCH_BIN="$CARGO_TARGET_DIR/debug/orch"
+
+cargo build -q --manifest-path tools/orch/Cargo.toml
+if [[ ! -x "$ORCH_BIN" ]]; then
+  echo "error: orch binary missing after build: $ORCH_BIN" >&2
+  exit 1
+fi
+
+exec "$ORCH_BIN" "$@"

@@ -124,12 +124,12 @@ Smoke builds a synthetic 16-byte entry + 64-byte DISK stub (Capacity @56) and ca
 powershell -File rust_kernel/kolibri_utils/build-is-partition-table-entry.ps1
 
 Set-Content kernel\lang.inc "lang fix en_US`n"
-.\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
+.\tools\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
 Remove-Item kernel\lang.inc
 
 cd tools\kolibri_img
-.\target\release\kolibri_img.exe cow ..\..\tmp_images\cut-y-final.img ..\..\tmp_images\cut-z-on.img
-.\target\release\kolibri_img.exe replace ..\..\tmp_images\cut-z-on.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
+.\target\release\kolibri_img.exe cow ..\..\dev_build\cut-y-final.img ..\..\dev_build\cut-z-on.img
+.\target\release\kolibri_img.exe replace ..\..\dev_build\cut-z-on.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
 ```
 
 ---
@@ -170,12 +170,12 @@ cd tools\kolibri_img
 
 Kernels built with Cuts A–Y production gates intact (`USE_RUST_FIX_COFF_RELOCS=1`, etc.).
 
-Images: CoW from `tmp_images/cut-y-final.img`, replace `KERNEL.MNT`.
+Images: CoW from `dev_build/cut-y-final.img`, replace `KERNEL.MNT`.
 
 | Gate | Setting | Desktop | Network |
 |------|---------|---------|---------|
-| OFF | `USE_RUST_IS_PARTITION_TABLE_ENTRY=0` | **OK** (QMP `running` + screendump `tmp_images/cut-z-off.ppm`, 779380 non-black samples) | **OK** (e1000 + user net) |
-| ON | `USE_RUST_IS_PARTITION_TABLE_ENTRY=1` | **OK** (screendump `tmp_images/cut-z-on.ppm`, 779380 non-black samples) | **OK** |
+| OFF | `USE_RUST_IS_PARTITION_TABLE_ENTRY=0` | **OK** (QMP `running` + screendump `dev_build/cut-z-off.ppm`, 779380 non-black samples) | **OK** (e1000 + user net) |
+| ON | `USE_RUST_IS_PARTITION_TABLE_ENTRY=1` | **OK** (screendump `dev_build/cut-z-on.ppm`, 779380 non-black samples) | **OK** |
 
 Smoke (ON): **PASS** (no `0xDEAD0C5A`; boot continued to desktop).
 
@@ -183,7 +183,7 @@ Smoke (ON): **PASS** (no `0xDEAD0C5A`; boot continued to desktop).
 
 Production default after completion: **`USE_RUST_IS_PARTITION_TABLE_ENTRY = 1`**.
 
-Production image: `tmp_images/cut-z-final.img`.
+Production image: `dev_build/cut-z-final.img`.
 
 ---
 

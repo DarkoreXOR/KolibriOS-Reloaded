@@ -1,6 +1,5 @@
 # Rust / Cargo build outputs
 rust_kernel/target/
-orch/target/
 tools/**/target/
 /target/
 **/Cargo.lock

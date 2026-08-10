@@ -133,16 +133,16 @@ Oracle is an independent second transcription of the FASM control flow in `unico
 powershell -File rust_kernel/kolibri_utils/build-utf16.ps1
 
 Set-Content kernel\lang.inc "lang fix en_US`n"
-.\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
+.\tools\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
 Remove-Item kernel\lang.inc
 
 cd tools\kolibri_img
-cargo run --release -- cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\tmp_images\phase-e-utf16-boot.img
-cargo run --release -- delete ..\..\tmp_images\phase-e-utf16-boot.img DOCPACK
-cargo run --release -- replace ..\..\tmp_images\phase-e-utf16-boot.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
+cargo run --release -- cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\dev_build\phase-e-utf16-boot.img
+cargo run --release -- delete ..\..\dev_build\phase-e-utf16-boot.img DOCPACK
+cargo run --release -- replace ..\..\dev_build\phase-e-utf16-boot.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
 
 & "C:\Program Files\qemu\qemu-system-i386.exe" `
-  -fda ..\..\tmp_images\phase-e-utf16-boot.img -boot a `
+  -fda ..\..\dev_build\phase-e-utf16-boot.img -boot a `
   -m 256 -vga std -display none `
   -no-reboot -no-shutdown
 ```

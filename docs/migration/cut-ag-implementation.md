@@ -138,8 +138,8 @@ Images: fresh CoW from reference + `KERNEL.MNT` replace.
 
 | Gate | Setting | Desktop | Network NIC |
 |------|---------|---------|-------------|
-| OFF | `USE_RUST_NTFS_TEST_BOOTSEC=0` | **OK** (QMP `running` + screendump `tmp_images/cut-ag-off.ppm`, 779426 non-black samples) | e1000 + user net present |
-| ON | `USE_RUST_NTFS_TEST_BOOTSEC=1` | **OK** (QMP `running` + screendump `tmp_images/cut-ag-on.ppm`, 779426 non-black samples) | e1000 + user net present |
+| OFF | `USE_RUST_NTFS_TEST_BOOTSEC=0` | **OK** (QMP `running` + screendump `dev_build/cut-ag-off.ppm`, 779426 non-black samples) | e1000 + user net present |
+| ON | `USE_RUST_NTFS_TEST_BOOTSEC=1` | **OK** (QMP `running` + screendump `dev_build/cut-ag-on.ppm`, 779426 non-black samples) | e1000 + user net present |
 
 Smoke (ON): **PASS** (no `0xDEAD0CA7`; boot continued).
 
@@ -148,7 +148,7 @@ Real subsystem soak: **NOT AVAILABLE** — stock floppy has no NTFS volume;
 Boot smoke exercises the public `ntfs_test_bootsec` symbol on synthetic buffers
 (ABI path), recorded under ABI smoke above.
 
-Production image: `tmp_images/cut-ag-final.img`.
+Production image: `dev_build/cut-ag-final.img`.
 
 ---
 
@@ -179,7 +179,7 @@ Rollback: `USE_RUST_NTFS_TEST_BOOTSEC = 0` (or `enabled = false` in `orch/config
 * `docs/migration/cut-ag-plan.md`
 * `docs/migration/cut-ag-implementation.md`
 * `docs/migration/migration-plan.md`
-* `tmp_images/README.md`
+* `.cursor/rules/dev-build.mdc`
 
 ---
 

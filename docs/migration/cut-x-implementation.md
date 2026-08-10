@@ -116,12 +116,12 @@ Smoke runs after `tss._io_map_0` is mapped and filled (post-`ltr`), not in the e
 powershell -File rust_kernel/kolibri_utils/build-set-io-access-rights.ps1
 
 Set-Content kernel\lang.inc "lang fix en_US`n"
-.\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
+.\tools\fasm\FASM.EXE -m 262144 kernel\kernel.asm kernel\bin\kernel.mnt
 Remove-Item kernel\lang.inc
 
 cd tools\kolibri_img
-.\target\release\kolibri_img.exe cow ..\..\tmp_images\cut-w-final.img ..\..\tmp_images\cut-x-on.img
-.\target\release\kolibri_img.exe replace ..\..\tmp_images\cut-x-on.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
+.\target\release\kolibri_img.exe cow ..\..\dev_build\cut-w-final.img ..\..\dev_build\cut-x-on.img
+.\target\release\kolibri_img.exe replace ..\..\dev_build\cut-x-on.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
 ```
 
 ---
@@ -161,12 +161,12 @@ cd tools\kolibri_img
 
 Kernels built with Cuts A–W production gates intact (`USE_RUST_XFS_GET_ADDR_BY_HASH=1`, etc.).
 
-Images: CoW from `tmp_images/cut-w-final.img`, replace `KERNEL.MNT`.
+Images: CoW from `dev_build/cut-w-final.img`, replace `KERNEL.MNT`.
 
 | Build | Switch | Desktop | Internet |
 |-------|--------|---------|----------|
-| OFF | `USE_RUST_SET_IO_ACCESS_RIGHTS=0` | **OK** (QMP `running` + screendump `tmp_images/cut-x-off.ppm`, 779380 non-black samples) | **OK** (e1000 + user net) |
-| ON | `USE_RUST_SET_IO_ACCESS_RIGHTS=1` | **OK** (screendump `tmp_images/cut-x-on.ppm`, 779380 non-black samples) | **OK** |
+| OFF | `USE_RUST_SET_IO_ACCESS_RIGHTS=0` | **OK** (QMP `running` + screendump `dev_build/cut-x-off.ppm`, 779380 non-black samples) | **OK** (e1000 + user net) |
+| ON | `USE_RUST_SET_IO_ACCESS_RIGHTS=1` | **OK** (screendump `dev_build/cut-x-on.ppm`, 779380 non-black samples) | **OK** |
 
 Smoke (ON): **PASS** (no `0xDEAD0C58`; boot continued to desktop).
 
@@ -174,7 +174,7 @@ Smoke (ON): **PASS** (no `0xDEAD0C58`; boot continued to desktop).
 
 Production default after completion: **`USE_RUST_SET_IO_ACCESS_RIGHTS = 1`**.
 
-Production image: `tmp_images/cut-x-final.img`.
+Production image: `dev_build/cut-x-final.img`.
 
 ---
 

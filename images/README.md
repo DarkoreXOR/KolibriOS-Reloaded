@@ -10,8 +10,8 @@ Stable paths used by the orchestrator `mkfs` and `run --disk:TYPE` commands:
 Create or reuse images:
 
 ```powershell
-cargo run --manifest-path orch/Cargo.toml -- mkfs exfat 4M
-cargo run --manifest-path orch/Cargo.toml -- mkfs ntfs 8M
+cargo run --manifest-path tools/orch/Cargo.toml -- mkfs exfat 4M
+cargo run --manifest-path tools/orch/Cargo.toml -- mkfs ntfs 8M
 ```
 
 Images are gitignored (regenerated deterministically). Do not delete them

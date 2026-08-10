@@ -177,8 +177,8 @@ Oracle models the **actual FASM instruction sequence**, not the intended high-le
 
 | Build | Switch | Desktop | Internet |
 |-------|--------|---------|----------|
-| ON | `USE_RUST_IS_REGION_USERSPACE=1` | **OK** (manual + screendump `tmp_images/cut-p-on.ppm`) | **OK** (manual) |
-| OFF | `=0` (original FASM body) | **OK** (screendump `tmp_images/cut-p-off.ppm`) | **OK** (FASM = A–O baseline; desktop reached) |
+| ON | `USE_RUST_IS_REGION_USERSPACE=1` | **OK** (manual + screendump `dev_build/cut-p-on.ppm`) | **OK** (manual) |
+| OFF | `=0` (original FASM body) | **OK** (screendump `dev_build/cut-p-off.ppm`) | **OK** (FASM = A–O baseline; desktop reached) |
 
 Smoke (ON diagnostic): **PASS** (boot continued; no `0xDEAD0C50` hang).
 
