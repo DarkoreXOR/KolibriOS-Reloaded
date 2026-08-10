@@ -5,7 +5,7 @@
 # Do not put secrets here.
 
 # ---------------------------------------------------------------------------
-# Rust freestanding components (Cuts A–AG Strategy A+C blobs)
+# Rust freestanding components (Cuts A–AH Strategy A+C blobs)
 # ---------------------------------------------------------------------------
 [rust]
 # Cargo workspace containing `kolibri_utils`.
@@ -35,9 +35,16 @@ python = "python"
 generic_script = "rust_kernel/kolibri_utils/scripts/extract_reloc_free_text.py"
 probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 
-# Blobs required by the hybrid kernel (Cuts A–AG). Newest-first extraction order;
+# Blobs required by the hybrid kernel (Cuts A–AH). Newest-first extraction order;
 # FASM embeds whichever files `kernel/rust/*.inc` reference. Blobs are always
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_calculate_set_checksum_field"
+symbol = "rust_calculate_set_checksum_field"
+expect_ret_imm = 8
+out = "rust_calculate_set_checksum_field.bin"
+
 [[rust.blobs]]
 kind = "generic"
 section = ".text.rust_ntfs_test_bootsec"
@@ -294,12 +301,21 @@ out = "rust_crc_32.bin"
 kind = "probe"
 out = "rust_phase_c_probe.bin"
 
-# Production migration registry (Cuts A–AG). Each entry maps one independent
+# Production migration registry (Cuts A–AH). Each entry maps one independent
 # `USE_RUST_*` gate to its blob, embed include, and gate assignment file.
 # `enabled` is applied to `gate_file` before every kernel assemble (independent
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "AH"
+blob = "rust_calculate_set_checksum_field.bin"
+symbol = "rust_calculate_set_checksum_field"
+gate = "USE_RUST_CALCULATE_SET_CHECKSUM_FIELD"
+include = "kernel/rust/calculate_set_checksum_field.inc"
+gate_file = "kernel/fs/exfat.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "AG"
 blob = "rust_ntfs_test_bootsec.bin"
@@ -689,6 +705,24 @@ headless_extra_args = [
 # Extra args for `ref`: boot `image.base_image` without rebuilding.
 # `-snapshot` keeps disk writes in RAM so the reference floppy is never modified.
 reference_extra_args = ["-snapshot"]
+
+# ---------------------------------------------------------------------------
+# Secondary exFAT regression disk (attached on every normal QEMU boot)
+# ---------------------------------------------------------------------------
+# Persistent 128 MiB whole-disk exFAT image used to exercise KolibriOS exFAT
+# (Rust migration / filesystem regression). Never replaces the boot floppy.
+# Docs: tools/testdata/README.md
+# Recreate: cargo run --manifest-path tools/build/Cargo.toml -- testdisk --force
+[testdisk]
+enabled = true
+image = "tools/testdata/kolibrios-exfat-test.img"
+generator = "tools/testdata/create_exfat_test_image.py"
+size_mib = 128
+# `{image}` → absolute path. index=0 is the first IDE HDD (KolibriOS hd0).
+drive_args = [
+  "-drive",
+  "file={image},format=raw,if=ide,index=0,media=disk",
+]
 
 # ---------------------------------------------------------------------------
 # Cleanup / diagnostics

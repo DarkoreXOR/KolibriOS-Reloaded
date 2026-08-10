@@ -6,7 +6,7 @@
 
 > **Nomenclature:** **Cut AG** migrates NTFS bootsector multi-rule validation —
 > `ntfs_test_bootsec` in `ntfs.inc`.  
-> Cuts A–AF remain complete and must not be redone. Do not start Cut AH.
+> Cuts A–AF remain complete and must not be redone. Cut AH follows.
 
 ---
 

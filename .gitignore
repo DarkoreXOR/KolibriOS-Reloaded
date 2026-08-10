@@ -13,6 +13,10 @@ tools/**/target/
 *.img.cow
 *.qcow2
 
+# Generated 128 MiB exFAT regression disk (recreate via tools/testdata script)
+/tools/testdata/*.img
+/tools/testdata/*.img.tmp
+
 # Local toolchain caches (repo ships ./fasm/; do not re-download into tools/)
 tools/fasm_extract/
 tools/fasmw.zip

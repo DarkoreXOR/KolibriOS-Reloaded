@@ -11,6 +11,7 @@ use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
 use crate::coff_reloc::fix_coff_relocs_ptr;
 use crate::crc::crc32_update;
+use crate::exfat_checksum::calculate_set_checksum_field_ptr;
 use crate::fat_name::{fat_gen_short_name_ptr, fat_next_short_name_ptr};
 use crate::font::anti_aliasing;
 use crate::geometry::block_clip_ptr;
@@ -280,6 +281,25 @@ pub unsafe extern "stdcall" fn rust_ntfs_test_bootsec(
 ) -> u32 {
     // SAFETY: kernel trampoline passes EBX→boot + EDX partition size.
     unsafe { ntfs_test_bootsec_ptr(boot, partition_sectors) }
+}
+
+/// `stdcall` rust_calculate_set_checksum_field(buf, len) -> EAX (AX = checksum).
+///
+/// Cut AH: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). Writes LE checksum to `buf+2` and returns
+/// it in EAX; FASM trampoline preserves EBX/ECX/EDX/ESI/EDI around the call.
+///
+/// # Safety
+/// `buf` must be readable for `len` bytes and writable for ≥4 bytes.
+#[no_mangle]
+#[link_section = ".text.rust_calculate_set_checksum_field"]
+pub unsafe extern "stdcall" fn rust_calculate_set_checksum_field(
+    buf: *mut u8,
+    len: u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes &file_dir_entry + derived length.
+    u32::from(unsafe { calculate_set_checksum_field_ptr(buf, len) })
 }
 
 /// `stdcall` rust_block_clip(clip, rect) -> EAX = 0 draw / 1 reject.

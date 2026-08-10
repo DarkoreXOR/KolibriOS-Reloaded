@@ -51,6 +51,11 @@ impl<'a> Pipeline<'a> {
             Some(p) => eprintln!("  {}", p.display()),
             None => eprintln!("  (not created this run)"),
         }
+        if self.cfg.testdisk.enabled {
+            let td = resolve(self.root, &self.cfg.testdisk.image);
+            eprintln!("exFAT test disk:");
+            eprintln!("  {}", td.display());
+        }
         if let Ok(q) = self.resolve_qemu() {
             eprintln!("QEMU:");
             eprintln!("  {}", q.display());
@@ -615,6 +620,112 @@ impl<'a> Pipeline<'a> {
         )
     }
 
+    /// Ensure the secondary exFAT regression disk exists (create if missing).
+    /// When `force` is true, recreate via the generator even if present.
+    pub fn ensure_testdisk(&self, force: bool) -> Result<Option<PathBuf>> {
+        if !self.cfg.testdisk.enabled {
+            eprintln!("== exFAT testdisk ==");
+            eprintln!("Disabled in config ([testdisk].enabled = false)");
+            return Ok(None);
+        }
+
+        eprintln!("== exFAT testdisk ==");
+        let image = resolve(self.root, &self.cfg.testdisk.image);
+        let generator = resolve(self.root, &self.cfg.testdisk.generator);
+        let expect_size = self
+            .cfg
+            .testdisk
+            .size_mib
+            .checked_mul(1024 * 1024)
+            .context("testdisk.size_mib overflow")?;
+
+        if !generator.is_file() {
+            bail!(
+                "ERROR: exFAT testdisk generator missing\nExpected: {}",
+                generator.display()
+            );
+        }
+
+        let need_create = force
+            || !image.is_file()
+            || image.metadata().map(|m| m.len()).unwrap_or(0) != expect_size
+            || !exfat_oem_name_ok(&image);
+
+        if self.dry_run {
+            if need_create {
+                eprintln!(
+                    "Would run: python {}{} -o {}",
+                    generator.display(),
+                    if force { " --force" } else { "" },
+                    image.display()
+                );
+            } else {
+                eprintln!("Would reuse existing {}", image.display());
+            }
+            return Ok(Some(image));
+        }
+
+        if need_create {
+            let python = find_python(&self.cfg.rust.extract.python).context(
+                "ERROR: python not found (needed to generate the exFAT test disk)",
+            )?;
+            let mut args = vec![
+                generator.to_string_lossy().into_owned(),
+                "-o".into(),
+                image.to_string_lossy().into_owned(),
+            ];
+            if force || image.is_file() {
+                // Force when explicitly requested, or when replacing an invalid image.
+                args.push("--force".into());
+            }
+            eprintln!(
+                "Generating {} MiB exFAT image via {}",
+                self.cfg.testdisk.size_mib,
+                generator.display()
+            );
+            run_checked(
+                "exFAT testdisk",
+                &python,
+                &args,
+                self.root,
+                &[],
+                self.dry_run,
+            )?;
+        } else {
+            eprintln!("Reusing {}", image.display());
+        }
+
+        if !image.is_file() {
+            bail!(
+                "ERROR: exFAT testdisk missing after generation\nExpected: {}",
+                image.display()
+            );
+        }
+        let actual = image.metadata()?.len();
+        if actual != expect_size {
+            bail!(
+                "ERROR: exFAT testdisk size {actual} != expected {expect_size} ({} MiB)",
+                self.cfg.testdisk.size_mib
+            );
+        }
+        if !exfat_oem_name_ok(&image) {
+            bail!(
+                "ERROR: exFAT testdisk does not look like exFAT (OEM name at offset 3)\n{}",
+                image.display()
+            );
+        }
+
+        eprintln!("  OK  {} ({} MiB exFAT)", image.display(), self.cfg.testdisk.size_mib);
+        Ok(Some(image))
+    }
+
+    fn append_testdisk_args(&self, args: &mut Vec<String>, image: &Path) {
+        let path = image.to_string_lossy();
+        for tmpl in &self.cfg.testdisk.drive_args {
+            args.push(tmpl.replace("{image}", path.as_ref()));
+        }
+    }
+
     pub fn run_qemu(&mut self) -> Result<i32> {
         eprintln!("== QEMU ==");
         eprintln!("Launching...");
@@ -633,11 +744,16 @@ impl<'a> Pipeline<'a> {
             );
         }
 
+        let testdisk = self.ensure_testdisk(false)?;
+
         let qemu = self.resolve_qemu()?;
         let mut args: Vec<String> = Vec::new();
         args.push("-fda".into());
         args.push(image.to_string_lossy().into_owned());
         args.extend(self.cfg.qemu.args.iter().cloned());
+        if let Some(td) = &testdisk {
+            self.append_testdisk_args(&mut args, td);
+        }
         if self.headless {
             args.extend(self.cfg.qemu.headless_extra_args.iter().cloned());
         }
@@ -679,18 +795,27 @@ impl<'a> Pipeline<'a> {
             );
         }
 
+        let testdisk = self.ensure_testdisk(false)?;
+
         let qemu = self.resolve_qemu()?;
         let mut args: Vec<String> = Vec::new();
         args.push("-fda".into());
         args.push(image.to_string_lossy().into_owned());
         args.extend(self.cfg.qemu.args.iter().cloned());
         args.extend(self.cfg.qemu.reference_extra_args.iter().cloned());
+        if let Some(td) = &testdisk {
+            self.append_testdisk_args(&mut args, td);
+        }
         if self.headless {
             args.extend(self.cfg.qemu.headless_extra_args.iter().cloned());
         }
 
         eprintln!("Reference image:");
         eprintln!("  {}", image.display());
+        if let Some(td) = &testdisk {
+            eprintln!("exFAT test disk:");
+            eprintln!("  {}", td.display());
+        }
         eprintln!("QEMU:");
         eprintln!("  {}", qemu.display());
         if !self.cfg.qemu.reference_extra_args.is_empty() {
@@ -715,6 +840,18 @@ fn tool_bin_candidates(configured: &Path) -> Vec<PathBuf> {
     out.sort();
     out.dedup();
     out
+}
+
+/// True when bytes 3..11 of the image are the exFAT OEM name `EXFAT   `.
+fn exfat_oem_name_ok(path: &Path) -> bool {
+    let mut buf = [0u8; 11];
+    match fs::File::open(path).and_then(|mut f| {
+        use std::io::Read;
+        f.read_exact(&mut buf)
+    }) {
+        Ok(()) => &buf[3..11] == b"EXFAT   ",
+        Err(_) => false,
+    }
 }
 
 fn timestamp_utc() -> String {
@@ -810,6 +947,37 @@ pub fn doctor(cfg: &Config, root: &Path) -> Result<()> {
     if !qemu_ok {
         eprintln!("  FAIL qemu not found (tried {:?})", cfg.qemu.executables);
         errors += 1;
+    }
+
+    if cfg.testdisk.enabled {
+        check(
+            "exFAT testdisk generator",
+            resolve(root, &cfg.testdisk.generator).is_file(),
+            &mut errors,
+        );
+        let td = resolve(root, &cfg.testdisk.image);
+        let expect = cfg.testdisk.size_mib.saturating_mul(1024 * 1024);
+        if td.is_file() {
+            let len = td.metadata().map(|m| m.len()).unwrap_or(0);
+            if len == expect && exfat_oem_name_ok(&td) {
+                eprintln!(
+                    "  OK  exFAT testdisk ({} MiB @ {})",
+                    cfg.testdisk.size_mib,
+                    td.display()
+                );
+            } else {
+                eprintln!(
+                    "  WARN exFAT testdisk present but invalid (size={len}, expect={expect}); will regenerate on next qemu/run"
+                );
+            }
+        } else {
+            eprintln!(
+                "  WARN exFAT testdisk missing ({}); will generate on next qemu/run/testdisk",
+                td.display()
+            );
+        }
+    } else {
+        eprintln!("  OK  exFAT testdisk disabled");
     }
 
     if let Some(cargo) = which_on_path("cargo") {

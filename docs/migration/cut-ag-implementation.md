@@ -187,5 +187,6 @@ Rollback: `USE_RUST_NTFS_TEST_BOOTSEC = 0` (or `enabled = false` in `tools/build
 
 * Stock-image NTFS mount soak not claimed.
 * Does not migrate `ntfs_create_partition` orchestration or `createMcbEntry`.
-* `socket_check` / `calculate_SetChecksum_field` / `memmove` remain deferred.
+* `socket_check` / `memmove` remain deferred; `calculate_SetChecksum_field`
+  completed as Cut AH.
 * No Path A cluster claimed — AG is a mount-path foothold leaf only.

@@ -15,9 +15,10 @@ use std::process::ExitCode;
 #[command(
     name = "kolibri_build",
     about = "Build the hybrid KolibriOS kernel, package a fresh test image, and run QEMU",
-    long_about = "Coordinates Cuts A–AG Rust freestanding blob builds, FASM assemble, \
-kolibri_img CoW packaging, and QEMU smoke. Configuration: tools/build/config.toml \
-([[rust.blobs]] + [[rust.migrations]] USE_RUST_* gates)."
+    long_about = "Coordinates Cuts A–AH Rust freestanding blob builds, FASM assemble, \
+kolibri_img CoW packaging, and QEMU smoke. Also ensures the secondary 128 MiB \
+exFAT regression disk is present and attached. Configuration: tools/build/config.toml \
+([[rust.blobs]] + [[rust.migrations]] USE_RUST_* gates + [testdisk])."
 )]
 struct Cli {
     /// Path to config.toml (default: next to this tool's sources).
@@ -55,6 +56,12 @@ enum Commands {
     /// Boot the immutable reference `.img` in QEMU (no rebuild; uses `-snapshot`).
     #[command(visible_alias = "original")]
     Ref,
+    /// Ensure / recreate the 128 MiB exFAT secondary test disk (`tools/testdata/`).
+    Testdisk {
+        /// Recreate even if a valid image already exists.
+        #[arg(long)]
+        force: bool,
+    },
 }
 
 fn default_config_path() -> PathBuf {
@@ -106,6 +113,10 @@ fn real_main() -> Result<u8> {
         Commands::Ref => {
             let code = pipe.run_reference_qemu()?;
             Ok(code as u8)
+        }
+        Commands::Testdisk { force } => {
+            pipe.ensure_testdisk(force)?;
+            Ok(0)
         }
     }
 }

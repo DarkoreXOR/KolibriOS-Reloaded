@@ -1,0 +1,3 @@
+# Host-only dependency for tools/testdata/create_exfat_test_image.py
+# Install: python -m pip install -r tools/testdata/requirements.txt
+FATtools>=1.1.23

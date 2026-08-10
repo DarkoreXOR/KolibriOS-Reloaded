@@ -28,11 +28,12 @@ stale `kernel.mnt` if the kernel stage fails, and never mutates the reference
 
 | Command | Action |
 |---------|--------|
-| `run` | Build → fresh image → QEMU (recommended) |
+| `run` | Build → fresh image → QEMU (recommended; also attaches exFAT testdisk) |
 | `qemu` | Same as `run` |
 | `image` | Build → fresh temporary `.img` only |
 | `build` | Rust blobs + `kernel/bin/kernel.mnt` only |
-| `ref` | Boot the **original reference** floppy in QEMU (no rebuild; `-snapshot`) |
+| `ref` | Boot the **original reference** floppy in QEMU (no rebuild; `-snapshot`; + exFAT testdisk) |
+| `testdisk` | Ensure / recreate the 128 MiB exFAT secondary disk (`--force` to rebuild) |
 | `doctor` | Check tools, paths, and migration-gate registry |
 
 Examples:
@@ -43,7 +44,12 @@ cargo run --manifest-path tools/build/Cargo.toml -- build
 cargo run --manifest-path tools/build/Cargo.toml -- image
 cargo run --manifest-path tools/build/Cargo.toml -- run
 cargo run --manifest-path tools/build/Cargo.toml -- ref
+cargo run --manifest-path tools/build/Cargo.toml -- testdisk --force
 ```
+
+`run` / `qemu` / `ref` automatically attach
+`tools/testdata/kolibrios-exfat-test.img` as a secondary IDE disk (exFAT
+filesystem regression fixture). See [`tools/testdata/README.md`](tools/testdata/README.md).
 
 `ref` (alias: `original`) launches QEMU on `kolibrios-*-en_US.img` with `-snapshot`
 so the reference file is never written. Use it to compare a known-good stock boot
@@ -68,7 +74,7 @@ Tools required by the current Windows workflow (this tree):
 |------|------|
 | **Rust stable** | Orchestrator, `cargo test`, `tools/kolibri_img` |
 | **Rust nightly** + **`rust-src`** | Freestanding `build-std` for target `i686-kolibri-none` |
-| **Python 3** | Extracts reloc-free blobs from `libkolibri_utils.a` (invoked by the orchestrator) |
+| **Python 3** | Extracts reloc-free blobs from `libkolibri_utils.a` (invoked by the orchestrator); also builds the exFAT testdisk via `FATtools` |
 | **Vendored FASM** (`fasm/FASM.EXE`) | Assembles `kernel.mnt` (do not assume system `fasm` on `PATH`) |
 | **QEMU** `qemu-system-i386` | Boot smoke (often `C:\Program Files\qemu\qemu-system-i386.exe` on Windows; may not be on `PATH`) |
 
@@ -77,6 +83,7 @@ Also required in the tree:
 * Reference floppy: `kolibrios-0.7.7.0-9160-g944d74f01-en_US.img` (read-only)
 * Host image tool sources: `tools/kolibri_img/`
 * Orchestrator: `tools/build/`
+* exFAT testdisk generator: `tools/testdata/` (`python -m pip install -r tools/testdata/requirements.txt`)
 
 Install `rust-src` for nightly if needed:
 

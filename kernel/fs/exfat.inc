@@ -2330,6 +2330,38 @@ exFAT_Delete:
         xor     eax, eax
         ret
 ;------------------------------------------------------------------------------
+; Cut AH: USE_RUST_CALCULATE_SET_CHECKSUM_FIELD=1 routes through Rust
+; rust_calculate_set_checksum_field (see rust/calculate_set_checksum_field.inc).
+; Set USE_RUST_CALCULATE_SET_CHECKSUM_FIELD=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–AG.
+; Critical ABI: EBP→exFAT; AX=checksum; [file_dir_entry+2]=AX;
+; preserves EBX/ECX/EDX/ESI/EDI. Production default ON after Cut AH gates.
+
+USE_RUST_CALCULATE_SET_CHECKSUM_FIELD = 1
+
+if USE_RUST_CALCULATE_SET_CHECKSUM_FIELD
+
+; Compatibility trampoline: EBP→exFAT → (buf,len) stdcall → AX + store.
+align 4
+calculate_SetChecksum_field:
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    edi
+        lea     eax, [ebp+exFAT.file_dir_entry]
+        mov     ecx, [ebp+exFAT.fname_extdir_offset]
+        sub     ecx, eax
+        stdcall rust_calculate_set_checksum_field, eax, ecx
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
 calculate_SetChecksum_field:
         push    ebx ecx edx esi edi
         lea     esi, [ebp+exFAT.file_dir_entry]
@@ -2369,7 +2401,7 @@ align 4
 ; DEBUGF 1, "(Checksum&1) EAX:%x\n", eax
 ; (Hash>>1)
         shr     bx, 1
-; DEBUGF 1, "(Checksum>>1) EBX:%x\n", ebx
+; DEBUGF 1, "(Hash>>1) EBX:%x\n", ebx
         add     ax, bx
 ; DEBUGF 1, "+ (Checksum>>1) EAX:%x\n", eax
         movzx   bx, byte [esi]
@@ -2384,6 +2416,139 @@ align 4
         mov     [ebx], ax
         pop     edi esi edx ecx ebx
         ret
+
+end if
+
+;------------------------------------------------------------------------------
+; Cut AH ABI smoke — needs exFAT struct offsets (kept next to the leaf).
+; Marker hang: HLT loop (Cut AH). Success: smoke_result='EXCS'.
+uglobal
+align 4
+exfat_cs_smoke_fs: rb 4096
+endg
+
+align 4
+calculate_set_checksum_field_rust_smoke_test:
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    edi
+        push    ebp
+
+        ; Clear stand-in exFAT object
+        mov     edi, exfat_cs_smoke_fs
+        mov     ecx, 4096/4
+        xor     eax, eax
+        rep     stosd
+
+        mov     ebp, exfat_cs_smoke_fs
+
+        ; Build file(32)+stream(32) at file_dir_entry; len=64
+        lea     edi, [ebp+exFAT.file_dir_entry]
+        mov     byte [edi], 0x85
+        mov     byte [edi+1], 1
+        mov     byte [edi+2], 0xFF          ; garbage SetChecksum (must be ignored)
+        mov     byte [edi+3], 0xFE
+        mov     byte [edi+4], 0x10
+        mov     byte [edi+32], 0xC0
+        mov     byte [edi+33], 0x03
+        mov     ecx, 5
+.fill5:
+        mov     al, cl
+        mov     [edi+ecx], al
+        inc     ecx
+        cmp     ecx, 32
+        jb      .fill5
+        mov     ecx, 34
+.fill34:
+        mov     al, cl
+        add     al, 0x40
+        mov     [edi+ecx], al
+        inc     ecx
+        cmp     ecx, 64
+        jb      .fill34
+
+        lea     eax, [ebp+exFAT.file_dir_entry]
+        add     eax, 64
+        mov     [ebp+exFAT.fname_extdir_offset], eax
+
+        ; Canaries
+        mov     ebx, 0xA8000011
+        mov     ecx, 0xC8000012
+        mov     edx, 0xD8000013
+        mov     esi, 0xE8000014
+        mov     edi, 0xF8000015
+
+        call    calculate_SetChecksum_field
+
+        ; Preserve checks
+        cmp     ebx, 0xA8000011
+        jne     .fail
+        cmp     ecx, 0xC8000012
+        jne     .fail
+        cmp     edx, 0xD8000013
+        jne     .fail
+        cmp     esi, 0xE8000014
+        jne     .fail
+        cmp     edi, 0xF8000015
+        jne     .fail
+        cmp     ebp, exfat_cs_smoke_fs
+        jne     .fail
+
+        ; AX must equal [file_dir_entry+2]
+        lea     ebx, [ebp+exFAT.file_dir_entry]
+        cmp     ax, [ebx+2]
+        jne     .fail
+
+        ; Direct rust_* must match AX on a fresh copy (skip-field recompute)
+        push    eax
+        mov     byte [ebx+2], 0xFF
+        mov     byte [ebx+3], 0xFE
+        stdcall rust_calculate_set_checksum_field, ebx, 64
+        mov     ecx, eax
+        pop     eax
+        cmp     ax, cx
+        jne     .fail
+        cmp     ax, [ebx+2]
+        jne     .fail
+
+        ; Changing only indices 2–3 must not change sum
+        push    eax
+        mov     word [ebx+2], 0x1234
+        stdcall rust_calculate_set_checksum_field, ebx, 64
+        mov     ecx, eax
+        pop     eax
+        cmp     ax, cx
+        jne     .fail
+
+        ; 32-byte file entry only
+        lea     eax, [ebp+exFAT.file_dir_entry]
+        add     eax, 32
+        mov     [ebp+exFAT.fname_extdir_offset], eax
+        mov     byte [ebp+exFAT.file_dir_entry+2], 0
+        mov     byte [ebp+exFAT.file_dir_entry+3], 0
+        call    calculate_SetChecksum_field
+        lea     ebx, [ebp+exFAT.file_dir_entry]
+        cmp     ax, [ebx+2]
+        jne     .fail
+
+        mov     [rust_calculate_set_checksum_field_smoke_result], 0x45584353 ; 'EXCS'
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+.fail:
+        cli
+@@:
+        hlt
+        jmp     @b
+; hang marker context: Cut AH ABI smoke failure
+;------------------------------------------------------------------------------
 ;------------------------------------------------------------------------------
 exFAT_clear_Cluster_Heap:
 ; in: eax = first cluster
