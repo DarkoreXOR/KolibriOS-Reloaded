@@ -23,7 +23,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 
 - Cut A from boundaries.
 - **Risk:** low.
-- **Status (2026-08-10):** **COMPLETE** — Phase C + Cuts A–AJ production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–AJ re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
+- **Status (2026-08-10):** **COMPLETE** — Phase C + Cuts A–AK production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–AK re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
 - **Done:** Phase C probe + CRC32 + UTF-16 + CP866 + UTF-8. Baseline: [`cut-a-final-architecture.md`](cut-a-final-architecture.md).
 - **Cut B (pure util, not allocator):** `cp866toUpper` — **done** 2026-08-09 ([`cut-b-plan.md`](cut-b-plan.md), [`cut-b-implementation.md`](cut-b-implementation.md)).
 - **Cut C:** `utf16toUpper` — **done** ([`cut-c-implementation.md`](cut-c-implementation.md)).
@@ -59,7 +59,8 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut AG:** `ntfs_test_bootsec` — **done** 2026-08-10 ([`cut-ag-plan.md`](cut-ag-plan.md), [`cut-ag-implementation.md`](cut-ag-implementation.md)). NTFS bootsector multi-rule CF validate; Path B after post-AF raised-bar cluster audit (no Rust-owned subsystem yet); reloc-free.
 - **Cut AH:** `calculate_SetChecksum_field` — **done** 2026-08-10 ([`cut-ah-plan.md`](cut-ah-plan.md), [`cut-ah-implementation.md`](cut-ah-implementation.md)). exFAT SetChecksum rolling hash (skip indices 2–3); Path B after post-AG raised-bar cluster audit (socket near-miss blockers unchanged); reloc-free.
 - **Cut AI:** `exFAT_hash_calculate` (NameHash) — **done** 2026-08-10 ([`cut-ai-plan.md`](cut-ai-plan.md), [`cut-ai-implementation.md`](cut-ai-implementation.md)). exFAT NameHash via shared `exfat_rolling_checksum` (no skip); extracted from former inline in `exFAT_find_lfn`; Path B after post-AH audit (Path A SetChecksum+NameHash rejected — helper reuse ≠ Rust-owned subsystem); reloc-free.
-- **Cut AJ:** `iso9660_compare_name` — **done** 2026-08-10 ([`cut-aj-plan.md`](cut-aj-plan.md), [`cut-aj-implementation.md`](cut-aj-implementation.md)). ISO9660 path-component UTF-8↔ASCII/UCS-2BE upper match (`;` version + `name_len`); Path B after post-AI raised-bar cluster audit (no Path A; ISO compare pair / sockets / exFAT-as-subsystem rejected); reloc-free. **Stop; do not start Cut AK.**
+- **Cut AJ:** `iso9660_compare_name` — **done** 2026-08-10 ([`cut-aj-plan.md`](cut-aj-plan.md), [`cut-aj-implementation.md`](cut-aj-implementation.md)). ISO9660 path-component UTF-8↔ASCII/UCS-2BE upper match (`;` version + `name_len`); Path B after post-AI raised-bar cluster audit (no Path A; ISO compare pair / sockets / exFAT-as-subsystem rejected); reloc-free.
+- **Cut AK:** `xfs._.conv_bigtime_to_kos_epoch` — **done** 2026-08-10 ([`cut-ak-plan.md`](cut-ak-plan.md), [`cut-ak-implementation.md`](cut-ak-implementation.md)). XFS v5 bigtime (ns) → BDFE; Path B after post-AJ raised-bar cluster audit (`cd_compare_name` already AJ-routed; no Path A); reloc-free. **Stop; do not start Cut AL.**
 
 ### Stage 3 — Compat syscall façade (selected)
 

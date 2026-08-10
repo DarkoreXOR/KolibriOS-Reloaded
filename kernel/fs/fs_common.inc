@@ -127,9 +127,13 @@ if USE_RUST_FS_TIME2BDFE
 ; EDI must advance by 8 (ext/ntfs/xfs chain timestamps).
 ; EBX/ECX/EDX may be clobbered (matches original FASM body).
 ; ESI/EBP preserved (untouched by FASM; stdcall callee-saved).
+; Explicit push/pop EDI so add edi,8 stays correct if the blob
+; failed to restore EDI (stdcall callee-saved).
 align 4
 fsTime2bdfe:
+        push    edi
         stdcall rust_fs_time2bdfe, eax, edi
+        pop     edi
         add     edi, 8
         ret
 

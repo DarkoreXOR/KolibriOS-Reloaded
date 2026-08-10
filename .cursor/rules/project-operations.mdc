@@ -57,11 +57,11 @@ Rhai/Lua/JS scripting layer.
 python scripts/doctor.py
 python scripts/build.py [--mode dev|release] [--skip-tests]
 python scripts/prepare_image.py
-python scripts/run_qemu.py [--disk exfat] [--disk ntfs] [--disk iso9660] [--headless]
+python scripts/run_qemu.py [--disk exfat] [--disk ntfs] [--disk xfs] [--disk iso9660] [--headless]
 python scripts/run.py
 python scripts/regression.py
 python scripts/reference_qemu.py
-python scripts/mkfs.py [exfat|ntfs] [size]
+python scripts/mkfs.py [exfat|ntfs|xfs] [size]
 python scripts/clean.py [--full]
 ```
 

@@ -248,6 +248,8 @@ high_code:
 ; Cut AG: ntfs_test_bootsec smoke ON when USE_RUST_NTFS_TEST_BOOTSEC=1.
 ; Cut AH: calculate_SetChecksum_field smoke ON when USE_RUST_CALCULATE_SET_CHECKSUM_FIELD=1.
 ; Cut AI: exFAT_hash_calculate (NameHash) smoke ON when USE_RUST_EXFAT_HASH_CALCULATE=1.
+; Cut AJ: iso9660_compare_name smoke ON when USE_RUST_ISO9660_COMPARE_NAME=1.
+; Cut AK: xfs._.conv_bigtime_to_kos_epoch smoke ON when USE_RUST_XFS_CONV_BIGTIME_TO_KOS_EPOCH=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -288,6 +290,8 @@ high_code:
         call    exfat_hash_calculate_rust_smoke_test
         ; Cut AJ: iso9660_compare_name smoke (Rust when USE_RUST_ISO9660_COMPARE_NAME=1).
         call    iso9660_compare_name_rust_smoke_test
+        ; Cut AK: xfs._.conv_bigtime_to_kos_epoch smoke (Rust when USE_RUST_XFS_CONV_BIGTIME_TO_KOS_EPOCH=1).
+        call    xfs_conv_bigtime_to_kos_epoch_rust_smoke_test
         ; Cut U: fat_gen_short_name smoke (Rust when USE_RUST_FAT_GEN_SHORT_NAME=1).
         call    fat_gen_short_name_rust_smoke_test
         ; Cut V: tcp_set_persist smoke (Rust when USE_RUST_TCP_SET_PERSIST=1).

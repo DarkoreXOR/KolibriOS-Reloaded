@@ -129,8 +129,12 @@ if USE_RUST_CP866
 
 ; Compatibility trampoline: existing EAX/AX in, AL out ABI → Rust stdcall FFI.
 ; Callers keep `call unicode.cp866.encode` with code point in EAX (AX used).
+; Preserve ECX: original uni2ansi_char leaves ECX intact (ASCII path untouched;
+; special table push/pop). XFS/ext copy loops use `test ecx,ecx` after encode.
 unicode.cp866.encode:
+        push    ecx
         stdcall rust_unicode_cp866_encode, eax
+        pop     ecx
         ret
 
 else
@@ -153,8 +157,12 @@ if USE_RUST_UTF16
 
 ; Compatibility trampoline: existing EAX in/out ABI → Rust stdcall FFI.
 ; Callers keep `call unicode.utf16.encode` with code point in EAX.
+; Preserve ECX: XFS/ext UTF-16 name loops test ECX after encode (FASM body
+; does not clobber ECX).
 unicode.utf16.encode:
+        push    ecx
         stdcall rust_unicode_utf16_encode, eax
+        pop     ecx
         ret
 
 else

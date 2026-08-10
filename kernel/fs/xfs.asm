@@ -583,6 +583,7 @@ endl
         stdcall xfs_get_inode_info, edx, edi
         jmp     .common
 .not_special:
+        ; omit-FP: [_dst] aliases [esp] — do not push across [_dst] loads.
         movzx   ecx, [esi+xfs_dir2_sf_entry.namelen]
         add     esi, xfs_dir2_sf_entry.name
         lea     edi, [edx+bdfe.name]
@@ -854,6 +855,7 @@ endp
 
 
 proc xfs._.copy_filename uses eax
+        cld
         mov     eax, [ebp+XFS.bdfe_nameenc]
         cmp     eax, 3
         jz      .utf8
@@ -974,6 +976,7 @@ proc xfs._.lookup_sf _name, _len
         call    xfs._.get_inode_number_sf
         jmp     .quit
 .common:
+        cld
         movzx   edx, [ebx+xfs_dir2_sf.hdr.count]
         movi    eax, 0
         cmp     [ebx+xfs_dir2_sf.hdr.i8count], 0
@@ -1403,6 +1406,32 @@ proc xfs._.conv_time_to_kos_epoch
         ret
 endp
 
+; Cut AK: USE_RUST_XFS_CONV_BIGTIME_TO_KOS_EPOCH=1 routes through Rust
+; rust_xfs_bigtime_to_secs (see rust/xfs_conv_bigtime_to_kos_epoch.inc).
+; Set USE_RUST_XFS_CONV_BIGTIME_TO_KOS_EPOCH=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–AJ.
+; Critical ABI: ECX→BE64 bigtime DQ; EDI→BDFE out; EDI+=8; composes fsTime2bdfe.
+; Production default ON after Cut AK gates.
+
+USE_RUST_XFS_CONV_BIGTIME_TO_KOS_EPOCH = 1
+
+if USE_RUST_XFS_CONV_BIGTIME_TO_KOS_EPOCH
+
+; Compatibility trampoline: movbe → Rust secs → fsTime2bdfe (EDI+=8).
+; Matches original FASM composition (bias/clamp/div in Rust; calendar via Cut T).
+; Callers keep `call [ebp+XFS.conv_time_to_kos_epoch]` with ECX→DQ / EDI→BDFE.
+; EAX/EBX/ECX/EDX may be clobbered (matches original FASM + fsTime2bdfe).
+; ESI/EBP preserved (omit-FP XFS object in EBP; stdcall callee-saved).
+align 4
+xfs._.conv_bigtime_to_kos_epoch:
+        movbe   edx, [ecx+DQ.hi_be]
+        movbe   eax, [ecx+DQ.lo_be]
+        stdcall rust_xfs_bigtime_to_secs, eax, edx
+        call    fsTime2bdfe
+        ret
+
+else
+
 proc xfs._.conv_bigtime_to_kos_epoch
 NANOSEC_PER_SEC = 1_000_000_000
 BIGTIME_TO_UNIX_OFFSET = 0x80000000     ; int32 min
@@ -1428,6 +1457,8 @@ BIGTIME_TO_KOS_OFFSET_NS = BIGTIME_TO_KOS_OFFSET * NANOSEC_PER_SEC
         call    fsTime2bdfe
         ret
 endp
+
+end if
 
 proc xfs_get_inode_info uses ebx esi edi, _src, _dst
         ; get access time and other file properties

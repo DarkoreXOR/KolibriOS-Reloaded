@@ -9,20 +9,23 @@ python scripts/build.py --release
 python scripts/prepare_image.py
 python scripts/run_qemu.py
 python scripts/run_qemu.py --disk exfat --disk ntfs
+python scripts/run_qemu.py --disk xfs
 python scripts/run_qemu.py --disk iso9660
 python scripts/run.py
 python scripts/regression.py
 python scripts/reference_qemu.py
 python scripts/reference_qemu.py --disk exfat --disk ntfs
+python scripts/reference_qemu.py --disk xfs
 python scripts/reference_qemu.py --disk iso9660
 python scripts/mkfs.py
 python scripts/mkfs.py exfat 128M
+python scripts/mkfs.py xfs 1G
 python scripts/clean.py
 python scripts/clean.py --full
 ```
 
 With `--disk` on the **stock reference**, look in Eolite for **`/bd0/1`** /
-**`/bd1/1`** (BIOS disks). For exFAT/NTFS/ISO9660 browsing use the hybrid kernel:
+**`/bd1/1`** (BIOS disks). For exFAT/NTFS/XFS/ISO9660 browsing use the hybrid kernel:
 
 ```bash
 python scripts/regression.py

@@ -20,6 +20,11 @@ from common import (
 
 _HD_FLAGS = ("-hda", "-hdb", "-hdc", "-hdd")
 
+# QEMU maps bare `-cdrom` to IDE secondary master (same slot as `-hdc`,
+# if=ide,index=2). Hard disks attached alongside `--disk iso9660` must skip
+# that unit or QEMU exits with "drive with bus=1, unit=0 (index=2) exists".
+_IDE_CDROM_INDEX = 2
+
 # Named `--disk TYPE` → `images/TYPE-image.<ext>`. Most FS disks use `.img`;
 # ISO9660 fixtures are commonly shipped as `.iso`.
 _NAMED_DISK_SUFFIXES: dict[str, tuple[str, ...]] = {
@@ -45,22 +50,39 @@ def append_ide_image(qargs: list[str], img: Path, index: int) -> None:
     if not img.is_file():
         raise SystemExit(f"ERROR: disk image missing: {img}")
     if index >= len(_HD_FLAGS):
-        raise SystemExit("ERROR: too many disks (max 4 IDE drives via -hda..-hdd)")
+        raise SystemExit(
+            "ERROR: too many IDE hard disks (max 4, or 3 when --disk iso9660 "
+            "occupies -hdc / index 2)"
+        )
     flag = _HD_FLAGS[index]
-    path = _disk_path_arg(img)
-    qargs.extend([flag, path])
-    log.info("Attaching %s → /hd%s/1 : %s", flag, index, path)
+    # Explicit format=raw avoids QEMU "probing guessed raw" warnings and
+    # block-0 write restrictions on recent QEMU.
+    path = qemu_opt_path(img)
+    qargs.extend(
+        [
+            "-drive",
+            f"file={path},format=raw,if=ide,index={index},media=disk",
+        ]
+    )
+    log.info("Attaching %s (index %s) → /hd%s/1 : %s", flag, index, index, path)
 
 
 def append_cdrom_image(qargs: list[str], img: Path) -> None:
-    """Attach as IDE ATAPI CD-ROM (guest `/cdN`, 2048-byte sectors)."""
+    """Attach as IDE ATAPI CD-ROM (guest `/cdN`, 2048-byte sectors).
+
+    Uses `-cdrom` (IDE index 2 / secondary master) so Kolibri sees ATAPI.
+    """
     if not img.is_file():
         raise SystemExit(f"ERROR: disk image missing: {img}")
     if "-cdrom" in qargs:
         raise SystemExit("ERROR: only one --disk iso9660 / -cdrom is supported")
     path = _disk_path_arg(img)
     qargs.extend(["-cdrom", path])
-    log.info("Attaching -cdrom → /cdN (ATAPI ISO9660) : %s", path)
+    log.info(
+        "Attaching -cdrom (IDE index %s) → /cdN (ATAPI ISO9660) : %s",
+        _IDE_CDROM_INDEX,
+        path,
+    )
 
 
 def append_ahci_image(qargs: list[str], img: Path, index: int, ahci_added: bool) -> bool:
@@ -120,6 +142,13 @@ def resolve_named_disks(names: Sequence[str]) -> list[Path]:
     return [resolve_named_disk(name) for name in names]
 
 
+def _next_ide_hd_index(index: int, *, reserve_cdrom_slot: bool) -> int:
+    """Advance past the IDE unit reserved by QEMU `-cdrom` when needed."""
+    if reserve_cdrom_slot and index == _IDE_CDROM_INDEX:
+        return index + 1
+    return index
+
+
 def attach_named_disks(
     qargs: list[str],
     names: Sequence[str],
@@ -130,6 +159,7 @@ def attach_named_disks(
     bus = bus.lower()
     if bus not in ("ide", "ahci"):
         raise SystemExit(f"ERROR: unknown disk bus {bus!r} (expected ide or ahci)")
+    reserve_cdrom = any(n in _CDROM_DISK_TYPES for n in names)
     hd_index = 0
     ahci_added = False
     for name in names:
@@ -139,10 +169,12 @@ def attach_named_disks(
             append_cdrom_image(qargs, img)
             continue
         if bus == "ide":
+            hd_index = _next_ide_hd_index(hd_index, reserve_cdrom_slot=reserve_cdrom)
             append_ide_image(qargs, img, hd_index)
+            hd_index += 1
         else:
             ahci_added = append_ahci_image(qargs, img, hd_index, ahci_added)
-        hd_index += 1
+            hd_index += 1
 
 
 def build_qemu_argv(
@@ -273,7 +305,7 @@ def main(argv: list[str] | None = None) -> None:
         action="append",
         default=[],
         metavar="TYPE",
-        help="Attach images/TYPE-image.img|.iso (repeatable: exfat, ntfs, iso9660→cdrom)",
+        help="Attach images/TYPE-image.img|.iso (repeatable: exfat, ntfs, xfs, iso9660→cdrom)",
     )
     parser.add_argument(
         "--bus",

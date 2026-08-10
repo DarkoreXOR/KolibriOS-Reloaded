@@ -40,6 +40,13 @@ probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_xfs_bigtime_to_secs"
+symbol = "rust_xfs_bigtime_to_secs"
+expect_ret_imm = 8
+out = "rust_xfs_bigtime_to_secs.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_iso9660_compare_name"
 symbol = "rust_iso9660_compare_name"
 expect_ret_imm = 12
@@ -321,6 +328,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "AK"
+blob = "rust_xfs_bigtime_to_secs.bin"
+symbol = "rust_xfs_bigtime_to_secs"
+gate = "USE_RUST_XFS_CONV_BIGTIME_TO_KOS_EPOCH"
+include = "kernel/rust/xfs_conv_bigtime_to_kos_epoch.inc"
+gate_file = "kernel/fs/xfs.asm"
+enabled = true
+
 [[rust.migrations]]
 cut = "AJ"
 blob = "rust_iso9660_compare_name.bin"

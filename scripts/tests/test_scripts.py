@@ -53,31 +53,49 @@ class QemuArgvTests(unittest.TestCase):
 
     def test_named_disks_use_ide_by_default(self):
         disks = []
-        for name in ("exfat", "ntfs"):
+        for name in ("exfat", "ntfs", "xfs"):
             img = PROJECT_ROOT / "images" / f"{name}-image.img"
             if img.is_file():
                 disks.append(name)
         if len(disks) < 1:
-            self.skipTest("no images/exfat|ntfs-image.img present")
+            self.skipTest("no images/exfat|ntfs|xfs-image.img present")
         argv = build_qemu_argv(self.cfg, image_path=self.fake_img, disks=disks)
         self.assertIn("-fda", argv)
-        self.assertIn("-hda", argv)
-        self.assertNotIn("ahci,id=kolibri_ahci", " ".join(argv))
+        joined = " ".join(argv)
+        self.assertIn("if=ide,index=0,media=disk", joined)
+        self.assertNotIn("ahci,id=kolibri_ahci", joined)
 
     def test_ahci_bus_optional(self):
         disks = []
-        for name in ("exfat", "ntfs"):
+        for name in ("exfat", "ntfs", "xfs"):
             img = PROJECT_ROOT / "images" / f"{name}-image.img"
             if img.is_file():
                 disks.append(name)
         if len(disks) < 1:
-            self.skipTest("no images/exfat|ntfs-image.img present")
+            self.skipTest("no images/exfat|ntfs|xfs-image.img present")
         argv = build_qemu_argv(
             self.cfg, image_path=self.fake_img, disks=disks, bus="ahci"
         )
         joined = " ".join(argv)
         self.assertIn("ahci,id=kolibri_ahci", joined)
         self.assertIn("kolibri_ahci.0", joined)
+
+    def test_xfs_attaches_as_ide_hd(self):
+        from run_qemu import resolve_named_disks
+
+        img = PROJECT_ROOT / "images" / "xfs-image.img"
+        if not img.is_file():
+            self.skipTest("images/xfs-image.img missing")
+        paths = resolve_named_disks(["xfs"])
+        self.assertEqual(len(paths), 1)
+        self.assertEqual(paths[0].resolve(), img.resolve())
+        argv = build_qemu_argv(
+            self.cfg, image_path=self.fake_img, disks=["xfs"], use_testdisk=False
+        )
+        joined = " ".join(argv)
+        self.assertIn("if=ide,index=0,media=disk", joined)
+        self.assertIn("xfs-image.img", joined)
+        self.assertNotIn("-cdrom", argv)
 
     def test_iso9660_attaches_as_cdrom(self):
         from run_qemu import resolve_named_disks
@@ -92,7 +110,7 @@ class QemuArgvTests(unittest.TestCase):
             self.cfg, image_path=self.fake_img, disks=["iso9660"], use_testdisk=False
         )
         self.assertIn("-cdrom", argv)
-        self.assertNotIn("-hda", argv)
+        self.assertNotIn("media=disk", " ".join(argv))
         cd = argv[argv.index("-cdrom") + 1]
         self.assertTrue(cd.endswith("iso9660-image.iso") or "iso9660-image.iso" in cd)
 
@@ -110,10 +128,35 @@ class QemuArgvTests(unittest.TestCase):
             disks=["exfat", "ntfs", "iso9660"],
             use_testdisk=False,
         )
-        self.assertIn("-hda", argv)
-        self.assertIn("-hdb", argv)
+        joined = " ".join(argv)
+        self.assertIn("if=ide,index=0,media=disk", joined)
+        self.assertIn("if=ide,index=1,media=disk", joined)
         self.assertIn("-cdrom", argv)
-        self.assertNotIn("-hdc", argv)
+        # -cdrom owns IDE index 2; no third HD should claim it.
+        self.assertNotIn("if=ide,index=2,media=disk", joined)
+
+    def test_iso9660_skips_hdc_for_third_hd(self):
+        """Regression: -cdrom and -hdc share IDE index 2 — third HD must use index 3."""
+        needed = []
+        for name in ("exfat", "ntfs", "xfs"):
+            if (PROJECT_ROOT / "images" / f"{name}-image.img").is_file():
+                needed.append(name)
+        iso = PROJECT_ROOT / "images" / "iso9660-image.iso"
+        if len(needed) < 3 or not iso.is_file():
+            self.skipTest("need exfat+ntfs+xfs imgs and iso9660.iso")
+        argv = build_qemu_argv(
+            self.cfg,
+            image_path=self.fake_img,
+            disks=["exfat", "ntfs", "iso9660", "xfs"],
+            use_testdisk=False,
+        )
+        joined = " ".join(argv)
+        self.assertIn("if=ide,index=0,media=disk", joined)  # exfat
+        self.assertIn("if=ide,index=1,media=disk", joined)  # ntfs
+        self.assertIn("-cdrom", argv)  # iso → index 2
+        self.assertIn("if=ide,index=3,media=disk", joined)  # xfs skips 2
+        self.assertNotIn("if=ide,index=2,media=disk", joined)
+        self.assertIn("xfs-image.img", joined)
 
     def test_qemu_opt_path_relative(self):
         p = qemu_opt_path(PROJECT_ROOT / "images" / "exfat-image.img")

@@ -2,10 +2,11 @@
 //! Cut T: `fsTime2bdfe` — seconds since 2001-01-01 → BDFE datetime (EDI+=8).
 //! Cut AE: `ntfs_datetime_to_bdfe` — NTFS FILETIME (1601×10⁷) → BDFE (EDI+=8).
 //! Cut AF: `ntfsCalculateTime` — BDFE → NTFS FILETIME (1601×10⁷); inverse of AE.
+//! Cut AK: `xfs._.conv_bigtime_to_kos_epoch` — XFS v5 bigtime (ns) → BDFE (EDI+=8).
 //!
-//! Matches `kernel/fs/fs_common.inc` / `ntfs.inc` FASM leaf semantics for the
-//! production domain (year &lt; 3025 so `BH` pollution after `shr ebx,2` does
-//! not apply). Month tables are stack-materialized so the freestanding FFI
+//! Matches `kernel/fs/fs_common.inc` / `ntfs.inc` / `xfs.asm` FASM leaf semantics
+//! for the production domain (year &lt; 3025 so `BH` pollution after `shr ebx,2`
+//! does not apply). Month tables are stack-materialized so the freestanding FFI
 //! section stays reloc-free (no `.rodata` absolute loads).
 
 /// NTFS FILETIME bias: 2001-01-01 00:00:00 as 100ns ticks since 1601-01-01.
@@ -20,6 +21,18 @@ pub const NTFS_DATETIME_TO_BDFE_PRNG_SEED: u32 = 0x4355_5445;
 
 /// PRNG seed for Cut AF differential corpus (`'CUTF'`).
 pub const NTFS_CALCULATE_TIME_PRNG_SEED: u32 = 0x4355_5446;
+
+/// XFS v5 bigtime → KOS epoch constants (`xfs.asm` Cut AK).
+/// `BIGTIME_TO_KOS_OFFSET_NS = (0x80000000 + (365*31+8)*86400) * 1_000_000_000`.
+pub const XFS_NANOSEC_PER_SEC: u32 = 1_000_000_000;
+pub const XFS_BIGTIME_TO_KOS_OFFSET_NS_LO: u32 = 0x1135_0000; // 288_686_080
+pub const XFS_BIGTIME_TO_KOS_OFFSET_NS_HI: u32 = 0x2B61_0A37; // 727_779_895
+/// Full 64-bit bias (host helpers / tests).
+pub const XFS_BIGTIME_TO_KOS_OFFSET_NS: u64 =
+    ((XFS_BIGTIME_TO_KOS_OFFSET_NS_HI as u64) << 32) | (XFS_BIGTIME_TO_KOS_OFFSET_NS_LO as u64);
+
+/// PRNG seed for Cut AK differential corpus (`'CUTK'`).
+pub const XFS_CONV_BIGTIME_TO_KOS_EPOCH_PRNG_SEED: u32 = 0x4355_544B;
 
 /// BDFE-style datetime block layout (same offsets as FASM / `fsTime2bdfe`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -342,6 +355,75 @@ pub unsafe fn ntfs_calculate_time_ptr(block: *const u8) -> (u32, u32) {
     // SAFETY: caller guarantees 8 readable BDFE bytes (kernel trampoline / tests).
     let b = unsafe { core::ptr::read(block as *const [u8; 8]) };
     ntfs_calculate_time(BdfeTime::from_bytes(&b))
+}
+
+/// Convert XFS v5 bigtime dwords (native after `movbe`) to Kolibri seconds
+/// since 2001-01-01.
+///
+/// Mirrors `xfs._.conv_bigtime_to_kos_epoch` bias/`sbb`/clamp/`div` before the
+/// `call fsTime2bdfe`. Inputs below the KOS epoch clamp to 0; when the
+/// post-bias high dword is `>= 1_000_000_000`, FASM forces
+/// `{edx,eax} = {999_999_999, 0xFFFF_FFFF}` before dividing.
+#[inline(always)]
+pub fn xfs_bigtime_to_secs(bigtime_lo: u32, bigtime_hi: u32) -> u32 {
+    // Exact CF of `sub`/`sbb`: underflow iff unsigned 64-bit input < bias.
+    if ((bigtime_hi as u64) << 32 | bigtime_lo as u64) < XFS_BIGTIME_TO_KOS_OFFSET_NS {
+        return 0;
+    }
+    let (eax, borrow) = bigtime_lo.overflowing_sub(XFS_BIGTIME_TO_KOS_OFFSET_NS_LO);
+    let edx = bigtime_hi
+        .wrapping_sub(XFS_BIGTIME_TO_KOS_OFFSET_NS_HI)
+        .wrapping_sub(if borrow { 1 } else { 0 });
+    let _ = borrow;
+    // cmp edx, NANOSEC_PER_SEC / jb .time_to_bdfe / else max clamp
+    let (eax, edx) = if edx >= XFS_NANOSEC_PER_SEC {
+        (u32::MAX, XFS_NANOSEC_PER_SEC - 1)
+    } else {
+        (eax, edx)
+    };
+    let dividend = ((edx as u64) << 32) | (eax as u64);
+    (dividend / (XFS_NANOSEC_PER_SEC as u64)) as u32
+}
+
+/// Convert XFS v5 bigtime to BDFE datetime (FASM `xfs._.conv_bigtime_to_kos_epoch`).
+///
+/// Composes [`xfs_bigtime_to_secs`] + [`fs_time2bdfe`].
+#[inline(always)]
+pub fn xfs_conv_bigtime_to_kos_epoch(bigtime_lo: u32, bigtime_hi: u32) -> BdfeTime {
+    fs_time2bdfe(xfs_bigtime_to_secs(bigtime_lo, bigtime_hi))
+}
+
+/// Pointer form used by the FFI trampoline — writes 8 BDFE bytes at `out`.
+///
+/// # Safety
+/// `out` must point to a writable 8-byte BDFE datetime block.
+#[inline(always)]
+pub unsafe fn xfs_conv_bigtime_to_kos_epoch_ptr(bigtime_lo: u32, bigtime_hi: u32, out: *mut u8) {
+    let t = xfs_conv_bigtime_to_kos_epoch(bigtime_lo, bigtime_hi);
+    let b = t.to_bytes();
+    // SAFETY: caller guarantees 8 writable bytes (kernel trampoline / tests).
+    unsafe {
+        core::ptr::copy_nonoverlapping(b.as_ptr(), out, 8);
+    }
+}
+
+/// Pack native bigtime lo/hi for a given seconds-since-2001 value
+/// (`bias + secs * 1e9`). Sub-second remainder is zero.
+#[inline(always)]
+pub fn bigtime_from_secs_2001(secs: u32) -> (u32, u32) {
+    let bt = XFS_BIGTIME_TO_KOS_OFFSET_NS
+        .wrapping_add((secs as u64).wrapping_mul(XFS_NANOSEC_PER_SEC as u64));
+    (bt as u32, (bt >> 32) as u32)
+}
+
+/// Pack a native 64-bit bigtime into the on-disk DQ big-endian layout
+/// (`hi_be` at +0, `lo_be` at +4) matching FASM `movbe` loads.
+#[inline(always)]
+pub fn pack_bigtime_be(lo: u32, hi: u32) -> [u8; 8] {
+    let mut b = [0u8; 8];
+    b[0..4].copy_from_slice(&hi.to_be_bytes());
+    b[4..8].copy_from_slice(&lo.to_be_bytes());
+    b
 }
 
 /// FASM-faithful host oracle — separately coded control-flow mirror of
@@ -1025,6 +1107,198 @@ mod tests {
             );
         }
     }
+
+    // ----- Cut AK: xfs._.conv_bigtime_to_kos_epoch -----
+
+    #[test]
+    fn xfs_bt_epoch_2001() {
+        let (lo, hi) = bigtime_from_secs_2001(0);
+        assert_eq!(lo, XFS_BIGTIME_TO_KOS_OFFSET_NS_LO);
+        assert_eq!(hi, XFS_BIGTIME_TO_KOS_OFFSET_NS_HI);
+        assert_eq!(xfs_bigtime_to_secs(lo, hi), 0);
+        assert_eq!(
+            xfs_conv_bigtime_to_kos_epoch(lo, hi),
+            t(2001, 1, 1, 0, 0, 0)
+        );
+    }
+
+    #[test]
+    fn xfs_bt_one_second() {
+        let (lo, hi) = bigtime_from_secs_2001(1);
+        assert_eq!(xfs_conv_bigtime_to_kos_epoch(lo, hi), t(2001, 1, 1, 0, 0, 1));
+    }
+
+    #[test]
+    fn xfs_bt_leap_2004_02_29() {
+        let (lo, hi) = bigtime_from_secs_2001(99_705_600);
+        assert_eq!(xfs_conv_bigtime_to_kos_epoch(lo, hi), t(2004, 2, 29, 0, 0, 0));
+    }
+
+    #[test]
+    fn xfs_bt_2010_07_04_noon() {
+        let (lo, hi) = bigtime_from_secs_2001(299_937_600);
+        assert_eq!(
+            xfs_conv_bigtime_to_kos_epoch(lo, hi),
+            t(2010, 7, 4, 12, 0, 0)
+        );
+    }
+
+    #[test]
+    fn xfs_bt_end_of_day() {
+        let (lo, hi) = bigtime_from_secs_2001(86_399);
+        assert_eq!(
+            xfs_conv_bigtime_to_kos_epoch(lo, hi),
+            t(2001, 1, 1, 23, 59, 59)
+        );
+    }
+
+    #[test]
+    fn xfs_bt_pre_epoch_clamps_zero() {
+        assert_eq!(xfs_bigtime_to_secs(0, 0), 0);
+        assert_eq!(
+            xfs_conv_bigtime_to_kos_epoch(0, 0),
+            fasm_oracle_xfs_conv_bigtime_to_kos_epoch(0, 0)
+        );
+        // Just below bias
+        let lo = XFS_BIGTIME_TO_KOS_OFFSET_NS_LO.wrapping_sub(1);
+        let hi = XFS_BIGTIME_TO_KOS_OFFSET_NS_HI;
+        // borrow from lo → effective hi-1; still under if lo was 0 after wrap with hi unchanged...
+        // bias-1 as u64:
+        let bt = XFS_BIGTIME_TO_KOS_OFFSET_NS - 1;
+        assert_eq!(xfs_bigtime_to_secs(bt as u32, (bt >> 32) as u32), 0);
+        let _ = (lo, hi);
+    }
+
+    #[test]
+    fn xfs_bt_subsec_remainder_discarded() {
+        // bias + 1.5e9 ns → 1 second (div truncates)
+        let bt = XFS_BIGTIME_TO_KOS_OFFSET_NS + 1_500_000_000;
+        let lo = bt as u32;
+        let hi = (bt >> 32) as u32;
+        assert_eq!(xfs_bigtime_to_secs(lo, hi), 1);
+        assert_eq!(
+            xfs_conv_bigtime_to_kos_epoch(lo, hi),
+            fasm_oracle_xfs_conv_bigtime_to_kos_epoch(lo, hi)
+        );
+    }
+
+    #[test]
+    fn xfs_bt_high_edx_clamp() {
+        // Force post-bias edx >= 1e9: bigtime = bias + (1e9 << 32)
+        let bt = XFS_BIGTIME_TO_KOS_OFFSET_NS + ((XFS_NANOSEC_PER_SEC as u64) << 32);
+        let lo = bt as u32;
+        let hi = (bt >> 32) as u32;
+        let secs = xfs_bigtime_to_secs(lo, hi);
+        assert_eq!(secs, fasm_oracle_xfs_bigtime_to_secs(lo, hi));
+        assert_eq!(secs, u32::MAX); // max clamp → 0xFFFFFFFF secs
+        assert_eq!(
+            xfs_conv_bigtime_to_kos_epoch(lo, hi),
+            fasm_oracle_xfs_conv_bigtime_to_kos_epoch(lo, hi)
+        );
+    }
+
+    #[test]
+    fn xfs_bt_just_below_high_clamp() {
+        // post-bias edx = 1e9 - 1, eax = 0
+        let bt = XFS_BIGTIME_TO_KOS_OFFSET_NS + (((XFS_NANOSEC_PER_SEC as u64) - 1) << 32);
+        let lo = bt as u32;
+        let hi = (bt >> 32) as u32;
+        let secs = xfs_bigtime_to_secs(lo, hi);
+        assert_eq!(secs, fasm_oracle_xfs_bigtime_to_secs(lo, hi));
+        assert_ne!(secs, u32::MAX); // not the max clamp path
+    }
+
+    #[test]
+    fn xfs_bt_ptr_writes_layout() {
+        let (lo, hi) = bigtime_from_secs_2001(86_399);
+        let mut buf = [0xAAu8; 8];
+        unsafe { xfs_conv_bigtime_to_kos_epoch_ptr(lo, hi, buf.as_mut_ptr()) };
+        assert_eq!(buf[0], 59);
+        assert_eq!(buf[1], 59);
+        assert_eq!(buf[2], 23);
+        assert_eq!(buf[3], 0);
+        assert_eq!(buf[4], 1);
+        assert_eq!(buf[5], 1);
+        assert_eq!(u16::from_le_bytes([buf[6], buf[7]]), 2001);
+    }
+
+    #[test]
+    fn xfs_bt_pack_be_roundtrip_layout() {
+        let (lo, hi) = bigtime_from_secs_2001(1);
+        let be = pack_bigtime_be(lo, hi);
+        // movbe from hi_be (+0) / lo_be (+4)
+        let hi2 = u32::from_be_bytes([be[0], be[1], be[2], be[3]]);
+        let lo2 = u32::from_be_bytes([be[4], be[5], be[6], be[7]]);
+        assert_eq!((lo2, hi2), (lo, hi));
+    }
+
+    #[test]
+    fn xfs_bt_oracle_named_and_boundary() {
+        let vectors: &[(u32, u32)] = &[
+            (0, 0),
+            (XFS_BIGTIME_TO_KOS_OFFSET_NS_LO, XFS_BIGTIME_TO_KOS_OFFSET_NS_HI),
+            bigtime_from_secs_2001(1),
+            bigtime_from_secs_2001(86_399),
+            bigtime_from_secs_2001(99_705_600),
+            bigtime_from_secs_2001(299_937_600),
+            (
+                (XFS_BIGTIME_TO_KOS_OFFSET_NS - 1) as u32,
+                ((XFS_BIGTIME_TO_KOS_OFFSET_NS - 1) >> 32) as u32,
+            ),
+            (
+                (XFS_BIGTIME_TO_KOS_OFFSET_NS + 1_500_000_000) as u32,
+                ((XFS_BIGTIME_TO_KOS_OFFSET_NS + 1_500_000_000) >> 32) as u32,
+            ),
+            (
+                (XFS_BIGTIME_TO_KOS_OFFSET_NS + ((XFS_NANOSEC_PER_SEC as u64) << 32)) as u32,
+                ((XFS_BIGTIME_TO_KOS_OFFSET_NS + ((XFS_NANOSEC_PER_SEC as u64) << 32)) >> 32) as u32,
+            ),
+            (
+                (XFS_BIGTIME_TO_KOS_OFFSET_NS + (((XFS_NANOSEC_PER_SEC as u64) - 1) << 32)) as u32,
+                ((XFS_BIGTIME_TO_KOS_OFFSET_NS + (((XFS_NANOSEC_PER_SEC as u64) - 1) << 32)) >> 32)
+                    as u32,
+            ),
+            (u32::MAX, u32::MAX),
+        ];
+        for &(lo, hi) in vectors {
+            assert_eq!(
+                xfs_bigtime_to_secs(lo, hi),
+                fasm_oracle_xfs_bigtime_to_secs(lo, hi),
+                "secs lo={lo:#x} hi={hi:#x}"
+            );
+            assert_eq!(
+                xfs_conv_bigtime_to_kos_epoch(lo, hi),
+                fasm_oracle_xfs_conv_bigtime_to_kos_epoch(lo, hi),
+                "bdfe lo={lo:#x} hi={hi:#x}"
+            );
+        }
+    }
+
+    #[test]
+    fn xfs_bt_prng_oracle_50k() {
+        const CASES: usize = 50_000;
+        let mut state = XFS_CONV_BIGTIME_TO_KOS_EPOCH_PRNG_SEED;
+        let mut next = || -> u32 {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            state
+        };
+        for i in 0..CASES {
+            let lo = next();
+            let hi = next();
+            assert_eq!(
+                xfs_bigtime_to_secs(lo, hi),
+                fasm_oracle_xfs_bigtime_to_secs(lo, hi),
+                "prng#{i} secs lo={lo:#x} hi={hi:#x}"
+            );
+            assert_eq!(
+                xfs_conv_bigtime_to_kos_epoch(lo, hi),
+                fasm_oracle_xfs_conv_bigtime_to_kos_epoch(lo, hi),
+                "prng#{i} bdfe lo={lo:#x} hi={hi:#x}"
+            );
+        }
+    }
 }
 
 /// FASM-faithful host oracle for `fsTime2bdfe` — separate control-flow mirror
@@ -1155,4 +1429,39 @@ pub fn fasm_oracle_ntfs_calculate_time(t: BdfeTime) -> (u32, u32) {
         .wrapping_add(NTFS_FILETIME_BIAS_HI)
         .wrapping_add(if c1 { 1 } else { 0 });
     (lo, hi)
+}
+
+/// FASM-faithful bigtime→secs oracle (`xfs.asm` bias/clamp/div only).
+///
+/// Independently mirrors the `sub`/`sbb`/`jnc`/`cmp`/`div` control flow —
+/// not a call through [`xfs_bigtime_to_secs`].
+#[cfg(test)]
+pub fn fasm_oracle_xfs_bigtime_to_secs(bigtime_lo: u32, bigtime_hi: u32) -> u32 {
+    let bias_lo = 0x1135_0000u32;
+    let bias_hi = 0x2B61_0A37u32;
+    let nano = 1_000_000_000u32;
+    let (eax, borrow) = bigtime_lo.overflowing_sub(bias_lo);
+    let edx = bigtime_hi
+        .wrapping_sub(bias_hi)
+        .wrapping_sub(if borrow { 1 } else { 0 });
+    // jnc .after — CF from sbb
+    let cf = ((bigtime_hi as u64) << 32 | bigtime_lo as u64) < ((bias_hi as u64) << 32 | bias_lo as u64);
+    if cf {
+        return 0;
+    }
+    let _ = borrow;
+    let (eax, edx) = if edx >= nano {
+        (0xFFFF_FFFFu32, nano - 1)
+    } else {
+        (eax, edx)
+    };
+    let dividend = ((edx as u64) << 32) | (eax as u64);
+    (dividend / (nano as u64)) as u32
+}
+
+/// FASM-faithful host oracle for `xfs._.conv_bigtime_to_kos_epoch` — bias/clamp/div
+/// mirrored from `xfs.asm`, then calendar via [`fasm_oracle_fs_time2bdfe`].
+#[cfg(test)]
+pub fn fasm_oracle_xfs_conv_bigtime_to_kos_epoch(bigtime_lo: u32, bigtime_hi: u32) -> BdfeTime {
+    fasm_oracle_fs_time2bdfe(fasm_oracle_xfs_bigtime_to_secs(bigtime_lo, bigtime_hi))
 }
