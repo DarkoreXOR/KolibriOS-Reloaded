@@ -113,7 +113,7 @@ def main(argv: list[str] | None = None) -> None:
         action="append",
         default=[],
         metavar="TYPE",
-        help="Attach images/TYPE-image.img (repeatable: exfat, ntfs)",
+        help="Attach images/TYPE-image.img|.iso (repeatable: exfat, ntfs, iso9660)",
     )
     parser.add_argument(
         "--bus",

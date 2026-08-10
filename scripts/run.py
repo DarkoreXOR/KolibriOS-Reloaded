@@ -20,7 +20,7 @@ def main(argv: list[str] | None = None) -> None:
         action="append",
         default=[],
         metavar="TYPE",
-        help="Attach images/TYPE-image.img (repeatable)",
+        help="Attach images/TYPE-image.img|.iso (repeatable)",
     )
     parser.add_argument("--memory", default=None)
     parser.add_argument("--serial", action="store_true")

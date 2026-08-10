@@ -58,7 +58,7 @@ class QemuArgvTests(unittest.TestCase):
             if img.is_file():
                 disks.append(name)
         if len(disks) < 1:
-            self.skipTest("no images/*.img present")
+            self.skipTest("no images/exfat|ntfs-image.img present")
         argv = build_qemu_argv(self.cfg, image_path=self.fake_img, disks=disks)
         self.assertIn("-fda", argv)
         self.assertIn("-hda", argv)
@@ -71,13 +71,49 @@ class QemuArgvTests(unittest.TestCase):
             if img.is_file():
                 disks.append(name)
         if len(disks) < 1:
-            self.skipTest("no images/*.img present")
+            self.skipTest("no images/exfat|ntfs-image.img present")
         argv = build_qemu_argv(
             self.cfg, image_path=self.fake_img, disks=disks, bus="ahci"
         )
         joined = " ".join(argv)
         self.assertIn("ahci,id=kolibri_ahci", joined)
         self.assertIn("kolibri_ahci.0", joined)
+
+    def test_iso9660_attaches_as_cdrom(self):
+        from run_qemu import resolve_named_disks
+
+        iso = PROJECT_ROOT / "images" / "iso9660-image.iso"
+        if not iso.is_file():
+            self.skipTest("images/iso9660-image.iso missing")
+        paths = resolve_named_disks(["iso9660"])
+        self.assertEqual(len(paths), 1)
+        self.assertEqual(paths[0].resolve(), iso.resolve())
+        argv = build_qemu_argv(
+            self.cfg, image_path=self.fake_img, disks=["iso9660"], use_testdisk=False
+        )
+        self.assertIn("-cdrom", argv)
+        self.assertNotIn("-hda", argv)
+        cd = argv[argv.index("-cdrom") + 1]
+        self.assertTrue(cd.endswith("iso9660-image.iso") or "iso9660-image.iso" in cd)
+
+    def test_iso9660_with_hdd_disks(self):
+        needed = []
+        for name in ("exfat", "ntfs"):
+            if (PROJECT_ROOT / "images" / f"{name}-image.img").is_file():
+                needed.append(name)
+        iso = PROJECT_ROOT / "images" / "iso9660-image.iso"
+        if len(needed) < 2 or not iso.is_file():
+            self.skipTest("need exfat+ntfs imgs and iso9660.iso")
+        argv = build_qemu_argv(
+            self.cfg,
+            image_path=self.fake_img,
+            disks=["exfat", "ntfs", "iso9660"],
+            use_testdisk=False,
+        )
+        self.assertIn("-hda", argv)
+        self.assertIn("-hdb", argv)
+        self.assertIn("-cdrom", argv)
+        self.assertNotIn("-hdc", argv)
 
     def test_qemu_opt_path_relative(self):
         p = qemu_opt_path(PROJECT_ROOT / "images" / "exfat-image.img")

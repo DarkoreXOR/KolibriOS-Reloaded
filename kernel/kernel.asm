@@ -286,6 +286,8 @@ high_code:
         call    calculate_set_checksum_field_rust_smoke_test
         ; Cut AI: exFAT_hash_calculate NameHash smoke (Rust when USE_RUST_EXFAT_HASH_CALCULATE=1).
         call    exfat_hash_calculate_rust_smoke_test
+        ; Cut AJ: iso9660_compare_name smoke (Rust when USE_RUST_ISO9660_COMPARE_NAME=1).
+        call    iso9660_compare_name_rust_smoke_test
         ; Cut U: fat_gen_short_name smoke (Rust when USE_RUST_FAT_GEN_SHORT_NAME=1).
         call    fat_gen_short_name_rust_smoke_test
         ; Cut V: tcp_set_persist smoke (Rust when USE_RUST_TCP_SET_PERSIST=1).

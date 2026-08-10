@@ -9,6 +9,7 @@
 | `rust_kernel/` | Cargo workspace for freestanding Rust kernel utils (`kolibri_utils`, Cuts A–AB) |
 | `scripts/` | Plain Python project automation |
 | `tools/kolibri_img/` | Host utility: FAT image inspect / CoW / extract / delete / replace |
+| `tools/binutil/` | Host utility: x86 disasm/asm (iced/Capstone/Keystone/FASM) + object/archive inspect |
 | `tools/fasm/` | Vendored FASM assembler |
 | `kolibrios-*.img` | Read-only reference floppy image |
 | `dev_build/` | Development/test artifacts (gitignored) |

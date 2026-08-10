@@ -12,7 +12,7 @@ framework.
 Before creating ad-hoc shell one-liners:
 
 1. Prefer an existing script: `python scripts/<name>.py --help`
-2. Check focused tools under `./tools/` (`kolibri_img`, `mkfs_utils`,
+2. Check focused tools under `./tools/` (`kolibri_img`, `binutil`, `mkfs_utils`,
    `migration_gates`, …)
 3. Compose by importing Python functions or calling scripts via `subprocess`
 
@@ -57,7 +57,7 @@ Rhai/Lua/JS scripting layer.
 python scripts/doctor.py
 python scripts/build.py [--mode dev|release] [--skip-tests]
 python scripts/prepare_image.py
-python scripts/run_qemu.py [--disk exfat] [--disk ntfs] [--headless]
+python scripts/run_qemu.py [--disk exfat] [--disk ntfs] [--disk iso9660] [--headless]
 python scripts/run.py
 python scripts/regression.py
 python scripts/reference_qemu.py

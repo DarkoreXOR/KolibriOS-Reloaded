@@ -1,13 +1,13 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI utilities: CRC32, Unicode, casefold, string, checksum,
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ utilities: CRC32, Unicode, casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
-//! SetChecksum + NameHash rolling hash, video geometry, NTFS MCB decode, NTFS USA restore, FAT
-//! 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator +
-//! persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall userspace
-//! region gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS extent unpack +
-//! dir hash binary search, window screen-fit helpers, TSS I/O permission bitmap updates, COFF
-//! reloc application, MBR/EBR partition-table entry validation, GPT protective-MBR recognition,
-//! process TID→slot lookup, and IPv4 on-link/gateway/broadcast routing for KolibriOS hybrid
-//! migration.
+//! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, video geometry, NTFS
+//! MCB decode, NTFS USA restore, FAT 8.3 short-name collision + LFN→8.3 generator, HID mouse
+//! acceleration, TCP RTT estimator + persist-timer arming, GUI font anti-aliasing, MENUET
+//! app-header validation, syscall userspace region gate, UTF-16→UTF-8 streaming encode,
+//! UTF-8→UTF-16 streaming decode, XFS extent unpack + dir hash binary search, window screen-fit
+//! helpers, TSS I/O permission bitmap updates, COFF reloc application, MBR/EBR partition-table
+//! entry validation, GPT protective-MBR recognition, process TID→slot lookup, and IPv4
+//! on-link/gateway/broadcast routing for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -29,6 +29,7 @@ mod font;
 mod geometry;
 mod io_access;
 mod ipv4_route;
+mod iso9660_compare;
 mod mouse;
 mod ntfs_bootsec;
 mod ntfs_mcb;
@@ -79,6 +80,10 @@ pub use io_access::{
 pub use ipv4_route::{
     ipv4_route, ipv4_route_ptr, net_ptr_to_num4, Ipv4RouteResult, IPV4_BROADCAST,
     IPV4_ROUTE_PRNG_SEED, NET_DEVICES_MAX, OFF_LINK_STATE, TABLE_BYTES,
+};
+pub use iso9660_compare::{
+    iso9660_compare_name, iso9660_compare_name_ptr, Iso9660CompareNameResult,
+    ISO9660_COMPARE_NAME_PRNG_SEED, ISO9660_DIR_OFF_NAME, ISO9660_DIR_OFF_NAME_LEN,
 };
 pub use mouse::mouse_acceleration;
 pub use ntfs_bootsec::{

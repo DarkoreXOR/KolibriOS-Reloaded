@@ -28,6 +28,11 @@ fs_CdServices:
         dd      fs_NotImplemented
         dd      fs_NotImplemented
 fs_NumCdServices = ($ - fs_CdServices)/4
+
+; Cut AJ gate — defined early so both ATAPI `cd_compare_name` and partition
+; `iso9660_compare_name` can share the Rust leaf when ON.
+; Set USE_RUST_ISO9660_COMPARE_NAME=0 to restore FASM bodies (rollback).
+USE_RUST_ISO9660_COMPARE_NAME = 1
 endg
 
 uglobal
@@ -692,20 +697,55 @@ cd_get_name:
         stc
         ret
 ;-----------------------------------------------------------------------------
+; ATAPI `/cdN` Joliet name match. Live CD browse never calls iso9660_compare_name
+; (partition driver); this leaf is the path that opens `/cdN/.../hello`.
+; When Cut AJ is ON, reuse rust_iso9660_compare_name (UCS-2 BE, type_encoding=1)
+; with CD's extra `inc esi` past '/' or NUL. When OFF, keep the FASM loop but
+; stash the path unit on the stack (NTFS-style) so utf16toUpper cannot clobber it.
 cd_compare_name:
-; in: esi -> UTF-8 name, ebp -> UTF-16BE name
-; out: CF=0 -> names match, esi -> next component of name
+; in: esi -> UTF-8 name, ebp -> UTF-16BE name (record.name; record base = ebp-33)
+; out: CF=0 -> names match, esi -> past '/' or NUL of this component
 ;      CF=1 -> esi is not changed
+
+if USE_RUST_ISO9660_COMPARE_NAME
+
+        push    edx
+        push    edi
+        push    eax
+        push    ecx
+        push    ebx
+        push    esi                     ; [esp] = esi_inout
+        mov     eax, esp
+        lea     edi, [ebp-33]           ; → ISO9660_DIRECTORY_RECORD
+        stdcall rust_iso9660_compare_name, eax, edi, 1
+        pop     esi
+        pop     ebx
+        pop     ecx
+        test    eax, eax
+        pop     eax
+        pop     edi
+        pop     edx
+        jnz     .cd_rust_miss
+        inc     esi                     ; CD ABI: advance past '/' or NUL
+        clc
+        ret
+.cd_rust_miss:
+        stc
+        ret
+
+else
+
         push    edx edi eax esi
         mov     edi, ebp
 .loop:
         call    utf8to16
         call    utf16toUpper
-        mov     edx, eax
+        push    eax                     ; path unit (do not keep in EDX)
         mov     ax, [edi]
         xchg    al, ah
         call    utf16toUpper
-        cmp     ax, dx
+        cmp     [esp], ax
+        pop     eax
         jne     .name_not_coincide
         add     edi, 2
         cmp     [esi], byte '/' ; path separator is end of current element
@@ -736,6 +776,8 @@ cd_compare_name:
         pop     esi eax edi edx
         stc
         ret
+
+end if
 
 ;;; New driver
 
@@ -1656,6 +1698,45 @@ end virtual
 
 
 
+; Cut AJ: USE_RUST_ISO9660_COMPARE_NAME (defined near top of this file) routes
+; through Rust rust_iso9660_compare_name (see rust/iso9660_compare_name.inc).
+; Set USE_RUST_ISO9660_COMPARE_NAME=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–AI.
+; Critical ABI: ESI→UTF-8, EDI→ISO9660_DIRECTORY_RECORD, EBP→ISO9660;
+; CF=0 match (ESI→'/' or NUL), CF=1 miss (ESI restored);
+; preserves EAX/ECX/EDI; clobbers EDX. Production default ON after Cut AJ.
+
+if USE_RUST_ISO9660_COMPARE_NAME
+
+; Compatibility trampoline: (ESI,EDI,type_encoding) → stdcall → CF + ESI.
+align 4
+iso9660_compare_name:
+        push    eax
+        push    ecx
+        push    edx
+        push    ebx
+        push    edi
+        push    esi                     ; [esp] = esi_inout storage
+        mov     eax, esp
+        mov     ecx, [ebp + ISO9660.type_encoding]
+        stdcall rust_iso9660_compare_name, eax, edi, ecx
+        pop     esi
+        pop     edi
+        pop     ebx
+        pop     edx
+        pop     ecx
+        test    eax, eax
+        pop     eax
+        jz      .rust_match
+        stc
+        ret
+.rust_match:
+        clc
+        ret
+
+else
+
+align 4
 iso9660_compare_name:
 ; in: esi -> UTF-8 name, ebp -> ISO9660 struct
 ;     edi -> ISO9660_DIRECTORY_RECORD
@@ -1720,18 +1801,150 @@ iso9660_compare_name:
         stc
         ret
 
+end if
 
 
+;-----------------------------------------------------------------------------
+; Cut AJ ABI smoke — exercises public iso9660_compare_name trampoline.
+; On mismatch: distinctive hang (does not reach desktop).
+;-----------------------------------------------------------------------------
+uglobal
+align 4
+iso9660_cmp_smoke_path:   rb 32
+iso9660_cmp_smoke_rec:    rb 48
+iso9660_cmp_smoke_iso:    rb 64   ; ≥ sizeof.ISO9660 (PARTITION + type_encoding…)
+endg
 
-;IN: ebp -> PARTITION structure
-;    ebx -> FS structure
-;    esi -> input string (ascii or ucs2)
-;    ecx =  count bytes
-;    edi -> output string (buffer)
-;    edx =  encoding output string
-;OUT: edi increasing
-;     esi increasing
-;     ecx = 0 or other value
+; Minimal PARTITION-sized prefix so ISO9660.type_encoding is at a known offset.
+; FASM `struct ISO9660 PARTITION` places type_encoding first in the extension;
+; PARTITION base size is resolved by the assembler. Smoke uses a local buffer
+; and sets [ebp+ISO9660.type_encoding] via the real field name.
+
+align 4
+iso9660_compare_name_rust_smoke_test:
+        push    ebx
+        push    esi
+        push    edi
+        push    ebp
+        push    ecx
+        push    edx
+
+        ; ----- vector 1: ASCII "AB" vs path "ab" → match, ESI@NUL -----
+        cld
+        mov     edi, iso9660_cmp_smoke_rec
+        mov     ecx, 48 / 4
+        xor     eax, eax
+        rep     stosd
+        mov     byte [iso9660_cmp_smoke_rec], 35          ; size
+        mov     byte [iso9660_cmp_smoke_rec + ISO9660_DIRECTORY_RECORD.name_len], 2
+        mov     byte [iso9660_cmp_smoke_rec + ISO9660_DIRECTORY_RECORD.name], 'A'
+        mov     byte [iso9660_cmp_smoke_rec + ISO9660_DIRECTORY_RECORD.name + 1], 'B'
+
+        mov     edi, iso9660_cmp_smoke_path
+        mov     dword [edi], 'ab'
+        mov     byte [edi+2], 0
+
+        ; Fake ISO9660 context: only type_encoding matters for the leaf.
+        mov     ebp, iso9660_cmp_smoke_iso
+        mov     dword [ebp + ISO9660.type_encoding], 0
+
+        mov     eax, 0xA1000001
+        mov     ebx, 0xB1000002
+        mov     ecx, 0xC1000003
+        mov     edx, 0xD1000004
+        mov     esi, iso9660_cmp_smoke_path
+        mov     edi, iso9660_cmp_smoke_rec
+        call    iso9660_compare_name
+        jc      .fail
+        cmp     eax, 0xA1000001
+        jne     .fail
+        cmp     ebx, 0xB1000002
+        jne     .fail
+        cmp     ecx, 0xC1000003
+        jne     .fail
+        cmp     edi, iso9660_cmp_smoke_rec
+        jne     .fail
+        cmp     ebp, iso9660_cmp_smoke_iso
+        jne     .fail
+        cmp     byte [esi], 0
+        jne     .fail
+        lea     eax, [iso9660_cmp_smoke_path + 2]
+        cmp     esi, eax
+        jne     .fail
+
+        ; ----- vector 2: mismatch "ab" vs "AC" → CF, ESI restored -----
+        mov     byte [iso9660_cmp_smoke_rec + ISO9660_DIRECTORY_RECORD.name + 1], 'C'
+        mov     esi, iso9660_cmp_smoke_path
+        mov     edi, iso9660_cmp_smoke_rec
+        call    iso9660_compare_name
+        jnc     .fail
+        cmp     esi, iso9660_cmp_smoke_path
+        jne     .fail
+
+        ; ----- vector 3: version "FILE;1" vs "file" -----
+        mov     edi, iso9660_cmp_smoke_rec
+        mov     ecx, 48 / 4
+        xor     eax, eax
+        rep     stosd
+        mov     byte [iso9660_cmp_smoke_rec], 39
+        mov     byte [iso9660_cmp_smoke_rec + ISO9660_DIRECTORY_RECORD.name_len], 6
+        mov     eax, 'FILE'
+        mov     dword [iso9660_cmp_smoke_rec + ISO9660_DIRECTORY_RECORD.name], eax
+        mov     word [iso9660_cmp_smoke_rec + ISO9660_DIRECTORY_RECORD.name + 4], ';1'
+
+        mov     edi, iso9660_cmp_smoke_path
+        mov     eax, 'file'
+        mov     dword [edi], eax
+        mov     byte [edi+4], 0
+
+        mov     ebp, iso9660_cmp_smoke_iso
+        mov     dword [ebp + ISO9660.type_encoding], 0
+        mov     esi, iso9660_cmp_smoke_path
+        mov     edi, iso9660_cmp_smoke_rec
+        call    iso9660_compare_name
+        jc      .fail
+        cmp     byte [esi], 0
+        jne     .fail
+
+        ; ----- vector 4: path component "dir/…" -----
+        mov     edi, iso9660_cmp_smoke_rec
+        mov     ecx, 48 / 4
+        xor     eax, eax
+        rep     stosd
+        mov     byte [iso9660_cmp_smoke_rec], 36
+        mov     byte [iso9660_cmp_smoke_rec + ISO9660_DIRECTORY_RECORD.name_len], 3
+        mov     eax, 'DIR'
+        mov     dword [iso9660_cmp_smoke_rec + ISO9660_DIRECTORY_RECORD.name], eax
+
+        mov     edi, iso9660_cmp_smoke_path
+        mov     eax, 'dir/'
+        mov     dword [edi], eax
+        mov     byte [edi+4], 'x'
+        mov     byte [edi+5], 0
+
+        mov     esi, iso9660_cmp_smoke_path
+        mov     edi, iso9660_cmp_smoke_rec
+        call    iso9660_compare_name
+        jc      .fail
+        cmp     byte [esi], '/'
+        jne     .fail
+
+        mov     [rust_iso9660_compare_name_smoke_result], 0x434F5349 ; 'ISOC'
+        pop     edx
+        pop     ecx
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     ebx
+        ret
+
+.fail:
+        mov     eax, 0xDEAD0C56        ; Cut AJ fail marker
+        mov     ebx, 0x434F5349        ; 'ISOC'
+        mov     ecx, 0x4641494C        ; 'FAIL'
+        jmp     $
+
+
 iso9660_copy_name:
         cmp     [ebp + ISO9660.type_encoding], 0
         jnz     .ucs2

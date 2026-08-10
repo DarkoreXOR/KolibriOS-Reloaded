@@ -17,6 +17,7 @@ use crate::font::anti_aliasing;
 use crate::geometry::block_clip_ptr;
 use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_route::ipv4_route_ptr;
+use crate::iso9660_compare::iso9660_compare_name_ptr;
 use crate::mouse::mouse_acceleration;
 use crate::ntfs_bootsec::ntfs_test_bootsec_ptr;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
@@ -316,6 +317,28 @@ pub unsafe extern "stdcall" fn rust_calculate_set_checksum_field(
 pub unsafe extern "stdcall" fn rust_exfat_hash_calculate(buf: *const u8, len: u32) -> u32 {
     // SAFETY: kernel trampoline passes NameUTF16 pointer + byte length.
     u32::from(unsafe { exfat_hash_calculate_ptr(buf, len) })
+}
+
+/// `stdcall` rust_iso9660_compare_name(esi_inout, dir_record, type_encoding)
+/// -> EAX = 0 match / 1 miss.
+///
+/// Cut AJ: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). On match advances `*esi_inout` to `/`
+/// or NUL; on miss leaves it unchanged. FASM trampoline maps EAX → `clc`/`stc`.
+///
+/// # Safety
+/// `esi_inout` must be valid; `*esi_inout` readable for the path component;
+/// `dir_record` readable for the ISO9660 directory-record name span.
+#[no_mangle]
+#[link_section = ".text.rust_iso9660_compare_name"]
+pub unsafe extern "stdcall" fn rust_iso9660_compare_name(
+    esi_inout: *mut *const u8,
+    dir_record: *const u8,
+    type_encoding: u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes &ESI slot + EDI record + encoding.
+    unsafe { iso9660_compare_name_ptr(esi_inout, dir_record, type_encoding) }
 }
 
 /// `stdcall` rust_block_clip(clip, rect) -> EAX = 0 draw / 1 reject.

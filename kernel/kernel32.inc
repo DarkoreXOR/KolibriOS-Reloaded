@@ -131,6 +131,9 @@ include "rust/calculate_set_checksum_field.inc"
 ; Cut AI: exFAT_hash_calculate (NameHash) — Rust blob (USE_RUST_EXFAT_HASH_CALCULATE)
 ; ABI smoke lives in fs/exfat.inc.
 include "rust/exfat_hash_calculate.inc"
+; Cut AJ: iso9660_compare_name — Rust blob (USE_RUST_ISO9660_COMPARE_NAME)
+; ABI smoke lives in fs/iso9660.inc.
+include "rust/iso9660_compare_name.inc"
 ; Cut U: fat_gen_short_name — Rust blob + smoke (USE_RUST_FAT_GEN_SHORT_NAME)
 include "rust/fat_gen_short_name.inc"
 ; Cut V: tcp_set_persist — Rust blob + smoke (USE_RUST_TCP_SET_PERSIST)

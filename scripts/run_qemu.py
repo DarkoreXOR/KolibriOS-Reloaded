@@ -20,9 +20,21 @@ from common import (
 
 _HD_FLAGS = ("-hda", "-hdb", "-hdc", "-hdd")
 
+# Named `--disk TYPE` → `images/TYPE-image.<ext>`. Most FS disks use `.img`;
+# ISO9660 fixtures are commonly shipped as `.iso`.
+_NAMED_DISK_SUFFIXES: dict[str, tuple[str, ...]] = {
+    "iso9660": (".iso", ".img"),
+}
+_DEFAULT_DISK_SUFFIXES: tuple[str, ...] = (".img", ".iso")
+
+# KolibriOS ISO9660 requires ATAPI 2048-byte sectors (`iso9660_create_partition`
+# rejects SectorSize!=2048). Hard-disk `-hdX` is always 512 → must use `-cdrom`
+# so the guest sees `/cdN` via the legacy ATAPI path.
+_CDROM_DISK_TYPES = frozenset({"iso9660"})
+
 
 def _disk_path_arg(img: Path) -> str:
-    """Path for a standalone QEMU argv token (`-hda PATH`)."""
+    """Path for a standalone QEMU argv token (`-hda PATH` / `-cdrom PATH`)."""
     try:
         return str(img.resolve().relative_to(PROJECT_ROOT.resolve())).replace("\\", "/")
     except ValueError:
@@ -38,6 +50,17 @@ def append_ide_image(qargs: list[str], img: Path, index: int) -> None:
     path = _disk_path_arg(img)
     qargs.extend([flag, path])
     log.info("Attaching %s → /hd%s/1 : %s", flag, index, path)
+
+
+def append_cdrom_image(qargs: list[str], img: Path) -> None:
+    """Attach as IDE ATAPI CD-ROM (guest `/cdN`, 2048-byte sectors)."""
+    if not img.is_file():
+        raise SystemExit(f"ERROR: disk image missing: {img}")
+    if "-cdrom" in qargs:
+        raise SystemExit("ERROR: only one --disk iso9660 / -cdrom is supported")
+    path = _disk_path_arg(img)
+    qargs.extend(["-cdrom", path])
+    log.info("Attaching -cdrom → /cdN (ATAPI ISO9660) : %s", path)
 
 
 def append_ahci_image(qargs: list[str], img: Path, index: int, ahci_added: bool) -> bool:
@@ -66,6 +89,7 @@ def attach_disk_images(
     *,
     bus: str = "ide",
 ) -> None:
+    """Attach hard-disk images only (512-byte sectors). Use attach_named_disks for --disk."""
     bus = bus.lower()
     if bus not in ("ide", "ahci"):
         raise SystemExit(f"ERROR: unknown disk bus {bus!r} (expected ide or ahci)")
@@ -77,17 +101,48 @@ def attach_disk_images(
             ahci_added = append_ahci_image(qargs, Path(img), index, ahci_added)
 
 
+def resolve_named_disk(name: str) -> Path:
+    suffixes = _NAMED_DISK_SUFFIXES.get(name, _DEFAULT_DISK_SUFFIXES)
+    for suf in suffixes:
+        cand = resolve(f"images/{name}-image{suf}")
+        if cand.is_file():
+            return cand
+    tried = ", ".join(f"images/{name}-image{s}" for s in suffixes)
+    hint = (
+        f"Place the image at images/{name}-image.iso (or .img)."
+        if name == "iso9660"
+        else f"Create with: python scripts/mkfs.py {name} …"
+    )
+    raise SystemExit(f"ERROR: disk image missing for {name} (tried {tried})\n{hint}")
+
+
 def resolve_named_disks(names: Sequence[str]) -> list[Path]:
-    images: list[Path] = []
+    return [resolve_named_disk(name) for name in names]
+
+
+def attach_named_disks(
+    qargs: list[str],
+    names: Sequence[str],
+    *,
+    bus: str = "ide",
+) -> None:
+    """Attach `--disk TYPE` images; ISO9660 → `-cdrom`, others → IDE/AHCI HD."""
+    bus = bus.lower()
+    if bus not in ("ide", "ahci"):
+        raise SystemExit(f"ERROR: unknown disk bus {bus!r} (expected ide or ahci)")
+    hd_index = 0
+    ahci_added = False
     for name in names:
-        img = resolve(f"images/{name}-image.img")
-        if not img.is_file():
-            raise SystemExit(
-                f"ERROR: disk image missing for {name}: {img}\n"
-                f"Create with: python scripts/mkfs.py {name} …"
-            )
-        images.append(img)
-    return images
+        img = resolve_named_disk(name)
+        if name in _CDROM_DISK_TYPES:
+            # Always IDE ATAPI: Kolibri /cdN path (SATAPI incomplete).
+            append_cdrom_image(qargs, img)
+            continue
+        if bus == "ide":
+            append_ide_image(qargs, img, hd_index)
+        else:
+            ahci_added = append_ahci_image(qargs, img, hd_index, ahci_added)
+        hd_index += 1
 
 
 def build_qemu_argv(
@@ -108,6 +163,9 @@ def build_qemu_argv(
     Disks default to IDE (`-hda`/`-hdb` → guest `/hd0/1`, `/hd1/1`) so the
     stock reference floppy and hybrid builds both see them. Use bus='ahci'
     for `/sdN/1` on kernels with AHCI support.
+
+    `--disk iso9660` attaches as `-cdrom` (guest `/cdN` via ATAPI). Attaching
+    an ISO as a hard disk fails: SectorSize 512 ≠ CDBlockSize 2048.
     """
     qemu_cfg = cfg["qemu"]
     testdisk = cfg.get("testdisk") or {}
@@ -131,7 +189,7 @@ def build_qemu_argv(
         qargs.extend(str(a) for a in qemu_cfg.get("headless_extra_args") or [])
 
     if disks:
-        attach_disk_images(qargs, resolve_named_disks(disks), bus=bus)
+        attach_named_disks(qargs, disks, bus=bus)
     elif use_testdisk and testdisk.get("enabled"):
         td = resolve(testdisk["image"])
         if td.is_file():
@@ -188,8 +246,15 @@ def run_qemu(
         bus=bus,
     )
 
-    guest = "/hd0/1, /hd1/1" if bus == "ide" else "/sd0/1, /sd1/1"
-    log.info("Starting QEMU (FS disks appear in Eolite as %s, …)", guest)
+    guest_hd = "/hdN/1" if bus == "ide" else "/sdN/1"
+    has_cd = bool(disks and any(n in _CDROM_DISK_TYPES for n in disks))
+    if has_cd:
+        log.info(
+            "Starting QEMU (HD → %s; ISO9660 → /cdN via ATAPI)",
+            guest_hd,
+        )
+    else:
+        log.info("Starting QEMU (FS disks appear in Eolite as %s, …)", guest_hd)
     log.info("qemu %s", " ".join(qargs))
     code = run_interactive([qemu, *qargs], what="QEMU")
     if code != 0:
@@ -208,13 +273,13 @@ def main(argv: list[str] | None = None) -> None:
         action="append",
         default=[],
         metavar="TYPE",
-        help="Attach images/TYPE-image.img (repeatable: exfat, ntfs)",
+        help="Attach images/TYPE-image.img|.iso (repeatable: exfat, ntfs, iso9660→cdrom)",
     )
     parser.add_argument(
         "--bus",
         choices=("ide", "ahci"),
         default="ide",
-        help="Disk bus: ide → /hdN/1 (default, works on stock reference); ahci → /sdN/1",
+        help="HD bus: ide → /hdN/1 (default); ahci → /sdN/1. iso9660 always uses -cdrom",
     )
     parser.add_argument("--memory", default=None, help="Override QEMU -m size")
     parser.add_argument("--serial", action="store_true")

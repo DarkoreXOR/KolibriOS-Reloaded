@@ -141,8 +141,14 @@ if USE_RUST_UTF16_UPPER
 
 ; Compatibility trampoline: existing AX/EAX in/out ABI → Rust stdcall.
 ; Callers keep `call utf16toUpper` with the UTF-16 character in AX.
+; Critical: FASM leaf preserved ECX/EDX; stdcall may clobber them. FAT/exFAT/CD
+; name compares stash the path unit in EDX across the second utf16toUpper call.
 utf16toUpper:
+        push    ecx
+        push    edx
         stdcall rust_utf16_to_upper, eax
+        pop     edx
+        pop     ecx
         ret
 
 else
