@@ -17,6 +17,7 @@ use crate::geometry::block_clip_ptr;
 use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_route::ipv4_route_ptr;
 use crate::mouse::mouse_acceleration;
+use crate::ntfs_bootsec::ntfs_test_bootsec_ptr;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
 use crate::ntfs_usa::ntfs_restore_usa_ptr;
 use crate::partition::{is_partition_table_entry_ptr, is_protective_mbr_ptr};
@@ -260,6 +261,25 @@ pub unsafe extern "stdcall" fn rust_ntfs_calculate_time(block: *const u8) -> u64
     // SAFETY: kernel trampoline passes ESI → valid BDFE block.
     let (lo, hi) = unsafe { ntfs_calculate_time_ptr(block) };
     ((hi as u64) << 32) | (lo as u64)
+}
+
+/// `stdcall` rust_ntfs_test_bootsec(boot, partition_sectors) -> EAX.
+///
+/// Cut AG: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). Returns `0` valid / `1` invalid;
+/// FASM trampoline maps EAX→CF and preserves EBX/EDX.
+///
+/// # Safety
+/// `boot` must point to a readable NTFS bootsector (≥ 0x45 bytes; typically 512).
+#[no_mangle]
+#[link_section = ".text.rust_ntfs_test_bootsec"]
+pub unsafe extern "stdcall" fn rust_ntfs_test_bootsec(
+    boot: *const u8,
+    partition_sectors: u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes EBX→boot + EDX partition size.
+    unsafe { ntfs_test_bootsec_ptr(boot, partition_sectors) }
 }
 
 /// `stdcall` rust_block_clip(clip, rect) -> EAX = 0 draw / 1 reject.

@@ -1,7 +1,7 @@
 # `kolibri_build`
 
 Repository-local orchestrator for the hybrid FASM + Rust kernel workflow
-(Cuts A–AF). Configuration: [`config.toml`](config.toml).
+(Cuts A–AG). Configuration: [`config.toml`](config.toml).
 
 ## Usage (from repository root)
 
@@ -24,13 +24,13 @@ See the root [`README.md`](../../README.md) for the full developer workflow.
 ## Migrations
 
 `config.toml` lists every reloc-free blob under `[[rust.blobs]]` and every
-independent production gate under `[[rust.migrations]]` (Cuts A–AF; currently
-35 gated symbols plus the Phase C probe blob). Each migration maps `blob` →
+independent production gate under `[[rust.migrations]]` (Cuts A–AG; currently
+36 gated symbols plus the Phase C probe blob). Each migration maps `blob` →
 `USE_RUST_*` → `kernel/rust/*.inc` → gate assignment file. Set
 `enabled = true|false` per cut; the orchestrator writes `USE_RUST_* = 0|1` into
 `gate_file` before assemble. Doctor verifies the live tree matches the registry.
 
-Latest production checkpoint: Cut AF (`ntfsCalculateTime`) —
-[`docs/migration/cut-af-implementation.md`](../../docs/migration/cut-af-implementation.md)
-(after validation). Prior: Cut AE (`ntfs_datetime_to_bdfe`).
+Latest production checkpoint: Cut AG (`ntfs_test_bootsec`) —
+[`docs/migration/cut-ag-implementation.md`](../../docs/migration/cut-ag-implementation.md)
+(after validation). Prior: Cut AF (`ntfsCalculateTime`).
 Migration index: [`docs/migration/migration-plan.md`](../../docs/migration/migration-plan.md).

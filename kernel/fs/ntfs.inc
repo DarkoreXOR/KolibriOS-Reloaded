@@ -173,6 +173,39 @@ attrlist_mft_buf    rb  1024
 bitmap_buf          rb  1024
 ends
 
+; in: ebx -> buffer, edx = size of partition
+; out: CF=1 -> invalid
+;
+; Cut AG: USE_RUST_NTFS_TEST_BOOTSEC=1 routes through Rust
+; rust_ntfs_test_bootsec (see rust/ntfs_test_bootsec.inc).
+; Set USE_RUST_NTFS_TEST_BOOTSEC=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–AF.
+; Critical ABI: EBX→boot / EDX=partition sectors → CF; EBX/EDX preserved
+; for ntfs_create_partition callers. Production default ON after Cut AG gates.
+
+USE_RUST_NTFS_TEST_BOOTSEC = 1
+
+if USE_RUST_NTFS_TEST_BOOTSEC
+
+; Compatibility trampoline: register ABI → Rust stdcall → EAX → CF.
+; Callers: EBX→boot sector, EDX=partition Length; CF out; EBX/EDX live.
+align 4
+ntfs_test_bootsec:
+        push    ebx
+        push    edx
+        stdcall rust_ntfs_test_bootsec, ebx, edx
+        pop     edx
+        pop     ebx
+        test    eax, eax
+        jnz     .rust_invalid
+        clc
+        ret
+.rust_invalid:
+        stc
+        ret
+
+else
+
 ntfs_test_bootsec:
 ; in: ebx -> buffer, edx = size of partition
 ; out: CF=1 -> invalid
@@ -254,6 +287,8 @@ ntfs_test_bootsec:
 .no:        ; No, this bootsector isn't NTFS
         stc
         ret
+
+end if
 
 ; Mount if it's a valid NTFS partition.
 ntfs_create_partition:

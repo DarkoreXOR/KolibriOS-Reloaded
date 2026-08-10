@@ -123,6 +123,8 @@ include "rust/fs_time2bdfe.inc"
 include "rust/ntfs_datetime_to_bdfe.inc"
 ; Cut AF: ntfsCalculateTime — Rust blob + smoke (USE_RUST_NTFS_CALCULATE_TIME)
 include "rust/ntfs_calculate_time.inc"
+; Cut AG: ntfs_test_bootsec — Rust blob + smoke (USE_RUST_NTFS_TEST_BOOTSEC)
+include "rust/ntfs_test_bootsec.inc"
 ; Cut U: fat_gen_short_name — Rust blob + smoke (USE_RUST_FAT_GEN_SHORT_NAME)
 include "rust/fat_gen_short_name.inc"
 ; Cut V: tcp_set_persist — Rust blob + smoke (USE_RUST_TCP_SET_PERSIST)

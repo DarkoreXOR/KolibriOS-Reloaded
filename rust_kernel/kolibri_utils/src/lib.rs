@@ -1,5 +1,5 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF utilities: CRC32, Unicode, casefold, string, checksum,
-//! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, video geometry, NTFS MCB decode, NTFS USA restore, FAT
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG utilities: CRC32, Unicode, casefold, string, checksum,
+//! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, video geometry, NTFS MCB decode, NTFS USA restore, FAT
 //! 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator +
 //! persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall userspace
 //! region gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS extent unpack +
@@ -28,6 +28,7 @@ mod geometry;
 mod io_access;
 mod ipv4_route;
 mod mouse;
+mod ntfs_bootsec;
 mod ntfs_mcb;
 mod ntfs_usa;
 mod partition;
@@ -73,6 +74,10 @@ pub use ipv4_route::{
     IPV4_ROUTE_PRNG_SEED, NET_DEVICES_MAX, OFF_LINK_STATE, TABLE_BYTES,
 };
 pub use mouse::mouse_acceleration;
+pub use ntfs_bootsec::{
+    fasm_oracle_ntfs_test_bootsec, make_valid_ntfs_bootsec, ntfs_test_bootsec,
+    ntfs_test_bootsec_ptr, NTFS_BOOTSEC_MIN_LEN, NTFS_TEST_BOOTSEC_PRNG_SEED,
+};
 pub use ntfs_mcb::{ntfs_decode_mcb_entry, McbDecodeResult};
 pub use ntfs_usa::{ntfs_restore_usa, UsaRestoreResult};
 pub use partition::{

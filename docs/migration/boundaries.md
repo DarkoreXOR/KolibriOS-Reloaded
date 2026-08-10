@@ -135,6 +135,6 @@ Findings from [`../compatibility/abi-audit.md`](../compatibility/abi-audit.md):
 
 **LOCAL FACT (Cut B complete):** `rust_cp866_to_upper` (`cp866toUpper`) is also reloc-free (71 B, 0 relocs) via the same path ([`cut-b-implementation.md`](cut-b-implementation.md)). Note: this “Cut B” is the next pure-util migration, **not** the allocator cut named “Cut B” elsewhere in this document.
 
-**LOCAL FACT (Cuts A–AF complete, 2026-08-10):** Stage 2 production envelope through Cut AF (`ntfsCalculateTime`) — see [`migration-plan.md`](migration-plan.md). Prefer `tools/build` (`config.toml` blob + migration registry) over manual per-cut scripts for day-to-day builds. Post-AE cluster audit concluded Path B remains appropriate.
+**LOCAL FACT (Cuts A–AG complete, 2026-08-10):** Stage 2 production envelope through Cut AG (`ntfs_test_bootsec`) — see [`migration-plan.md`](migration-plan.md). Prefer `tools/build` (`config.toml` blob + migration registry) over manual per-cut scripts for day-to-day builds. Post-AF raised-bar cluster audit concluded Path B remains appropriate (no Rust-owned subsystem boundary yet).
 
 **INFERENCE (future functions):** anything that reintroduces `.rodata`/GOTOFF/cross-section refs needs either a reloc-free rewrite or `rust-lld` at the FASM placement VMA — evaluate per function.
