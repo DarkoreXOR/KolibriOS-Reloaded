@@ -1,36 +1,42 @@
 # mkfs_utils
 
-Reusable filesystem image generators invoked by the orchestrator `mkfs` command.
+Reusable filesystem image generators invoked by `scripts/mkfs.py`.
 
 | Script | Output |
 |--------|--------|
 | `create_exfat_image.py` | `./images/exfat-image.img` |
 | `create_ntfs_image.py` | `./images/ntfs-image.img` |
 
+Default size via `scripts/mkfs.py`: **128M**.
+
 ## exFAT
 
 Requires Python **FATtools**:
 
-```powershell
+```bash
 python -m pip install -r tools/mkfs_utils/requirements.txt
+python scripts/mkfs.py exfat 128M
 ```
 
-```powershell
-python tools/mkfs_utils/create_exfat_image.py --size 4M
-```
+Creates a whole-disk exFAT volume (`PartitionOffset=0`) and populates the
+regression tree. Verified by listing the root after create.
 
 ## NTFS
 
-On **Windows**, uses `diskpart` + `Format-Volume` (administrator privileges may be
-required). Minimum practical size is **8M**.
+| Platform | Backend |
+|----------|---------|
+| Linux | `losetup` + `mkfs.ntfs` (whole-disk), then populate |
+| Windows | **diskpart** (Administrator) — MBR + one NTFS partition, then populate |
 
-On **Linux**, uses `losetup` + `mkfs.ntfs` (ntfs-3g, root required).
+`scripts/mkfs.py ntfs` passes `--use-diskpart` on Windows automatically. Run the
+shell elevated when recreating with `--force`.
 
-Prefer the orchestrator:
+The pure-Python `--allow-minimal` path is experimental and usually unmountable
+in Kolibri; do not use it for regression.
 
-```powershell
-cargo run --manifest-path tools/orch/Cargo.toml -- mkfs ntfs 8M
-cargo run --manifest-path tools/orch/Cargo.toml -- mkfs exfat 4M
+```bash
+python scripts/mkfs.py ntfs 128M
+python scripts/mkfs.py ntfs 128M --force   # needs Admin on Windows
 ```
 
 Each image contains a deterministic regression tree: root files, nested

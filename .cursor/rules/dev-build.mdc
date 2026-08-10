@@ -7,11 +7,11 @@ alwaysApply: true
 
 ## Where disposable files go
 
-Use **`dev_build/`** (orchestrator default: `dev_build/test/`) for:
+Use **`dev_build/`** (default: `dev_build/test/`) for:
 
 - CoW / writable boot images for kernel testing
 - Screendumps, QMP logs, and other short-lived validation artifacts
-- Orchestrator markers such as `dev_build/last_image.txt`, `dev_build/orch-mode.txt`
+- Markers such as `dev_build/last_image.txt`, `dev_build/build-mode.txt`
 
 Do **not** use `tmp_images/` for new work. That directory is deprecated.
 
@@ -33,12 +33,12 @@ Delete when finished with:
 
 Prefer **targeted deletes** of files you created for the task. Do not wipe an
 image still referenced by an in-progress flow (e.g. `dev_build/last_image.txt`
-pointing at an image you still need for `@run_qemu`).
+pointing at an image you still need for `scripts/run_qemu.py`).
 
-When a full reset is appropriate, use the orchestrator:
+When a full reset is appropriate:
 
 ```text
-orch @clean
+python scripts/clean.py --full
 ```
 
 That removes `build/` and `dev_build/` and preserves `images/`.
@@ -47,7 +47,7 @@ That removes `build/` and `dev_build/` and preserves `images/`.
 
 - The read-only reference floppy (`kolibrios-*.img`) — see `image-handling.mdc`
 - Persistent disks under `images/`
-- Source trees (`kernel/`, `rust_kernel/`, `.orch/`, `tools/`, `project/`, …)
+- Source trees (`kernel/`, `rust_kernel/`, `scripts/`, `tools/`, `project/`, …)
 
 ## Relation to image free-space deletes
 

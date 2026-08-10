@@ -3,13 +3,16 @@
 
 Usage (from repository root):
 
-    python tools/mkfs_utils/create_ntfs_image.py --size 8M
-    python tools/mkfs_utils/create_ntfs_image.py --size 8M -o images/ntfs-image.img --force
+    python tools/mkfs_utils/create_ntfs_image.py --size 128M --force
+    python tools/mkfs_utils/create_ntfs_image.py --size 128M --force --use-diskpart
 
 Backends (tried in order):
-  1. mkfs.ntfs on a loop device (Linux, requires root)
-  2. Windows diskpart + Format-Volume (optional, requires elevation; --use-diskpart)
-  3. Pure-Python minimal NTFS formatter (default on Windows without elevation)
+    1. mkfs.ntfs on a loop device (Linux, requires root) — whole-disk NTFS
+    2. Windows diskpart (requires Administrator) — MBR + one NTFS partition
+    3. Pure-Python minimal NTFS (experimental; usually unmountable in Kolibri)
+
+On Windows, diskpart is the supported path. Pass ``--use-diskpart`` (scripts/mkfs.py
+does this automatically on Windows).
 
 Minimum practical size is 8M (NTFS metadata overhead).
 """
@@ -21,6 +24,7 @@ import os
 import platform
 import re
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -62,10 +66,69 @@ def parse_size(text: str) -> int:
     return size
 
 
-def oem_ntfs_ok(path: Path) -> bool:
+def find_ntfs_boot_offset(path: Path) -> int | None:
+    """Byte offset of an NTFS boot sector (whole-disk or first MBR partition)."""
     with open(path, "rb") as f:
-        boot = f.read(11)
-    return boot[3:11] == b"NTFS    "
+        sector0 = f.read(512)
+        if sector0[3:11] == b"NTFS    ":
+            return 0
+        if sector0[510:512] != b"\x55\xaa":
+            return None
+        for ent_off in (0x1BE, 0x1CE, 0x1DE, 0x1EE):
+            pe = sector0[ent_off : ent_off + 16]
+            lba = int.from_bytes(pe[8:12], "little")
+            if lba == 0:
+                continue
+            f.seek(lba * 512)
+            boot = f.read(512)
+            if boot[3:11] == b"NTFS    ":
+                return lba * 512
+    return None
+
+
+def mft_ok_at(path: Path, boot_offset: int) -> bool:
+    with open(path, "rb") as f:
+        f.seek(boot_offset)
+        boot = f.read(512)
+    if boot[3:11] != b"NTFS    ":
+        return False
+    bps = struct.unpack_from("<H", boot, 11)[0]
+    spc = boot[13]
+    if bps == 0 or spc == 0:
+        return False
+    mft_lcn = struct.unpack_from("<Q", boot, 0x30)[0]
+    off = boot_offset + mft_lcn * spc * bps
+    with open(path, "rb") as f:
+        f.seek(off)
+        return f.read(4) == b"FILE"
+
+
+def populated_ok(path: Path, boot_offset: int) -> bool:
+    """Heuristic: regression README.TXT name present as UTF-16LE near the volume."""
+    with open(path, "rb") as f:
+        f.seek(boot_offset)
+        # Scan first 2 MiB of the volume for the UTF-16LE file name.
+        chunk = f.read(2 * 1024 * 1024)
+    return b"R\x00E\x00A\x00D\x00M\x00E\x00.\x00T\x00X\x00T\x00" in chunk
+
+
+def ntfs_image_ok(path: Path, *, require_populated: bool = True) -> bool:
+    off = find_ntfs_boot_offset(path)
+    if off is None or not mft_ok_at(path, off):
+        return False
+    if require_populated and not populated_ok(path, off):
+        return False
+    return True
+
+
+def oem_ntfs_ok(path: Path) -> bool:
+    """Backward-compatible: True if any NTFS boot sector is present."""
+    return find_ntfs_boot_offset(path) is not None
+
+
+def mft_ok(path: Path) -> bool:
+    off = find_ntfs_boot_offset(path)
+    return off is not None and mft_ok_at(path, off)
 
 
 def find_mkfs_ntfs() -> str | None:
@@ -108,8 +171,14 @@ def create_ntfs_minimal(out: Path, size_bytes: int) -> None:
     if size_bytes < 8 * 1024 * 1024:
         size_bytes = 8 * 1024 * 1024
     format_minimal_ntfs(out, size_bytes, regression_files())
-    if not oem_ntfs_ok(out):
-        raise SystemExit(f"ERROR: minimal NTFS formatter produced invalid boot sector: {out}")
+    if not ntfs_image_ok(out, require_populated=False):
+        out.unlink(missing_ok=True)
+        raise SystemExit(
+            "ERROR: minimal NTFS formatter produced an unmountable image "
+            "(MFT missing).\n"
+            "On Windows use diskpart (Administrator):\n"
+            "  python tools/mkfs_utils/create_ntfs_image.py --size 128M --force --use-diskpart"
+        )
 
 
 def create_ntfs_linux(out: Path, size_bytes: int) -> bool:
@@ -168,6 +237,7 @@ def run_diskpart(script: str) -> None:
 def create_ntfs_windows_diskpart(out: Path, size_bytes: int) -> None:
     if size_bytes < 8 * 1024 * 1024:
         size_bytes = 8 * 1024 * 1024
+    size_mb = max(size_bytes // (1024 * 1024), 8)
 
     with tempfile.TemporaryDirectory() as tmp:
         vhd = Path(tmp) / "kolibri_ntfs.vhd"
@@ -175,9 +245,10 @@ def create_ntfs_windows_diskpart(out: Path, size_bytes: int) -> None:
 
         create_script = textwrap.dedent(
             f"""
-            create vdisk file={vhd_str} maximum={size_bytes} type=fixed
+            create vdisk file={vhd_str} maximum={size_mb} type=fixed
             select vdisk file={vhd_str}
             attach vdisk
+            convert mbr
             create partition primary
             format fs=ntfs quick label=KOLIBRI
             assign letter=K
@@ -187,7 +258,10 @@ def create_ntfs_windows_diskpart(out: Path, size_bytes: int) -> None:
 
         mount = Path("K:/")
         if not mount.exists():
-            raise SystemExit("ERROR: could not mount NTFS volume at K:")
+            raise SystemExit(
+                "ERROR: could not mount NTFS volume at K: "
+                "(is diskpart running elevated as Administrator?)"
+            )
 
         populate_tree(mount)
 
@@ -199,23 +273,37 @@ def create_ntfs_windows_diskpart(out: Path, size_bytes: int) -> None:
         )
         run_diskpart(detach_script)
 
+        # Fixed VHD = raw image + 512-byte footer.
         disk_bytes = vhd.stat().st_size - 512
         with open(vhd, "rb") as src, open(out, "wb") as dst:
             dst.write(src.read(disk_bytes))
 
-    if not oem_ntfs_ok(out):
-        raise SystemExit(f"ERROR: output does not look like NTFS: {out}")
+    if not ntfs_image_ok(out, require_populated=True):
+        out.unlink(missing_ok=True)
+        raise SystemExit(
+            "ERROR: diskpart NTFS image failed validation "
+            "(expected MBR+NTFS partition with regression tree)"
+        )
 
 
-def create_image(out: Path, size_bytes: int, force: bool, use_diskpart: bool) -> str:
+def create_image(
+    out: Path,
+    size_bytes: int,
+    force: bool,
+    use_diskpart: bool,
+    *,
+    allow_minimal: bool = False,
+) -> str:
     out = out.resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
 
     if out.exists() and not force:
-        if out.stat().st_size >= 8 * 1024 * 1024 and oem_ntfs_ok(out):
+        if out.stat().st_size >= 8 * 1024 * 1024 and ntfs_image_ok(
+            out, require_populated=True
+        ):
             print(f"reused: {out}")
             return "reused"
-        print(f"Existing image invalid; recreating: {out}")
+        print(f"Existing image invalid or empty; recreating: {out}")
 
     tmp = out.with_suffix(out.suffix + ".tmp")
     if tmp.exists():
@@ -224,18 +312,40 @@ def create_image(out: Path, size_bytes: int, force: bool, use_diskpart: bool) ->
     if create_ntfs_linux(tmp, size_bytes):
         pass
     elif use_diskpart and platform.system() == "Windows":
-        try:
-            create_ntfs_windows_diskpart(tmp, size_bytes)
-        except (SystemExit, OSError) as e:
-            print(f"diskpart backend failed ({e}); falling back to minimal NTFS", file=sys.stderr)
-            create_ntfs_minimal(tmp, size_bytes)
-    else:
+        create_ntfs_windows_diskpart(tmp, size_bytes)
+    elif allow_minimal:
         create_ntfs_minimal(tmp, size_bytes)
+    elif platform.system() == "Windows":
+        raise SystemExit(
+            "ERROR: on Windows, NTFS images require Administrator diskpart.\n"
+            "Re-run:\n"
+            "  python tools/mkfs_utils/create_ntfs_image.py --size 128M --force --use-diskpart\n"
+            "or:\n"
+            "  python scripts/mkfs.py ntfs 128M --force\n"
+            "(scripts/mkfs.py passes --use-diskpart on Windows automatically)."
+        )
+    else:
+        raise SystemExit(
+            "ERROR: no NTFS backend available "
+            "(need mkfs.ntfs+loop on Linux, or diskpart on Windows)."
+        )
+
+    if not ntfs_image_ok(tmp, require_populated=True):
+        # Minimal backend may pass MFT but not population heuristic — still reject.
+        if not (allow_minimal and mft_ok(tmp)):
+            tmp.unlink(missing_ok=True)
+            raise SystemExit(
+                "ERROR: created NTFS image failed validation "
+                "(MFT / regression tree).\n"
+                "Use --use-diskpart on Windows (admin), or mkfs.ntfs on Linux."
+            )
 
     if out.exists():
         out.unlink()
     os.replace(tmp, out)
     print(f"created: {out}")
+    boot = find_ntfs_boot_offset(out)
+    print(f"  ntfs_boot_offset: {boot}")
     return "created"
 
 
@@ -247,7 +357,12 @@ def main() -> int:
     parser.add_argument(
         "--use-diskpart",
         action="store_true",
-        help="try Windows diskpart backend (requires administrator elevation)",
+        help="Windows: use diskpart (requires Administrator)",
+    )
+    parser.add_argument(
+        "--allow-minimal",
+        action="store_true",
+        help="allow experimental pure-Python NTFS (usually unmountable in Kolibri)",
     )
     args = parser.parse_args()
 
@@ -257,7 +372,13 @@ def main() -> int:
     if not out.is_absolute():
         out = (Path.cwd() / out).resolve()
 
-    outcome = create_image(out, size_bytes, args.force, args.use_diskpart)
+    outcome = create_image(
+        out,
+        size_bytes,
+        args.force,
+        args.use_diskpart,
+        allow_minimal=args.allow_minimal,
+    )
     print(f"outcome: {outcome}")
     print(f"  size: {out.stat().st_size} bytes")
     return 0

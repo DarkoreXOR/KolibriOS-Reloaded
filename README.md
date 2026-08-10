@@ -6,73 +6,73 @@ current hybrid kernel, put it on a **fresh disposable floppy image**, and
 smoke-test it under QEMU before further migration work.
 
 Do **not** modify the reference image at the repository root. Always work on a
-CoW / disposable copy (`dev_build/` via the orchestrator).
+CoW / disposable copy (`dev_build/` via the Python scripts).
 
 ## Build and QEMU
 
-Preferred developer workflow (from the repository root) uses the generic
-orchestrator (`orch`) with Actions / Workflows:
+Preferred developer workflow uses plain Python scripts under [`scripts/`](scripts/):
 
-```powershell
-# PowerShell: --% prevents $ / @ expansion. Launcher is orch.cmd at repo root.
-.\orch --% run:dev
-.\orch --% @build:dev
-.\orch --% @mkfs exfat 4M
-.\orch --% @clean
-.\orch --% @doctor
+```bash
+python scripts/doctor.py
+python scripts/run.py
+python scripts/build.py
+python scripts/mkfs.py exfat 4M
+python scripts/clean.py
 ```
 
-Optional: `cargo install --path tools/orch` puts `orch` on PATH (still use `--%` in PowerShell).
 ```text
 Rust blobs (Cuts A–AH) → assemble kernel.mnt → fresh dev_build/test/*.img → QEMU
 ```
 
-Project orchestration is **Rhai** (`.orch/actions`, `.orch/workflows`)
-reading CONFIG_DATA from [`project/build.toml`](project/build.toml). Focused tools:
-`tools/kolibri_img`, `tools/mkfs_utils`, `tools/migration_gates`. The generic `orch`
-runtime has no Kolibri-specific APIs.
+Project automation is **Python** (`scripts/`) reading CONFIG_DATA from
+[`project/build.toml`](project/build.toml). Focused tools:
+`tools/kolibri_img`, `tools/mkfs_utils`, `tools/migration_gates`.
 
-| Unit | Action |
-|------|--------|
-| `run` / `run:dev` | Build → fresh image → QEMU |
-| `@build` / `@build:dev` | Rust blobs + `kernel/bin/kernel.mnt` |
-| `@prepare_image` | CoW package under `dev_build/test/` |
-| `@run_qemu` | Launch QEMU with last packaged image |
-| `@ref` | Boot reference floppy with `-snapshot` |
-| `@mkfs` | Create/reuse persistent `./images/{fs}-image.img` |
-| `fs_images` | Generate default exFAT + NTFS images under `./images/` |
-| `clean` | Remove disposable files under `./dev_build/*` (keeps README) |
-| `@clean` | Remove `./build/` and `./dev_build/` (preserves `./images/`) |
-| `@clean:dev_build` | Same as workflow `clean` |
-| `@doctor` | Check tools and `project/build.toml` paths |
-| `$ source` | Inline Rhai anonymous Action (no temporary file) |
+| Script | Action |
+|--------|--------|
+| `scripts/run.py` | Build → fresh image → QEMU |
+| `scripts/regression.py` | Ensure FS images → build → package → QEMU with exFAT + NTFS (`/hd0`, `/hd1`) |
+| `scripts/build.py` | Rust blobs + `kernel/bin/kernel.mnt` |
+| `scripts/prepare_image.py` | CoW package under `dev_build/test/` |
+| `scripts/run_qemu.py` | Launch QEMU with last packaged image |
+| `scripts/reference_qemu.py` | Boot reference floppy with `-snapshot` |
+| `scripts/mkfs.py` | Create/reuse persistent `./images/{fs}-image.img` |
+| `scripts/clean.py` | Remove disposable files under `./dev_build/*` (keeps README) |
+| `scripts/clean.py --full` | Remove `./build/` and `./dev_build/` (preserves `./images/`) |
+| `scripts/doctor.py` | Check tools and `project/build.toml` paths |
 
 Examples:
 
-```powershell
-.\orch --% @build:dev
-.\orch --% run:dev
-.\orch --% @ref
+```bash
+python scripts/build.py
+python scripts/run.py
+python scripts/reference_qemu.py
+python scripts/regression.py
 ```
 
-`run_qemu` attaches persistent disks from `./images/` when given `--disk:TYPE`,
-or the legacy `[testdisk]` entry from `project/build.toml` when none are specified.
-See [`images/README.md`](images/README.md).
+`run_qemu.py` attaches persistent disks from `./images/` when given `--disk TYPE`
+(IDE → Eolite `/hd0/1`, `/hd1/1`, …; optional `--bus ahci` → `/sdN/1`). With no
+`--disk`, the legacy `[testdisk]` entry from `project/build.toml` is attached the
+same way. See [`images/README.md`](images/README.md).
 
-`@ref` launches QEMU on `kolibrios-*-en_US.img` with `-snapshot`
+`reference_qemu.py` launches QEMU on `kolibrios-*-en_US.img` with `-snapshot`
 so the reference file is never written. Use it to compare a known-good stock boot
 against a hybrid test image.
 
-Useful flags (unit-local unless noted; globals must precede units):
+Useful flags:
 
 | Flag | Meaning |
 |------|---------|
-| `--quiet` / `--verbose` / `--json` | Global orch output modes |
-| `--skip-tests` | Skip host `cargo test` during `$build_rust` / build |
-| `--headless` | Add headless/QMP QEMU args from config (`$run_qemu` / `@ref`) |
+| `--verbose` | Extra script logging |
+| `--skip-tests` | Skip host `cargo test` during Rust build |
+| `--headless` | Add headless/QMP QEMU args from config |
+| `--disk TYPE` | Attach `images/TYPE-image.img` (repeatable) |
+| `--mode NAME` / `--release` | Build mode from `[modes.*]` |
 
 Settings (QEMU path, image dir, blob list, migration gates, etc.) live in
 [`project/build.toml`](project/build.toml).
+
+More detail: [`scripts/README.md`](scripts/README.md).
 
 ## Prerequisites
 
@@ -80,9 +80,9 @@ Tools required by the current Windows workflow (this tree):
 
 | Tool | Role |
 |------|------|
-| **Rust stable** | Orchestrator, `cargo test`, `tools/kolibri_img` |
+| **Rust stable** | Project scripts, `cargo test`, `tools/kolibri_img` |
 | **Rust nightly** + **`rust-src`** | Freestanding `build-std` for target `i686-kolibri-none` |
-| **Python 3** | Extracts reloc-free blobs from `libkolibri_utils.a` (invoked by the orchestrator); also builds the exFAT testdisk via `FATtools` |
+| **Python 3** | Extracts reloc-free blobs from `libkolibri_utils.a` (invoked by `scripts/build_rust.py`); also builds the exFAT testdisk via `FATtools` |
 | **Vendored FASM** (`tools/fasm/FASM.EXE`) | Assembles `kernel.mnt` (do not assume system `fasm` on `PATH`) |
 | **QEMU** `qemu-system-i386` | Boot smoke (often `C:\Program Files\qemu\qemu-system-i386.exe` on Windows; may not be on `PATH`) |
 
@@ -90,7 +90,7 @@ Also required in the tree:
 
 * Reference floppy: `kolibrios-0.7.7.0-9160-g944d74f01-en_US.img` (read-only)
 * Host image tool sources: `tools/kolibri_img/`
-* Orchestrator: `tools/orch/` (Rhai under `.orch/`)
+* Automation scripts: `scripts/`
 * exFAT testdisk generator: `tools/testdata/` (`python -m pip install -r tools/testdata/requirements.txt`)
 
 Install `rust-src` for nightly if needed:
@@ -101,9 +101,8 @@ rustup component add rust-src --toolchain nightly
 
 ## Manual workflow (optional)
 
-The steps below are the low-level commands the orchestrator coordinates.
-Prefer `.\orch --% run:dev` unless you are
-debugging a single stage.
+The steps below are the low-level commands the Python scripts coordinate.
+Prefer `python scripts/run.py` unless you are debugging a single stage.
 
 All commands start from the **repository root** unless noted.
 
@@ -128,7 +127,7 @@ rust_kernel/kolibri_utils/out/rust_pid_to_slot.bin
 rust_kernel/kolibri_utils/out/rust_phase_c_probe.bin
 ```
 
-This step does **not** assemble `kernel.mnt`. The orchestrator’s `build` /
+This step does **not** assemble `kernel.mnt`. The `scripts/build.py` /
 `run` commands perform the same extract list from `project/build.toml`.
 
 ### 2. Assemble `kernel.mnt`
@@ -142,11 +141,11 @@ Set-Content kernel\lang.inc "lang fix en_US`n"
 Remove-Item kernel\lang.inc
 ```
 
-Or let the orchestrator sync every `USE_RUST_*` gate from `project/build.toml` and
+Or let `scripts/build.py` sync every `USE_RUST_*` gate from `project/build.toml` and
 assemble:
 
 ```powershell
-.\orch --% @build_kernel --skip-tests
+python scripts/build.py --skip-tests
 ```
 
 **Artifact:**
@@ -273,12 +272,12 @@ When finished, quit QEMU. Disposable images under `dev_build/` may be deleted.
 
 | Symptom | Likely cause / fix |
 |---------|--------------------|
-| FASM error opening `rust_kernel/kolibri_utils/out/*.bin` | Blobs missing — run `build-utf8to16.ps1` or `orch build` first (`out/` is generated, not committed) |
+| FASM error opening `rust_kernel/kolibri_utils/out/*.bin` | Blobs missing — run `build-utf8to16.ps1` or `python scripts/build.py` first (`out/` is generated, not committed) |
 | `cargo +nightly build` / `build-std` fails | Install nightly and `rust-src` (`rustup component add rust-src --toolchain nightly`) |
 | `python: command not found` during blob extract | Install Python 3 and ensure `python` is on `PATH` |
-| `lang.inc` / assemble errors | Run the assemble sequence from the **repo root**; create ephemeral `kernel/lang.inc` as shown, then remove it — or use `orch build` |
+| `lang.inc` / assemble errors | Run the assemble sequence from the **repo root**; create ephemeral `kernel/lang.inc` as shown, then remove it — or use `python scripts/build.py` |
 | `kolibri_img` missing | `cd tools\kolibri_img` then `cargo build --release` |
-| `replace` fails (not enough space / write refused) | Always `cow` to `dev_build/`/`build/test/`, then delete authorized free-space paths (`DOCPACK`, `DEVELOP/FASM`, `3D/VIEW3DS`, `GAMES/DINO` — see `.cursor/rules/image-handling.mdc`), then `replace`. Never mutate `kolibrios-*.img`. The orchestrator does this via `project/build.toml` `delete_before_replace`. |
+| `replace` fails (not enough space / write refused) | Always `cow` to `dev_build/`/`build/test/`, then delete authorized free-space paths (`DOCPACK`, `DEVELOP/FASM`, `3D/VIEW3DS`, `GAMES/DINO` — see `.cursor/rules/image-handling.mdc`), then `replace`. Never mutate `kolibrios-*.img`. The prepare_image script does this via `project/build.toml` `delete_before_replace`. |
 | QEMU not found | Use the full path to `qemu-system-i386.exe`, or add QEMU to `PATH` |
 | Boots but looks like an old build | Image was not recreated or still has old `KERNEL.MNT` — rebuild `kernel.mnt`, then new `cow` + `delete` + `replace` |
 | Wrong directory | FASM and `powershell -File …` expect repo-root paths; `kolibri_img` commands in the docs use paths relative to `tools/kolibri_img` |
@@ -288,7 +287,7 @@ When finished, quit QEMU. Disposable images under `dev_build/` may be deleted.
 ## Development verification workflow
 
 ```text
-1. .\orch --% run:dev
+1. python scripts/run.py
 2. Manually verify the desktop
 3. Launch several /sys applications
 4. Stop QEMU
@@ -308,5 +307,5 @@ After this manual QEMU verification succeeds, development continues with the
 * Build system notes: [`docs/architecture/build-system.md`](docs/architecture/build-system.md)
 * Migration status: [`docs/migration/migration-plan.md`](docs/migration/migration-plan.md)
 * Latest cut: [`docs/migration/cut-ab-implementation.md`](docs/migration/cut-ab-implementation.md)
-* Orchestrator: [`tools/orch/README.md`](tools/orch/README.md)
+* Scripts: [`scripts/README.md`](scripts/README.md)
 * Image tool: [`tools/kolibri_img/README.md`](tools/kolibri_img/README.md)

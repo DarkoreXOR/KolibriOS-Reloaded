@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import struct
 import sys
 from pathlib import Path
 
@@ -107,9 +108,14 @@ def verify_image(path: Path, size_bytes: int) -> None:
         raise SystemExit(f"ERROR: image size {path.stat().st_size} != {size_bytes}")
 
     with open(path, "rb") as f:
-        boot = f.read(11)
+        boot = f.read(512)
     if boot[3:11] != b"EXFAT   ":
-        raise SystemExit(f"ERROR: missing exFAT OEM name: {boot!r}")
+        raise SystemExit(f"ERROR: missing exFAT OEM name: {boot[:11]!r}")
+    part_off = struct.unpack_from("<Q", boot, 64)[0]
+    if part_off != 0:
+        raise SystemExit(
+            f"ERROR: PartitionOffset={part_off} (want 0 for whole-disk Kolibri images)"
+        )
 
     from FATtools.Volume import vclose, vopen
 
@@ -122,6 +128,40 @@ def verify_image(path: Path, size_bytes: int) -> None:
             )
     finally:
         vclose(fs)
+
+
+def exfat_boot_checksum(boot_region: bytes) -> int:
+    """Volume boot checksum over the first 11 sectors (exFAT spec)."""
+    checksum = 0
+    for index, byte in enumerate(boot_region):
+        if index in (106, 107, 112):
+            continue
+        checksum = (
+            (0x80000000 if (checksum & 1) else 0) + (checksum >> 1) + byte
+        ) & 0xFFFFFFFF
+    return checksum
+
+
+def normalize_whole_disk_exfat(path: Path) -> None:
+    """FATtools often sets PartitionOffset=2048 on raw disks; Kolibri expects 0."""
+    with open(path, "r+b") as f:
+        main = bytearray(f.read(12 * 512))
+        if main[3:11] != b"EXFAT   ":
+            raise SystemExit(f"ERROR: not an exFAT boot sector: {path}")
+        struct.pack_into("<Q", main, 64, 0)
+        packed = struct.pack("<I", exfat_boot_checksum(main[: 11 * 512]))
+        main[11 * 512 : 12 * 512] = packed * (512 // 4)
+        f.seek(0)
+        f.write(main)
+        if path.stat().st_size >= 24 * 512:
+            f.seek(12 * 512)
+            backup = bytearray(f.read(12 * 512))
+            if backup[3:11] == b"EXFAT   ":
+                struct.pack_into("<Q", backup, 64, 0)
+                packed = struct.pack("<I", exfat_boot_checksum(backup[: 11 * 512]))
+                backup[11 * 512 : 12 * 512] = packed * (512 // 4)
+                f.seek(12 * 512)
+                f.write(backup)
 
 
 def create_image(out: Path, size_bytes: int, force: bool) -> str:
@@ -154,6 +194,8 @@ def create_image(out: Path, size_bytes: int, force: bool) -> str:
         exfat_mkfs(disk, disk.size)
     finally:
         vclose(disk)
+
+    normalize_whole_disk_exfat(tmp)
 
     fs = vopen(str(tmp), "r+b")
     try:

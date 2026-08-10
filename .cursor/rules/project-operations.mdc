@@ -1,0 +1,81 @@
+---
+description: KolibriOS project operations — use plain Python scripts as the automation entry point
+alwaysApply: true
+---
+
+# Project Operations
+
+Project automation is **plain Python** under `scripts/`. Focused utilities live
+under `tools/`. There is no custom orchestrator, Rhai runtime, or Action/Workflow
+framework.
+
+Before creating ad-hoc shell one-liners:
+
+1. Prefer an existing script: `python scripts/<name>.py --help`
+2. Check focused tools under `./tools/` (`kolibri_img`, `mkfs_utils`,
+   `migration_gates`, …)
+3. Compose by importing Python functions or calling scripts via `subprocess`
+
+## Architecture
+
+```text
+scripts/   = project automation (build, image, QEMU, clean, doctor, …)
+tools/     = focused utilities (narrow I/O — not a second orchestrator)
+project/   = CONFIG_DATA (e.g. project/build.toml)
+```
+
+Do **not** create a monolithic `tools/kolibri_ops` (or similar) that re-hosts
+the build/image/QEMU pipeline. Composition belongs in Python scripts; tools stay
+focused.
+
+## Agent automation policy
+
+**Python scripts under `scripts/` are the automation boundary used by the AI
+agent.**
+
+Do not directly invoke PowerShell, cmd, bash, or one-off shell pipelines for
+repository automation when a `scripts/*.py` entry point exists.
+
+```text
+python scripts/doctor.py
+python scripts/build.py
+python scripts/run.py
+python scripts/regression.py
+python scripts/clean.py
+```
+
+Invoke external programs (`cargo`, FASM, QEMU, tool CLIs) from Python via
+`subprocess` when extending automation.
+
+If a capability is missing: add or extend a script under `scripts/`, or a focused
+tool under `tools/`. Do not introduce a new orchestration framework, DSL, or
+Rhai/Lua/JS scripting layer.
+
+## Common commands
+
+```text
+python scripts/doctor.py
+python scripts/build.py [--mode dev|release] [--skip-tests]
+python scripts/prepare_image.py
+python scripts/run_qemu.py [--disk exfat] [--disk ntfs] [--headless]
+python scripts/run.py
+python scripts/regression.py
+python scripts/reference_qemu.py
+python scripts/mkfs.py [exfat|ntfs] [size]
+python scripts/clean.py [--full]
+```
+
+## Artifact paths
+
+| Path | Purpose |
+|------|---------|
+| `build/` | Production build artifacts |
+| `dev_build/` | Disposable test images and temp artifacts |
+| `images/` | Persistent FS regression images |
+| `project/build.toml` | Blob/migration/image/QEMU CONFIG_DATA |
+
+Do not use `tmp_images/` for new work. See `.cursor/rules/dev-build.mdc`.
+
+## Image handling
+
+See `.cursor/rules/image-handling.mdc` — reference `kolibrios-*.img` is immutable.

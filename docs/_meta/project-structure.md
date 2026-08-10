@@ -11,8 +11,10 @@ Evidence labels: see [`evidence-policy.md`](evidence-policy.md).
 | [`tools/`](../../tools/) | Host utilities (image inspect/CoW, etc.). **Not** linked into the kernel. |
 | [`docs/`](../../docs/) | Architecture, compatibility, migration, and tooling notes for this repo. |
 | [`tools/fasm/`](../../tools/fasm/) | Vendored FASM toolchain (`FASM.EXE`, includes, examples). |
-| [`dev_build/`](../../dev_build/) | Disposable CoW / test images and temp artifacts (gitignored). Orchestrator default: `dev_build/test/`. Delete unused temps after use (see `.cursor/rules/dev-build.mdc`). |
+| [`dev_build/`](../../dev_build/) | Disposable CoW / test images and temp artifacts (gitignored). Script default: `dev_build/test/`. Delete unused temps after use (see `.cursor/rules/dev-build.mdc`). |
 | [`images/`](../../images/) | Persistent filesystem regression disks (`exfat-image.img`, `ntfs-image.img`). |
+| [`scripts/`](../../scripts/) | Plain Python project automation (build, image, QEMU, clean, doctor). |
+| [`project/`](../../project/) | CONFIG_DATA (`build.toml`). |
 | `kolibrios-0.7.7.0-9160-g944d74f01-en_US.img` | **Original reference floppy image — read-only.** Do not modify in place. |
 
 Name choice: `rust_kernel/` (not `kernel-rs/` or a root `crates/`) so the FASM vs Rust split is obvious next to `kernel/`.
@@ -29,7 +31,7 @@ rust_kernel/
     i686-kolibri-none.json   # custom freestanding i686 target
     build-utf8to16.ps1       # Cut AB: host test + freestanding build + extract all blobs
     build-pid-to-slot.ps1    # Cut AA helper (prior; still builds full blob set)
-    build-*.ps1              # per-cut helpers (A–AA); prefer newest or orch
+    build-*.ps1              # per-cut helpers (A–AA); prefer python scripts/build.py
     scripts/extract_phase_c_probe.py
     scripts/extract_reloc_free_text.py
     out/                     # generated *.bin blobs (gitignored)
@@ -37,7 +39,7 @@ rust_kernel/
   target/                    # local build output (gitignored; may be overridden by CARGO_TARGET_DIR)
 ```
 
-Orchestrator (preferred): [`../../tools/orch/`](../../tools/orch/) + [`.orch/config.toml`](../../.orch/config.toml) — Rhai Actions extract registered blobs and sync `USE_RUST_*` gates from [`project/build.toml`](../../project/build.toml).
+Preferred automation: [`../../scripts/`](../../scripts/) — Python scripts extract registered blobs and sync `USE_RUST_*` gates from [`project/build.toml`](../../project/build.toml).
 
 Phase C FASM glue: [`kernel/rust/phase_c.inc`](../../kernel/rust/phase_c.inc). Docs: [`../migration/phase-c-integration.md`](../migration/phase-c-integration.md).  
 Cut A Unicode/CRC embeds: `kernel/rust/{crc,utf16,cp866,utf8}.inc` + gates in `kernel/{crc,unicode}.inc`.  
@@ -56,7 +58,7 @@ cargo +nightly build -Z build-std=core,compiler_builtins -Z json-target-spec `
 
 Preferred one-shot for **all** current blobs:  
 `powershell -File rust_kernel/kolibri_utils/build-utf8to16.ps1`  
-Or: `cargo run --manifest-path tools/orch/Cargo.toml -- --% @build`
+Or: `python scripts/build.py`
 
 See [`../architecture/build-system.md`](../architecture/build-system.md) and [`../architecture/boot-sequence.md`](../architecture/boot-sequence.md).
 
@@ -153,6 +155,6 @@ Supports FAT12/FAT16 BPB detection; directory walk for simple 8.3 paths; refuses
 - Latest cut (AB): [`../migration/cut-ab-implementation.md`](../migration/cut-ab-implementation.md)
 - Cut A Rust utils: [`../migration/cut-a-implementation.md`](../migration/cut-a-implementation.md)
 - Cut A final architecture: [`../migration/cut-a-final-architecture.md`](../migration/cut-a-final-architecture.md)
-- Orchestrator: [`../../orch/README.md`](../../orch/README.md)
+- Scripts: [`../../scripts/README.md`](../../scripts/README.md)
 - FASM baseline restoration: [`../migration/fasm-baseline-restoration.md`](../migration/fasm-baseline-restoration.md)
 - Source inventory: [`source-inventory.md`](source-inventory.md)

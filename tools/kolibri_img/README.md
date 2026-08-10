@@ -22,8 +22,9 @@ Binary: `tools/kolibri_img/target/release/kolibri_img.exe`
 | `extract <img> <NAME> <out>` | Extract a root 8.3 file (e.g. `KERNEL.MNT`) |
 | `delete <img> <NAME>` | Delete a root 8.3 file on a **writable** copy |
 | `replace <img> <NAME> <host-file>` | Replace a root 8.3 file on a **writable** copy |
+| `put <img> <NAME> <host-file>` | Create or replace a root 8.3 file on a **writable** copy |
 
-`delete` / `replace` refuse filenames that look like the immutable `kolibrios-*.img` reference.
+`delete` / `replace` / `put` refuse filenames that look like the immutable `kolibrios-*.img` reference.
 
 Always keep `kolibrios-*-en_US.img` at the repo root read-only; operate on `dev_build/` copies.
 

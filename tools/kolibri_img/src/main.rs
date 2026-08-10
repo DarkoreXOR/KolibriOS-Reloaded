@@ -23,6 +23,7 @@ fn main() -> ExitCode {
         "extract" => cmd_extract(&args),
         "delete" => cmd_delete(&args),
         "replace" => cmd_replace(&args),
+        "put" => cmd_put(&args),
         "help" | "-h" | "--help" => {
             print_usage();
             Ok(())
@@ -50,13 +51,15 @@ Usage:
   kolibri_img extract <image.img> <FAT-NAME> <out-file>
   kolibri_img delete <writable-image.img> <FAT-NAME-OR-PATH>
   kolibri_img replace <writable-image.img> <FAT-NAME> <host-file>
+  kolibri_img put <writable-image.img> <FAT-NAME> <host-file>
 
 Rules:
   - Treat the original reference image as read-only.
-  - Use `cow` (or any explicit copy) before modify/replace/delete.
-  - `delete` / `replace` refuse known reference image filenames.
+  - Use `cow` (or any explicit copy) before modify/replace/delete/put.
+  - `delete` / `replace` / `put` refuse known reference image filenames.
   - Delete disposable copies under dev_build/ when done.
   - `delete` accepts root 8.3 names or nested paths (e.g. DEVELOP/FASM).
+  - `put` creates a new root file, or replaces it if already present.
 "
     );
 }
@@ -257,6 +260,57 @@ fn cmd_replace(args: &[String]) -> Result<(), BoxError> {
     img.save(img_path)?;
     println!(
         "replaced {name}: {old_size} bytes @cluster {old_start} -> {} bytes @cluster {new_start}",
+        new_bytes.len()
+    );
+    Ok(())
+}
+
+fn cmd_put(args: &[String]) -> Result<(), BoxError> {
+    let img_path = args
+        .first()
+        .ok_or("put requires <image.img> <NAME> <host-file>")?;
+    let name = args
+        .get(1)
+        .ok_or("put requires <image.img> <NAME> <host-file>")?;
+    let host = args
+        .get(2)
+        .ok_or("put requires <image.img> <NAME> <host-file>")?;
+    refuse_reference_image(img_path)?;
+    let new_bytes = fs::read(host)?;
+    let mut img = Image::open_mut(img_path)?;
+    let fat_name = to_fat_83(name)?;
+    if let Some((offset, entry)) = img.find_root_file_mut(&fat_name)? {
+        if entry.is_dir() {
+            return Err("refusing to put over a directory".into());
+        }
+        let old_start = entry.start_cluster;
+        let old_size = entry.size;
+        img.free_chain(old_start)?;
+        let new_start = if new_bytes.is_empty() {
+            0
+        } else {
+            img.allocate_and_write(&new_bytes)?
+        };
+        img.update_dirent(offset, new_start, new_bytes.len() as u32)?;
+        img.mirror_fats()?;
+        img.save(img_path)?;
+        println!(
+            "put (replaced) {name}: {old_size} bytes @cluster {old_start} -> {} bytes @cluster {new_start}",
+            new_bytes.len()
+        );
+        return Ok(());
+    }
+    let offset = img.find_free_root_dirent()?;
+    let new_start = if new_bytes.is_empty() {
+        0
+    } else {
+        img.allocate_and_write(&new_bytes)?
+    };
+    img.write_new_root_dirent(offset, &fat_name, new_start, new_bytes.len() as u32)?;
+    img.mirror_fats()?;
+    img.save(img_path)?;
+    println!(
+        "put (created) {name}: {} bytes @cluster {new_start}",
         new_bytes.len()
     );
     Ok(())
@@ -837,6 +891,43 @@ impl Image {
         self.data[offset + 30] = sz[2];
         self.data[offset + 31] = sz[3];
         Ok(())
+    }
+
+    fn find_free_root_dirent(&self) -> Result<usize, BoxError> {
+        let base = self.bpb.root_offset();
+        let size = self.bpb.root_size();
+        let mut off = 0usize;
+        while off + 32 <= size {
+            let o = base + off;
+            let first = self.data[o];
+            if first == 0x00 || first == 0xE5 {
+                return Ok(o);
+            }
+            off += 32;
+        }
+        Err("root directory is full".into())
+    }
+
+    fn write_new_root_dirent(
+        &mut self,
+        offset: usize,
+        fat_name_11: &str,
+        start: u16,
+        size: u32,
+    ) -> Result<(), BoxError> {
+        if offset + 32 > self.data.len() {
+            return Err("dirent offset out of range".into());
+        }
+        let name = fat_name_11.as_bytes();
+        if name.len() != 11 {
+            return Err("internal: FAT 8.3 name must be 11 bytes".into());
+        }
+        self.data[offset..offset + 11].copy_from_slice(name);
+        self.data[offset + 11] = 0x20; // archive
+        for b in &mut self.data[offset + 12..offset + 26] {
+            *b = 0;
+        }
+        self.update_dirent(offset, start, size)
     }
 
     fn mirror_fats(&mut self) -> Result<(), BoxError> {

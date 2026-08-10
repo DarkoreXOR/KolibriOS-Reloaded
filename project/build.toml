@@ -1,6 +1,6 @@
 # Project build / image / QEMU configuration (CONFIG_DATA).
 #
-# Consumed by Rhai Actions under .orch/actions/ — not by the generic orch runtime.
+# Consumed by Python scripts under scripts/.
 # Paths are relative to the repository root unless absolute.
 # Do not put secrets here.
 
@@ -14,7 +14,7 @@ workspace = "rust_kernel"
 package = "kolibri_utils"
 # Custom target JSON for `i686-kolibri-none`.
 target_json = "rust_kernel/kolibri_utils/i686-kolibri-none.json"
-# Isolates freestanding artifacts from orch's own target dir.
+# Isolates freestanding artifacts from other Cargo target dirs.
 cargo_target_dir = "rust_kernel/target"
 # Where reloc-free `*.bin` blobs are written (embedded by kernel/rust/*.inc).
 out_dir = "rust_kernel/kolibri_utils/out"
@@ -641,25 +641,24 @@ gate_file = "kernel/crc.inc"
 enabled = true
 
 # ---------------------------------------------------------------------------
-# Build modes (consumed by Rhai Actions @build:dev / @build:release)
+# Build modes (consumed by scripts/build.py --mode / --release)
 # ---------------------------------------------------------------------------
-# The generic orch runtime does not interpret these keys. Scripts read them
-# from CONFIG_DATA and apply behavior.
+# Scripts read these keys from CONFIG_DATA and apply behavior.
 [modes.dev]
 # Faster local iteration: still run host tests unless --skip-tests is passed.
 run_host_tests = true
 force_recompile_staticlib = true
-# Where @prepare_image writes disposable CoW images for this mode.
+# Where prepare_image.py writes disposable CoW images for this mode.
 image_output_dir = "dev_build/test"
-# Persist mode so later Actions in the same orch invocation can read it.
-mode_marker = "dev_build/orch-mode.txt"
+# Persist mode so later script steps can read it.
+mode_marker = "dev_build/build-mode.txt"
 
 [modes.release]
 # Release packaging: always prefer a clean staticlib and production-ish image dir.
 run_host_tests = true
 force_recompile_staticlib = true
 image_output_dir = "build/test"
-mode_marker = "dev_build/orch-mode.txt"
+mode_marker = "dev_build/build-mode.txt"
 
 # ---------------------------------------------------------------------------
 # FASM kernel assemble
@@ -733,17 +732,13 @@ reference_extra_args = ["-snapshot"]
 # Persistent 128 MiB whole-disk exFAT image used to exercise KolibriOS exFAT
 # (Rust migration / filesystem regression). Never replaces the boot floppy.
 # Docs: tools/testdata/README.md
-# Recreate: orch @mkfs exfat 128M
+# Recreate: python scripts/mkfs.py exfat 128M
+# Attached by scripts/run_qemu.py on AHCI → guest /sd0/1 (not legacy IDE /hd0).
 [testdisk]
 enabled = true
 image = "images/exfat-image.img"
 generator = "tools/mkfs_utils/create_exfat_image.py"
 size_mib = 128
-# `{image}` → absolute path. index=0 is the first IDE HDD (KolibriOS hd0).
-drive_args = [
-  "-drive",
-  "file={image},format=raw,if=ide,index=0,media=disk",
-]
 
 # ---------------------------------------------------------------------------
 # Cleanup / diagnostics

@@ -23,14 +23,14 @@ gates on (historical Cut A-only size was **223080** bytes / ~218 KiB). Distrib
 floppy kernels are typically **kerpack**’d (~107 KiB on the reference image); host
 `kerpack` is not in this tree — see FASM baseline doc.
 
-Preferred orchestrated build (blobs + gate sync + FASM):
+Preferred scripted build (blobs + gate sync + FASM):
 
 ```text
-cargo run --manifest-path tools/orch/Cargo.toml -- --% @build
+python scripts/build.py
 ```
 
 Blob/gate registry: [`../../project/build.toml`](../../project/build.toml).
-Orch config: [`../../.orch/config.toml`](../../.orch/config.toml).
+Automation: [`../../scripts/`](../../scripts/).
 Migration status: [`../migration/migration-plan.md`](../migration/migration-plan.md).
 
 ## Primary build (Makefile)

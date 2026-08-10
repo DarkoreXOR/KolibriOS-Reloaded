@@ -2,7 +2,7 @@
 """Apply USE_RUST_* migration gates from project/build.toml.
 
 Focused utility: reads CONFIG_DATA, rewrites gate assignments in-place.
-Not an orchestrator — call from Rhai via process::run.
+Not an orchestrator — call from scripts via subprocess.
 
 Usage:
   python tools/migration_gates/apply_gates.py project/build.toml
