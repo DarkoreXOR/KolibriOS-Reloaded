@@ -152,6 +152,7 @@ Supports FAT12/FAT16 BPB detection; directory walk for simple 8.3 paths; refuses
 - FASM build details: [`../architecture/build-system.md`](../architecture/build-system.md)
 - Boot sequence: [`../architecture/boot-sequence.md`](../architecture/boot-sequence.md)
 - Migration status: [`../migration/migration-plan.md`](../migration/migration-plan.md)
+- Live regression log (append-only): [`../migration/regression-log.md`](../migration/regression-log.md)
 - Latest cut (AB): [`../migration/cut-ab-implementation.md`](../migration/cut-ab-implementation.md)
 - Cut A Rust utils: [`../migration/cut-a-implementation.md`](../migration/cut-a-implementation.md)
 - Cut A final architecture: [`../migration/cut-a-final-architecture.md`](../migration/cut-a-final-architecture.md)

@@ -161,6 +161,13 @@ proc xfs_create_partition uses ebx esi edi
 
         mov     [edi+XFS.conv_time_to_kos_epoch], xfs._.conv_time_to_kos_epoch
         mov     [edi+XFS.nextents_offset], xfs_inode.di_core.di_nextents
+        ; Volume label (sb_fname): 12 bytes, typically NUL-padded ASCII.
+        push    edi
+        lea     esi, [ebx+xfs_sb.sb_fname]
+        lea     edi, [edi+XFS.fname]
+        mov     ecx, 12/4
+        rep movsd
+        pop     edi
 
         movbe   eax, [ebx+xfs_sb.sb_features2]
         mov     [edi+XFS.features2], eax
@@ -567,7 +574,8 @@ endl
         jc      .parent
         lea     edi, [edx+bdfe.name]
         mov     dword[edi], '.'
-        stdcall xfs_get_inode_info, [ebp+XFS.cur_inode], edx
+        ; Use live inode pointer (cur_inode is only the block buffer base).
+        stdcall xfs_get_inode_info, [ebp+XFS.cur_inode_save], edx
         jmp     .common
 .parent:
         bts     [ebp+XFS.dir_sf_parent_done], 0
@@ -584,6 +592,8 @@ endl
         jmp     .common
 .not_special:
         ; omit-FP: [_dst] aliases [esp] — do not push across [_dst] loads.
+        ; copy_filename must preserve EDX (bdfe base); Rust unicode stdcall
+        ; clobbers EDX — see `uses eax edx` on copy_filename.
         movzx   ecx, [esi+xfs_dir2_sf_entry.namelen]
         add     esi, xfs_dir2_sf_entry.name
         lea     edi, [edx+bdfe.name]
@@ -854,7 +864,7 @@ proc xfs._.readdir_btree uses esi, _inode_data, _out_buf
 endp
 
 
-proc xfs._.copy_filename uses eax
+proc xfs._.copy_filename uses eax edx
         cld
         mov     eax, [ebp+XFS.bdfe_nameenc]
         cmp     eax, 3
@@ -1660,6 +1670,8 @@ end if
 ; out: eax, ebx = return values for sysfunc 70
 ;----------------------------------------------------------------
 proc xfs_GetFileInfo uses ecx edx esi edi
+        cmp     byte[esi], 0
+        jz      .volume
         call    xfs._.lock
         stdcall xfs_get_inode, esi
         jnz     .error
@@ -1676,6 +1688,77 @@ proc xfs_GetFileInfo uses ecx edx esi edi
         push    eax
         call    xfs._.unlock
         pop     eax
+        ret
+
+; Empty path: partition / volume info (same role as EXT/NTFS .volume).
+; Must NUL-terminate bdfe.name — get_inode_info does not write a name, so a
+; missing volume path left Eolite showing whitespace + memory garbage.
+.volume:
+        mov     edi, [ebx+f70s5arg.buf]
+        xor     eax, eax
+        mov     ecx, 40 / 4
+        push    edi
+        rep stosd
+        pop     edi
+        mov     byte[edi+bdfe.attr], 8   ; volume label
+        mov     eax, dword[ebp+XFS.Length+DQ.lo]
+        mov     edx, dword[ebp+XFS.Length+DQ.hi]
+        mov     ecx, [ebp+XFS.Disk]
+        mov     ecx, [ecx+DISK.MediaInfo.SectorSize]
+        bsf     ecx, ecx
+        shld    edx, eax, cl
+        shl     eax, cl
+        mov     [edi+bdfe.size.lo], eax
+        mov     [edi+bdfe.size.hi], edx
+        mov     eax, [ebx+f70s5arg.xflags]
+        mov     [edi+bdfe.nameenc], eax
+        ; Always NUL-terminate name (avoids Eolite whitespace + memory junk).
+        mov     word[edi+bdfe.name], 0
+        test    eax, eax
+        jz      .volume_done
+        add     edi, bdfe.name
+        lea     esi, [ebp+XFS.fname]
+        ; Length of NUL-padded 12-byte label (stop at first NUL).
+        xor     ecx, ecx
+@@:
+        cmp     ecx, 12
+        jae     @f
+        cmp     byte[esi+ecx], 0
+        jz      @f
+        inc     ecx
+        jmp     @b
+@@:
+        test    ecx, ecx
+        jz      .volume_done
+        cmp     eax, 3
+        jz      .volume_utf8
+        cmp     eax, 2
+        jz      .volume_utf16
+.volume_cp866:
+        call    unicode.utf8.decode
+        call    unicode.cp866.encode
+        stosb
+        test    ecx, ecx
+        jnz     .volume_cp866
+        jmp     .volume_term
+.volume_utf8:
+        rep movsb
+        jmp     .volume_term
+.volume_utf16:
+        call    unicode.utf8.decode
+        call    unicode.utf16.encode
+        stosw
+        shr     eax, 16
+        jz      @f
+        stosw
+@@:
+        test    ecx, ecx
+        jnz     .volume_utf16
+.volume_term:
+        xor     eax, eax
+        mov     [edi], ax
+.volume_done:
+        xor     eax, eax
         ret
 endp
 
@@ -2001,6 +2084,54 @@ proc xfs._.leafn_calc_entries uses ebx ecx edx esi edi, _cur_dirblock, _offset_l
 endp
 
 
+; Cut AM: USE_RUST_XFS_GET_BEFORE_BY_HASHVAL=1 routes through Rust
+; rust_xfs_get_before_by_hashval (see rust/xfs_get_before_by_hashval.inc).
+; Set USE_RUST_XFS_GET_BEFORE_BY_HASHVAL=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–AL.
+; Critical ABI: FASM indexes EBX+offsetof(btree) via XFS.version (stdcall
+; _base unused); EAX=before/error; ZF found/miss; retn 12.
+; Production default ON after Cut AM gates.
+
+USE_RUST_XFS_GET_BEFORE_BY_HASHVAL = 1
+
+if USE_RUST_XFS_GET_BEFORE_BY_HASHVAL
+
+; Compatibility trampoline: stdcall (_base,_count,_hash) → Rust.
+; Must NOT introduce push ebp / mov ebp, esp (XFS omit-FP convention).
+; Match FASM: table base = EBX + (v5?64:16); ignore dead stdcall _base
+; (lookup_btree .next_level always passes v4 sizeof even on v5).
+; Reconstructs ZF via cmp edx,1; pop eax is flag-neutral (Cut W/P pattern).
+; Preserves EBX/EDX/ESI/EDI like FASM `uses`.
+align 4
+xfs._.get_before_by_hashval:
+        push    ebx
+        push    esi
+        push    edi
+        push    edx
+        ; stack: edx, edi, esi, ebx, retaddr, _base, _count, _hash
+        ; EBX still holds caller's node (pushed copy above; register intact)
+        mov     eax, ebx                ; node
+        cmp     dword [ebp+XFS.version], 5
+        lea     ecx, [eax+16]           ; v4 btree
+        lea     eax, [eax+64]           ; v5 btree
+        cmovnz  eax, ecx                ; version!=5 → v4
+        mov     ecx, [esp+24]           ; _count
+        mov     edx, [esp+28]           ; _hash
+        push    edx                     ; arg3: hash
+        push    ecx                     ; arg2: count
+        push    eax                     ; arg1: entries
+        call    rust_xfs_get_before_by_hashval ; ret 12; EDX:EAX = zf:result
+        push    eax                     ; save result payload
+        cmp     edx, 1                  ; ZF=1 iff found
+        pop     eax                     ; restore EAX; EFLAGS unchanged
+        pop     edx
+        pop     edi
+        pop     esi
+        pop     ebx
+        retn    12
+
+else
+
 proc xfs._.get_before_by_hashval uses ebx edx esi edi, _base, _count, _hash
         mov     edi, [_hash]
         mov     edx, [_count]
@@ -2033,6 +2164,8 @@ proc xfs._.get_before_by_hashval uses ebx edx esi edi, _base, _count, _hash
         cmp     esp, esp
         ret
 endp
+
+end if
 
 
 proc xfs._.long_btree.seek uses ebx esi edi, _ptr, _size

@@ -135,6 +135,6 @@ Findings from [`../compatibility/abi-audit.md`](../compatibility/abi-audit.md):
 
 **LOCAL FACT (Cut B complete):** `rust_cp866_to_upper` (`cp866toUpper`) is also reloc-free (71 B, 0 relocs) via the same path ([`cut-b-implementation.md`](cut-b-implementation.md)). Note: this “Cut B” is the next pure-util migration, **not** the allocator cut named “Cut B” elsewhere in this document.
 
-**LOCAL FACT (Cuts A–AL complete, 2026-08-11):** Stage 2 production envelope through Cut AL (`ext_read_time`) — see [`migration-plan.md`](migration-plan.md). Prefer `scripts/` + `project/build.toml` blob/migration registry over manual per-cut scripts for day-to-day builds. Post-AK raised-bar cluster audit concluded Path B remains appropriate (first EXT Unix→BDFE leaf; ISO/exFAT/XFS-v4/EXT write-pair ≠ Path A).
+**LOCAL FACT (Cuts A–AM complete, 2026-08-11):** Stage 2 production envelope through Cut AM (`xfs._.get_before_by_hashval`) — see [`migration-plan.md`](migration-plan.md). Prefer `scripts/` + `project/build.toml` blob/migration registry over manual per-cut scripts for day-to-day builds. Post-AL raised-bar cluster audit concluded Path B remains appropriate (XFS DA node first-match leaf; EXT write/ISO/exFAT/XFS-v4 pairs ≠ Path A; Cut W+AM ≠ Rust-owned XFS subsystem).
 
 **INFERENCE (future functions):** anything that reintroduces `.rodata`/GOTOFF/cross-section refs needs either a reloc-free rewrite or `rust-lld` at the FASM placement VMA — evaluate per function.

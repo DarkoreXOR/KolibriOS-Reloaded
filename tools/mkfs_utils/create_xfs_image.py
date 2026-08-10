@@ -129,7 +129,9 @@ def populate_native(path: Path, size_bytes: int, *, force: bool) -> None:
         # Sparse allocate then format.
         with open(path, "wb") as f:
             f.truncate(size_bytes)
-        subprocess.check_call(["mkfs.xfs", "-f", "-m", "crc=1,finobt=1", str(path)])
+        subprocess.check_call(
+            ["mkfs.xfs", "-f", "-L", "kolibri", "-m", "crc=1,finobt=1", str(path)]
+        )
     elif path.stat().st_size != size_bytes:
         # Keep existing FS; size change requires --force.
         print(

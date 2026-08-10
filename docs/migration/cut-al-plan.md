@@ -6,7 +6,7 @@
 
 > **Nomenclature:** **Cut AL** migrates EXT/ext4 Unix (+extra epoch bits) →
 > Kolibri BDFE — `ext_read_time` in `ext.inc`.  
-> Cuts A–AK remain complete and must not be redone. Do not start Cut AM.
+> Cuts A–AK remain complete and must not be redone.
 
 ---
 
@@ -102,5 +102,5 @@ register→stdcall trampoline; `USE_RUST_EXT_READ_TIME` rollback switch; compose
 
 * Claiming Path A for EXT time helpers or ISO/exFAT/XFS pairs
 * Migrating `ext_write_time` / `ext_read_all_times` / `fat_name_is_legal`
-* Beginning Cut AM
+* Beginning a follow-on cut during AL
 * Stock-image EXT inode-time soak (unless available)

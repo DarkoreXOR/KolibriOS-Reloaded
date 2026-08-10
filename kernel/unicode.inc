@@ -131,6 +131,9 @@ if USE_RUST_CP866
 ; Callers keep `call unicode.cp866.encode` with code point in EAX (AX used).
 ; Preserve ECX: original uni2ansi_char leaves ECX intact (ASCII path untouched;
 ; special table push/pop). XFS/ext copy loops use `test ecx,ecx` after encode.
+; EDX is also callee-clobbered by stdcall; XFS `copy_filename` must preserve it
+; itself (`uses eax edx`) because dir_sf_read keeps the BDFE base in EDX across
+; the call.
 unicode.cp866.encode:
         push    ecx
         stdcall rust_unicode_cp866_encode, eax

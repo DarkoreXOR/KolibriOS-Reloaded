@@ -1,0 +1,20 @@
+---
+description: Append live QEMU/FS regressions to docs/migration/regression-log.md
+alwaysApply: true
+---
+
+# Live regression log
+
+When a **live** regression is found and fixed (QEMU soak, FS browse, network,
+etc. — not host-only differentials):
+
+1. **Append** a new `REG-NNN` entry to [`docs/migration/regression-log.md`](docs/migration/regression-log.md)
+   using the template there. Do not rewrite older entries.
+2. Update that file’s **Index** and, if needed, **Avoidance checklist**.
+3. Link from the relevant cut `*-implementation.md` and optionally
+   [`docs/migration/risk-register.md`](docs/migration/risk-register.md).
+
+Before blaming the newest cut: **A/B** (gate OFF, prior `cut-*-final.img`).
+Watch **EDX/ECX** across Rust `stdcall` (Cut D, REG-001) and FS **empty-path
+volume / `bdfe.name` NUL** parity (REG-002). Desktop smoke alone is not an
+XFS/NTFS/exFAT soak — use `python scripts/run_qemu.py --disk …`.

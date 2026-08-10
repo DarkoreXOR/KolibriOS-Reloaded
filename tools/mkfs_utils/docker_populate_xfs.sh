@@ -8,7 +8,7 @@ MNT="${MNT:-/mnt/xfs}"
 FORCE="${FORCE:-0}"
 SIZE_BYTES="${SIZE_BYTES:-}"
 
-apk add --no-cache xfsprogs python3
+apk add --no-cache xfsprogs xfsprogs-extra python3
 export PATH="/usr/sbin:/sbin:/usr/bin:/bin:${PATH}"
 
 if [ ! -f "$IMG" ]; then
@@ -18,13 +18,13 @@ if [ ! -f "$IMG" ]; then
   fi
   echo "Creating sparse image $IMG ($SIZE_BYTES bytes)"
   truncate -s "$SIZE_BYTES" "$IMG"
-  mkfs.xfs -f -m crc=1,finobt=1 "$IMG"
+  mkfs.xfs -f -L kolibri -m crc=1,finobt=1 "$IMG"
 elif [ "$FORCE" = "1" ]; then
   if [ -n "$SIZE_BYTES" ]; then
     truncate -s "$SIZE_BYTES" "$IMG"
   fi
   echo "Reformatting $IMG (FORCE=1)"
-  mkfs.xfs -f -m crc=1,finobt=1 "$IMG"
+  mkfs.xfs -f -L kolibri -m crc=1,finobt=1 "$IMG"
 else
   # Validate existing superblock via magic bytes (no xfs_db required).
   magic="$(dd if="$IMG" bs=4 count=1 2>/dev/null || true)"
@@ -44,6 +44,9 @@ cleanup() {
   losetup -d "$LOOP" 2>/dev/null || true
 }
 trap cleanup EXIT
+
+# Match FAT boot floppy label for Eolite volume display (CRC-safe via xfs_admin).
+xfs_admin -L kolibri "$LOOP" 2>/dev/null || xfs_admin -L kolibri "$IMG" || true
 
 mount -t xfs "$LOOP" "$MNT"
 

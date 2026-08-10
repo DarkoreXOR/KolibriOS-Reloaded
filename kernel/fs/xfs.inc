@@ -537,6 +537,7 @@ struct XFS PARTITION
         da_blkinfo_size         dd ?
         conv_time_to_kos_epoch  dd ?
         nextents_offset         dd ?
+        fname                   rb 12   ; copy of sb_fname (volume label)
         ; helpers, temporary vars, etc
         ; should go to file descriptor and local vars?
         cur_block               dd ?

@@ -25,6 +25,9 @@ Updated after adversarial ABI audit.
 | Corrupted local `init.inc` | build | — | — | Assemble | **Resolved** 2026-08-09 — restored from upstream `944d74f01` | |
 | Network races | net | Med | Med | socket tests | Migrate late | |
 | Fn9 buffer only 0x4C validated | apps | Low | Low | Pass 1KB buffers | Fill 0x4C; don't require 1KB | |
+| Rust stdcall clobbers EDX/ECX vs legacy FASM leaves | unicode / string / any trampoline | High | High | Live FS browse + ABI canaries | Preserve at trampoline or caller (`uses`); see REG-001 / Cut D | Gate OFF + A/B |
+| FS missing empty-path `.volume` / unterminated `bdfe.name` | filesystem | Med | Med | Eolite volume name junk | Parity with EXT/FAT/NTFS; NUL-terminate | [`regression-log.md`](regression-log.md) REG-002 |
+| Blame latest cut without A/B | process | High | Med | Wasted rewrites | Gate OFF + prior `cut-*-final.img` first | |
 
 ## Highest priority watchlist
 
@@ -36,3 +39,5 @@ Updated after adversarial ABI audit.
 6. ~~Restoring buildable `init.inc` baseline~~ (done)  
 7. Ring0 accidental coupling (not CPL3 slot VA)  
 8. Phase C hybrid link of Rust `staticlib` into flat `kernel.mnt`
+9. **EDX/ECX preserve across Rust stdcall** (Cut D, REG-001) — live FS soak, not desktop-only  
+10. Append live fixes to [`regression-log.md`](regression-log.md)
