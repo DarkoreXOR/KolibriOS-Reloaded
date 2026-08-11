@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
@@ -10,8 +10,8 @@
 //! window screen-fit helpers, TSS I/O permission bitmap updates + port-area reserve/free,
 //! COFF reloc application + symbol name→Value lookup, MBR/EBR partition-table entry validation,
 //! GPT protective-MBR recognition, process TID→slot lookup, IPv4 on-link/gateway/broadcast
-//! routing + fragment-slot lookup, kernel VA→PA page translation, and socket-list membership
-//! for KolibriOS hybrid migration.
+//! routing + fragment-slot lookup, AHCI free command-slot scan, kernel VA→PA page translation,
+//! and socket-list membership for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -22,6 +22,7 @@
 
 #![cfg_attr(target_os = "none", no_std)]
 
+mod ahci_find_cmdslot;
 mod app_header;
 mod casefold;
 mod checksum;
@@ -61,6 +62,9 @@ mod xfs_node_hash;
 #[cfg(target_arch = "x86")]
 mod ffi;
 
+pub use ahci_find_cmdslot::{
+    ahci_find_cmdslot, ahci_find_cmdslot_from_regs, AHCI_FIND_CMDSLOT_PRNG_SEED,
+};
 pub use app_header::{
     test_app_header, OS_BASE, TEST_APP_HEADER_PRNG_SEED, APP_OFF_CMDLINE, APP_OFF_EDATA,
     APP_OFF_EIP, APP_OFF_EMEM, APP_OFF_ESP, APP_OFF_PATH,

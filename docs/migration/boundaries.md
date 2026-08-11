@@ -135,6 +135,6 @@ Findings from [`../compatibility/abi-audit.md`](../compatibility/abi-audit.md):
 
 **LOCAL FACT (Cut B complete):** `rust_cp866_to_upper` (`cp866toUpper`) is also reloc-free (71 B, 0 relocs) via the same path ([`cut-b-implementation.md`](cut-b-implementation.md)). Note: this “Cut B” is the next pure-util migration, **not** the allocator cut named “Cut B” elsewhere in this document.
 
-**LOCAL FACT (Cuts A–AU complete, 2026-08-11):** Stage 2 production envelope through Cut AU (`ipv4_find_fragment_slot`) — see [`migration-plan.md`](migration-plan.md). Prefer `scripts/` + `project/build.toml` blob/migration registry over manual per-cut scripts for day-to-day builds. Post-AT audit: Path A for Y+AT+rebase / I+createMcbEntry / socket lifecycle rejected; Cut AU is Stage-5 Path B (IPv4 fragment-slot keyed scan).
+**LOCAL FACT (Cuts A–AV complete, 2026-08-11):** Stage 2 production envelope through Cut AV (`ahci_find_cmdslot`) — see [`migration-plan.md`](migration-plan.md). Prefer `scripts/` + `project/build.toml` blob/migration registry over manual per-cut scripts for day-to-day builds. Post-AU audit: Path A for network / Y+AT+rebase / I+createMcbEntry rejected; Cut AV is Path B (AHCI free-slot bit scan).
 
 **INFERENCE (future functions):** anything that reintroduces `.rodata`/GOTOFF/cross-section refs needs either a reloc-free rewrite or `rust-lld` at the FASM placement VMA — evaluate per function.

@@ -259,6 +259,7 @@ high_code:
 ; Cut AR: r_f_port_area smoke ON when USE_RUST_R_F_PORT_AREA=1 (after reserve_irqs_ports).
 ; Cut AS: socket_check smoke ON when USE_RUST_SOCKET_CHECK=1 (after stack_init).
 ; Cut AU: ipv4_find_fragment_slot smoke ON when USE_RUST_IPV4_FIND_FRAGMENT_SLOT=1 (after stack_init).
+; Cut AV: ahci_find_cmdslot smoke ON when USE_RUST_AHCI_FIND_CMDSLOT=1 (after ahci_init).
 ; Cut AT: get_coff_sym smoke ON when USE_RUST_GET_COFF_SYM=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
@@ -885,6 +886,7 @@ include 'detect/init_ata.inc'
 include 'blkdev/ahci.inc'
 ahci_code_end:
         call    ahci_init
+        call    ahci_find_cmdslot_rust_smoke_test
 ;-----------------------------------------------------------------------------
 if 0
         mov     ax, [BOOT.sys_disk]

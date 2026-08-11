@@ -2083,8 +2083,39 @@ endp
 
 ; ----------------------------------------------------------- ; TODO check
 ; Find a free command list slot
-; in: pdata - address of HBA_PORT structure
+; in: pdata - address of PORT_DATA structure
 ; out: eax - if not found -1, else slot index
+;
+; Cut AV: USE_RUST_AHCI_FIND_CMDSLOT=1 routes through Rust
+; rust_ahci_find_cmdslot (see rust/ahci_find_cmdslot.inc).
+; Set USE_RUST_AHCI_FIND_CMDSLOT=0 to restore the original FASM
+; body without deleting it. Independent of Cuts A–AU.
+;
+; Legacy preserves EBX/ECX/EDX/ESI via push/pop; EAX is the return.
+; Trampoline also keeps EDI/EBP (REG-001 canaries).
+
+USE_RUST_AHCI_FIND_CMDSLOT = 1
+
+if USE_RUST_AHCI_FIND_CMDSLOT
+
+proc ahci_find_cmdslot stdcall, pdata: dword
+        push    ebx ecx edx esi edi ebp
+        mov     esi, [pdata]
+        mov     eax, [esi + PORT_DATA.port]
+        mov     ebx, [eax + HBA_PORT.sata_active]
+        or      ebx, [eax + HBA_PORT.command_issue]
+        mov     esi, [esi + PORT_DATA.ctr_ptr]
+        mov     esi, [esi + AHCI_CTR.abar]
+        mov     edx, [esi + HBA_MEM.cap]
+        shr     edx, 8
+        and     edx, 0xf
+        stdcall rust_ahci_find_cmdslot, ebx, edx
+        pop     ebp edi esi edx ecx ebx
+        ret
+endp
+
+else
+
 proc ahci_find_cmdslot stdcall, pdata: dword
         push    ebx ecx edx esi
         mov     esi, [pdata]
@@ -2123,6 +2154,8 @@ proc ahci_find_cmdslot stdcall, pdata: dword
         pop     esi edx ecx ebx
         ret
 endp
+
+end if
 
 
 proc _memset stdcall, dest:dword, val:byte, cnt:dword ; doesn't clobber any registers

@@ -6,6 +6,7 @@
 //! Calling convention: `stdcall` (callee pops args). Partial CRC is an explicit
 //! argument because a Rust prologue must not rely on live `EAX` from FASM.
 
+use crate::ahci_find_cmdslot::ahci_find_cmdslot;
 use crate::app_header::test_app_header_ptr;
 use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
@@ -288,6 +289,19 @@ pub unsafe extern "stdcall" fn rust_ipv4_find_fragment_slot(
 ) -> u32 {
     // SAFETY: kernel trampoline passes live packet header + fragment table.
     unsafe { ipv4_find_fragment_slot_ptr(packet, fragments, count) }
+}
+
+/// `stdcall` rust_ahci_find_cmdslot(slots, ncs) -> EAX.
+///
+/// Cut AV: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). Returns free slot index or `0xFFFF_FFFF`.
+/// FASM trampoline reads `SACT|CI` and `(CAP>>8)&0xf` from the `PORT_DATA`
+/// chain and preserves EBX/ECX/EDX/ESI (legacy push/pop; REG-001).
+#[no_mangle]
+#[link_section = ".text.rust_ahci_find_cmdslot"]
+pub extern "stdcall" fn rust_ahci_find_cmdslot(slots: u32, ncs: u32) -> u32 {
+    ahci_find_cmdslot(slots, ncs)
 }
 
 /// `stdcall` rust_cp866_to_upper(ch) -> uppercased CP866 byte in AL (EAX).

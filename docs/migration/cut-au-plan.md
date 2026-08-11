@@ -7,7 +7,7 @@
 
 > **Nomenclature:** **Cut AU** migrates IPv4 reassembly fragment-slot lookup —
 > `ipv4_find_fragment_slot` in `kernel/network/IPv4.inc`.  
-> Cuts A–AT remain complete and must not be redone. Do not start Cut AV.
+> Cuts A–AT remain complete and must not be redone. Cut AU complete; see Cut AV.
 
 ---
 
