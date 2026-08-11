@@ -106,6 +106,8 @@ include "rust/file_system_is_operation_safe.inc"
 include "rust/pci_make_config_cmd.inc"
 ; Cut BB: strrchr — Rust blob + smoke (USE_RUST_STRRCHR)
 include "rust/strrchr.inc"
+; Cut BF: strncpy — Rust blob + smoke (USE_RUST_STRNCPY)
+include "rust/strncpy.inc"
 ; Cut BC: fat_name_is_legal — Rust blob + smoke (USE_RUST_FAT_NAME_IS_LEGAL)
 include "rust/fat_name_is_legal.inc"
 ; Cut BD: tcp_outflags — Rust blob + smoke (USE_RUST_TCP_OUTFLAGS)

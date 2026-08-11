@@ -108,6 +108,26 @@ endp
 end if
 
 align 4
+; strncpy migration: USE_RUST_STRNCPY=1 routes through Rust
+; rust_strncpy (see rust/strncpy.inc).
+; Set USE_RUST_STRNCPY=0 to restore the original FASM body without deleting it.
+
+USE_RUST_STRNCPY = 1
+
+if USE_RUST_STRNCPY
+
+; Compatibility trampoline: stdcall(s1,s2,n) → rust_strncpy → EAX=s1.
+; Legacy FASM clobbers ECX/EDX — do NOT invent EDX preserve (Cut BE lesson).
+; Legacy DF: FASM always `cld` before return — match that here.
+proc strncpy stdcall, s1:dword, s2:dword, n:dword
+        stdcall rust_strncpy, [s1], [s2], [n]
+        cld
+        ret
+endp
+
+else
+
+; --- original FASM implementation (rollback) ---
 proc strncpy stdcall, s1:dword, s2:dword, n:dword
 
         push    esi
@@ -132,6 +152,8 @@ proc strncpy stdcall, s1:dword, s2:dword, n:dword
         pop     esi
         ret
 endp
+
+end if
 
 align 4
 proc strnlen stdcall, s:dword, n:dword

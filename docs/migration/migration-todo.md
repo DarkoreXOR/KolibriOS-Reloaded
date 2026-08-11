@@ -4,10 +4,10 @@
 Rust hybrid migration scope. One-time project map; update when a Cut
 completes or the scoped candidate set changes.
 
-**Last inventory baseline:** post–Cut BE (2026-08-12).
+**Last inventory baseline:** post–Cut BF (2026-08-12).
 
 **Gates source of truth:** `project/build.toml` `[[rust.migrations]]`
-(60 production entries, all `enabled = true` after BE).
+(61 production entries, all `enabled = true` after BF).
 
 ---
 
@@ -72,10 +72,10 @@ leaves. Path A rejections are recorded in cut plans, not as fake completions.
 
 - [x] `strncmp` — Cut D
 - [x] `strrchr` — Cut BB
-- [ ] `strchr` — candidate: string leaf
-- [ ] `strlen` — candidate: string leaf
-- [ ] `strncpy` — candidate: string leaf
-- [ ] `strnlen` — thin: string helper
+- [x] `strncpy` — Cut BF
+- [ ] `strchr` — candidate: string leaf / export-only
+- [ ] `strlen` — candidate: string leaf (EXT-only callers; no `--disk ext`)
+- [ ] `strnlen` — thin: string helper / export-only
 - [ ] `strtoint_dec` — deferred: `conf_lib.inc` not linked (dead)
 
 ## fs/common
@@ -280,6 +280,7 @@ leaves. Path A rejections are recorded in cut plans, not as fake completions.
 - **Phase C probe (`rust_phase_c_probe`):** Diagnostic blob only — not a production migration / not counted.
 - **FASM trampolines / `kernel/rust/*.inc`:** Wiring only — not counted as functions.
 - **Rust-only helpers (e.g. `exfat_rolling_checksum`):** Implementation detail — not counted unless they are the migrated kernel symbol.
+- **`strncat`:** Live PE export (`exports.inc`), **zero** in-kernel callers — same export-only class as `strchr`/`strnlen`. Documented here without count inflation (still absent from the checklist total).
 
 ### Boundaries non-cuts (named above as unsuitable / late)
 
@@ -306,9 +307,9 @@ Documented across Cuts AO–AZ plans:
 
 **Functions completed / functions total**
 
-`60 / 135`
+`61 / 135`
 
-(Mechanically: `60` `[x]` + `75` `[ ]` = `135`.)
+(Mechanically: `61` `[x]` + `74` `[ ]` = `135`.)
 
 When a new Cut completes: mark its `[ ]` → `[x]`, move the note to the Cut id,
 and update this counter so it still matches the checklist.

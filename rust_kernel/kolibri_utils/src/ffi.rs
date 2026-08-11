@@ -35,7 +35,7 @@ use crate::ntfs_usa::ntfs_restore_usa_ptr;
 use crate::partition::{is_partition_table_entry_ptr, is_protective_mbr_ptr};
 use crate::pci_make_config_cmd::pci_make_config_cmd;
 use crate::pid_to_slot::pid_to_slot_ptr;
-use crate::string::{strncmp, strrchr};
+use crate::string::{strncmp, strncpy, strrchr};
 use crate::tcp::{tcp_outflags_ptr, tcp_set_persist_ptr, tcp_xmit_timer_ptr};
 use crate::time::{
     ext_unix_to_secs, fat_time_to_bdfe, fs_calculate_time_ptr, fs_time2bdfe_ptr,
@@ -430,6 +430,25 @@ pub unsafe extern "stdcall" fn rust_strrchr(s: *const u8, c: u32) -> u32 {
     // SAFETY: kernel callers pass valid C-string regions for this search.
     // Freestanding i686: usize == u32.
     unsafe { strrchr(s, c) as u32 }
+}
+
+/// `stdcall` rust_strncpy(s1, s2, n) -> EAX = s1.
+///
+/// Cut BF: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). Legacy FASM **clobbers EDX/ECX** —
+/// trampoline must **not** invent EDX preserve (Cut BE smoke lesson).
+/// Trampoline executes `cld` (legacy DF restore).
+///
+/// # Safety
+/// `s2` readable for the scanned window; `s1` writable for `n` bytes when
+/// `n > 0`.
+#[no_mangle]
+#[link_section = ".text.rust_strncpy"]
+pub unsafe extern "stdcall" fn rust_strncpy(s1: *mut u8, s2: *const u8, n: u32) -> u32 {
+    // SAFETY: kernel callers pass valid regions for this copy.
+    // Freestanding i686: usize == u32.
+    unsafe { strncpy(s1, s2, n) as u32 }
 }
 
 /// `stdcall` rust_checksum_1(seed, data, length) -> EAX = partial sum.

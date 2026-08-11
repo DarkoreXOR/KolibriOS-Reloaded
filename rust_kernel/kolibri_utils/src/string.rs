@@ -3,6 +3,52 @@
 /// Cut BB differential PRNG seed (`'CUBB'`).
 pub const STRRCHR_PRNG_SEED: u32 = 0x4355_4242;
 
+/// Cut BF differential PRNG seed (`'CUBF'`).
+pub const STRNCPY_PRNG_SEED: u32 = 0x4355_4246;
+
+/// Bounded padded copy matching FASM `strncpy` (`string.inc`).
+///
+/// Always writes exactly `n` bytes to `s1`:
+/// * copy from `s2` including the terminating NUL when it falls within `n`;
+/// * null-pad the remainder of the `n`-byte window;
+/// * if no NUL appears in the first `n` source bytes, copy `n` bytes with
+///   **no** terminator (C `strncpy` semantics).
+///
+/// `n == 0` → no write; returns `s1`.
+///
+/// Returns `s1` as `usize` (EAX on freestanding i686).
+///
+/// Implementation notes: single forward pass with `write_volatile` so LLVM
+/// does not emit `memcpy`/`memset` (those introduce GOT/PLT relocs that the
+/// reloc-free extractor rejects).
+///
+/// # Safety
+/// `s2` must be readable for the bytes actually scanned (at most `n`, or
+/// until NUL inclusive). `s1` must be writable for `n` bytes when `n > 0`.
+#[inline(always)]
+pub unsafe fn strncpy(s1: *mut u8, s2: *const u8, n: u32) -> usize {
+    let mut i = 0u32;
+    let mut saw_nul = false;
+    while i < n {
+        let b = if saw_nul {
+            0u8
+        } else {
+            // SAFETY: within the n-byte / until-NUL contract.
+            let c = unsafe { *s2.add(i as usize) };
+            if c == 0 {
+                saw_nul = true;
+            }
+            c
+        };
+        // Volatile store: prevents LLVM memset/memcpy outlining (reloc-free).
+        unsafe {
+            core::ptr::write_volatile(s1.add(i as usize), b);
+        }
+        i = i.wrapping_add(1);
+    }
+    s1 as usize
+}
+
 /// Last occurrence of byte `c` in C string `s`, matching FASM `strrchr`.
 ///
 /// Mirrors `string.inc`: forward scan to NUL (length including NUL), then
@@ -113,6 +159,43 @@ pub fn strncmp_fasm_oracle(s1: &[u8], s2: &[u8], n: u32) -> i32 {
     }
 }
 
+/// Independent FASM-flow oracle for `strncpy` (mirrors `string.inc` scasb/movsb/stosb).
+#[cfg(test)]
+pub fn strncpy_fasm_oracle(s2: &[u8], n: u32) -> Vec<u8> {
+    let mut out = vec![0u8; n as usize];
+    if n == 0 {
+        return out;
+    }
+    // FASM: ecx=n; edi=s2; edx=n; repne scasb for 0.
+    let mut ecx = n;
+    let mut scanned = 0u32;
+    let mut found_nul = false;
+    while ecx != 0 {
+        assert!((scanned as usize) < s2.len(), "oracle overrun (missing NUL or n too large)");
+        let b = s2[scanned as usize];
+        scanned = scanned.wrapping_add(1);
+        ecx = ecx.wrapping_sub(1);
+        if b == 0 {
+            found_nul = true;
+            break;
+        }
+    }
+    // sub edx,ecx → bytes to copy (incl NUL if found); else n when ecx==0.
+    let copy_len = if found_nul {
+        scanned // includes NUL
+    } else {
+        n
+    };
+    let pad = n.wrapping_sub(copy_len);
+    for i in 0..copy_len as usize {
+        out[i] = s2[i];
+    }
+    for i in 0..pad as usize {
+        out[copy_len as usize + i] = 0;
+    }
+    out
+}
+
 /// Independent FASM-flow oracle for `strrchr` (not derived from the Rust body).
 #[cfg(test)]
 pub fn strrchr_fasm_oracle(s: &[u8], c: u32) -> Option<usize> {
@@ -146,7 +229,110 @@ pub fn strrchr_fasm_oracle(s: &[u8], c: u32) -> Option<usize> {
 
 #[cfg(test)]
 mod tests {
-    use super::{strncmp, strncmp_fasm_oracle, strrchr, strrchr_fasm_oracle, STRRCHR_PRNG_SEED};
+    use super::{
+        strncmp, strncmp_fasm_oracle, strncpy, strncpy_fasm_oracle, strrchr, strrchr_fasm_oracle,
+        STRNCPY_PRNG_SEED, STRRCHR_PRNG_SEED,
+    };
+
+    fn check_strncpy(s2: &[u8], n: u32) {
+        let expect = strncpy_fasm_oracle(s2, n);
+        let mut got = vec![0xA5u8; n as usize];
+        let ret = unsafe { strncpy(got.as_mut_ptr(), s2.as_ptr(), n) };
+        assert_eq!(ret, got.as_ptr() as usize);
+        assert_eq!(got, expect, "mismatch s2={s2:?} n={n}");
+    }
+
+    #[test]
+    fn strncpy_n_zero_no_write() {
+        let mut dst = [0xA5u8; 4];
+        let ret = unsafe { strncpy(dst.as_mut_ptr(), b"hi\0".as_ptr(), 0) };
+        assert_eq!(ret, dst.as_ptr() as usize);
+        assert_eq!(dst, [0xA5; 4]);
+        check_strncpy(b"hi\0", 0);
+    }
+
+    #[test]
+    fn strncpy_pad_after_early_nul() {
+        check_strncpy(b"ab\0", 5);
+        check_strncpy(b"\0", 4);
+        check_strncpy(b"x\0", 1);
+        check_strncpy(b"x\0", 2);
+    }
+
+    #[test]
+    fn strncpy_trunc_no_nul_in_n() {
+        // Source longer than n and readable for n bytes (no NUL in window).
+        check_strncpy(b"abcdef", 3);
+        check_strncpy(b"abcdef", 6);
+        check_strncpy(b"abc\0def", 3); // stops at n before NUL
+    }
+
+    #[test]
+    fn strncpy_exact_fit_with_nul() {
+        check_strncpy(b"abc\0", 4);
+        check_strncpy(b"abc\0", 8);
+    }
+
+    #[test]
+    fn strncpy_shmem_name_window() {
+        // Live caller: shmem_open copies name into 31-byte field.
+        check_strncpy(b"short\0", 31);
+        check_strncpy(b"0123456789012345678901234567890\0", 31); // 31 chars + NUL → trunc 31
+    }
+
+    #[test]
+    fn strncpy_prng_50k_matches_oracle() {
+        let mut state = STRNCPY_PRNG_SEED;
+        let mut src = [0u8; 96];
+        for _ in 0..50_000 {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            let n = (state % 48) as u32;
+            let mode = state % 3;
+            let readable: &[u8] = match mode {
+                0 => {
+                    // C string with NUL at or before n.
+                    let body = if n == 0 {
+                        0
+                    } else {
+                        (state as usize) % (n as usize)
+                    };
+                    for i in 0..body {
+                        state ^= state << 13;
+                        state ^= state >> 17;
+                        state ^= state << 5;
+                        src[i] = (state as u8).wrapping_add(1).max(1);
+                    }
+                    src[body] = 0;
+                    &src[..=body]
+                }
+                1 => {
+                    // Exactly n non-NUL bytes (truncation / no terminator).
+                    for i in 0..(n as usize) {
+                        state ^= state << 13;
+                        state ^= state >> 17;
+                        state ^= state << 5;
+                        src[i] = (state as u8).wrapping_add(1).max(1);
+                    }
+                    &src[..n as usize]
+                }
+                _ => {
+                    // C string longer than n (NUL after the window).
+                    let total = (n as usize) + 1 + ((state as usize) % 8);
+                    for i in 0..total.saturating_sub(1) {
+                        state ^= state << 13;
+                        state ^= state >> 17;
+                        state ^= state << 5;
+                        src[i] = (state as u8).wrapping_add(1).max(1);
+                    }
+                    src[total - 1] = 0;
+                    &src[..total]
+                }
+            };
+            check_strncpy(readable, n);
+        }
+    }
 
     fn rust_vs(s1: &[u8], s2: &[u8], n: u32) -> i32 {
         unsafe { strncmp(s1.as_ptr(), s2.as_ptr(), n) }
