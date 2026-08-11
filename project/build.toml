@@ -5,7 +5,7 @@
 # Do not put secrets here.
 
 # ---------------------------------------------------------------------------
-# Rust freestanding components (Cuts A–AT Strategy A+C blobs)
+# Rust freestanding components (Cuts A–AU Strategy A+C blobs)
 # ---------------------------------------------------------------------------
 [rust]
 # Cargo workspace containing `kolibri_utils`.
@@ -35,9 +35,16 @@ python = "python"
 generic_script = "rust_kernel/kolibri_utils/scripts/extract_reloc_free_text.py"
 probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 
-# Blobs required by the hybrid kernel (Cuts A–AT). Newest-first extraction order;
+# Blobs required by the hybrid kernel (Cuts A–AU). Newest-first extraction order;
 # FASM embeds whichever files `kernel/rust/*.inc` reference. Blobs are always
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_ipv4_find_fragment_slot"
+symbol = "rust_ipv4_find_fragment_slot"
+expect_ret_imm = 12
+out = "rust_ipv4_find_fragment_slot.bin"
+
 [[rust.blobs]]
 kind = "generic"
 section = ".text.rust_get_coff_sym"
@@ -391,6 +398,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "AU"
+blob = "rust_ipv4_find_fragment_slot.bin"
+symbol = "rust_ipv4_find_fragment_slot"
+gate = "USE_RUST_IPV4_FIND_FRAGMENT_SLOT"
+include = "kernel/rust/ipv4_find_fragment_slot.inc"
+gate_file = "kernel/network/IPv4.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "AT"
 blob = "rust_get_coff_sym.bin"

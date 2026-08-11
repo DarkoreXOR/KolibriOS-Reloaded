@@ -595,6 +595,38 @@ end if
 ; OUT: pointer to slot in esi, -1 on error                        ;
 ;                                                                 ;
 ;-----------------------------------------------------------------;
+; Cut AU: USE_RUST_IPV4_FIND_FRAGMENT_SLOT=1 routes through Rust
+; rust_ipv4_find_fragment_slot (see rust/ipv4_find_fragment_slot.inc).
+; Set USE_RUST_IPV4_FIND_FRAGMENT_SLOT=0 to restore the original FASM
+; body without deleting it. Independent of Cuts A–AT.
+;
+; Legacy preserves EAX/EBX/ECX/EDX via push/pop; ESI is the return.
+; Trampoline also keeps EDI/EBP (REG-001 canaries).
+
+USE_RUST_IPV4_FIND_FRAGMENT_SLOT = 1
+
+if USE_RUST_IPV4_FIND_FRAGMENT_SLOT
+
+align 4
+ipv4_find_fragment_slot:
+        push    eax
+        push    ebx
+        push    ecx
+        push    edx
+        push    edi
+        push    ebp
+        stdcall rust_ipv4_find_fragment_slot, edx, IPv4_fragments, IPv4_MAX_FRAGMENTS
+        mov     esi, eax
+        pop     ebp
+        pop     edi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        pop     eax
+        ret
+
+else
+
 align 4
 ipv4_find_fragment_slot:
 
@@ -621,6 +653,8 @@ ipv4_find_fragment_slot:
   .found_slot:
         pop     edx ecx ebx eax
         ret
+
+end if
 
 
 ;------------------------------------------------------------------;

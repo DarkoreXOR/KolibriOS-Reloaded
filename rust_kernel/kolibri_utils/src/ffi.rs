@@ -18,6 +18,7 @@ use crate::geometry::block_clip_ptr;
 use crate::get_coff_sym::get_coff_sym_ptr;
 use crate::get_pg_addr::get_pg_addr_ptr;
 use crate::io_access::set_io_access_rights_ptr;
+use crate::ipv4_find_fragment_slot::ipv4_find_fragment_slot_ptr;
 use crate::ipv4_route::ipv4_route_ptr;
 use crate::port_area::r_f_port_area_ptr;
 use crate::socket_check::socket_check_ptr;
@@ -264,6 +265,29 @@ pub unsafe extern "stdcall" fn rust_get_coff_sym(
 ) -> u32 {
     // SAFETY: kernel trampoline / load_library passes live symbol table + name.
     unsafe { get_coff_sym_ptr(p_sym, count, sz_sym) }
+}
+
+/// `stdcall` rust_ipv4_find_fragment_slot(packet, fragments, count) -> EAX.
+///
+/// Cut AU: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). Returns slot pointer or `0xFFFF_FFFF`.
+/// FASM trampoline injects `IPv4_fragments` + `IPv4_MAX_FRAGMENTS`, moves EAX→ESI,
+/// and preserves EAX/EBX/ECX/EDX (REG-001; `ipv4_input` keeps EDX→packet /
+/// EBX→device across the call).
+///
+/// # Safety
+/// `packet` must be a readable IPv4 header (≥20 bytes); `fragments` must address
+/// `count` readable `IPv4_FRAGMENT_slot` records.
+#[no_mangle]
+#[link_section = ".text.rust_ipv4_find_fragment_slot"]
+pub unsafe extern "stdcall" fn rust_ipv4_find_fragment_slot(
+    packet: *const u8,
+    fragments: *const u8,
+    count: u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes live packet header + fragment table.
+    unsafe { ipv4_find_fragment_slot_ptr(packet, fragments, count) }
 }
 
 /// `stdcall` rust_cp866_to_upper(ch) -> uppercased CP866 byte in AL (EAX).

@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
@@ -10,8 +10,8 @@
 //! window screen-fit helpers, TSS I/O permission bitmap updates + port-area reserve/free,
 //! COFF reloc application + symbol name→Value lookup, MBR/EBR partition-table entry validation,
 //! GPT protective-MBR recognition, process TID→slot lookup, IPv4 on-link/gateway/broadcast
-//! routing, kernel VA→PA page translation, and socket-list membership for KolibriOS hybrid
-//! migration.
+//! routing + fragment-slot lookup, kernel VA→PA page translation, and socket-list membership
+//! for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -34,6 +34,7 @@ mod geometry;
 mod get_coff_sym;
 mod get_pg_addr;
 mod io_access;
+mod ipv4_find_fragment_slot;
 mod ipv4_route;
 mod iso9660_compare;
 mod mouse;
@@ -95,6 +96,12 @@ pub use get_pg_addr::{
 pub use io_access::{
     io_map_bit, set_io_access_rights, set_io_access_rights_ptr, IO_MAP_BITS, IO_MAP_BYTES,
     SET_IO_ACCESS_RIGHTS_PRNG_SEED,
+};
+pub use ipv4_find_fragment_slot::{
+    ipv4_find_fragment_slot, ipv4_find_fragment_slot_from_keys, ipv4_find_fragment_slot_ptr,
+    FRAGMENT_SLOT_SIZE, IPV4_FIND_FRAGMENT_SLOT_PRNG_SEED, IPV4_HEADER_MIN_LEN, IPV4_MAX_FRAGMENTS,
+    OFF_HDR_DST_IP, OFF_HDR_IDENTIFICATION, OFF_HDR_SRC_IP, OFF_SLOT_DST_IP, OFF_SLOT_ID,
+    OFF_SLOT_PTR, OFF_SLOT_SRC_IP, OFF_SLOT_TTL,
 };
 pub use ipv4_route::{
     ipv4_route, ipv4_route_ptr, net_ptr_to_num4, Ipv4RouteResult, IPV4_BROADCAST,
