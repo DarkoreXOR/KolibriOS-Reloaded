@@ -23,7 +23,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 
 - Cut A from boundaries.
 - **Risk:** low.
-- **Status (2026-08-11):** **COMPLETE** — Phase C + Cuts A–AW production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–AW re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
+- **Status (2026-08-11):** **COMPLETE** — Phase C + Cuts A–AX production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–AX re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
 - **Done:** Phase C probe + CRC32 + UTF-16 + CP866 + UTF-8. Baseline: [`cut-a-final-architecture.md`](cut-a-final-architecture.md).
 - **Cut B (pure util, not allocator):** `cp866toUpper` — **done** 2026-08-09 ([`cut-b-plan.md`](cut-b-plan.md), [`cut-b-implementation.md`](cut-b-implementation.md)).
 - **Cut C:** `utf16toUpper` — **done** ([`cut-c-implementation.md`](cut-c-implementation.md)).
@@ -72,7 +72,8 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut AT:** `get_coff_sym` — **done** 2026-08-11 ([`cut-at-plan.md`](cut-at-plan.md), [`cut-at-implementation.md`](cut-at-implementation.md)). PE/COFF symbol name→Value scan (Stage-8 foothold); Path B after post-AS raised-bar cluster audit (socket Path A / Y+sym Path A rejected; preferred over `createMcbEntry`); reloc-free.
 - **Cut AU:** `ipv4_find_fragment_slot` — **done** 2026-08-11 ([`cut-au-plan.md`](cut-au-plan.md), [`cut-au-implementation.md`](cut-au-implementation.md)). IPv4 reassembly fragment-slot keyed scan (Stage-5 foothold); Path B after post-AT raised-bar cluster audit (Y+AT+rebase Path A / createMcbEntry rejected); reloc-free.
 - **Cut AV:** `ahci_find_cmdslot` — **done** 2026-08-11 ([`cut-av-plan.md`](cut-av-plan.md), [`cut-av-implementation.md`](cut-av-implementation.md)). AHCI free command-list slot bit scan (driver foothold); Path B after post-AU raised-bar cluster audit (network Path A / createMcbEntry / rebase_coff rejected); reloc-free.
-- **Cut AW:** `xfs._.blkrel2sectabs` — **done** 2026-08-11 ([`cut-aw-plan.md`](cut-aw-plan.md), [`cut-aw-implementation.md`](cut-aw-implementation.md)). XFS AG-relative block → absolute sector (FS address-math foothold); Path B after post-AV raised-bar cluster audit (AHCI/network/PE/MCB Path A / createMcbEntry rejected); reloc-free. **Stop; do not start Cut AX.**
+- **Cut AW:** `xfs._.blkrel2sectabs` — **done** 2026-08-11 ([`cut-aw-plan.md`](cut-aw-plan.md), [`cut-aw-implementation.md`](cut-aw-implementation.md)). XFS AG-relative block → absolute sector (FS address-math foothold); Path B after post-AV raised-bar cluster audit (AHCI/network/PE/MCB Path A / createMcbEntry rejected); reloc-free.
+- **Cut AX:** `createMcbEntry` — **done** 2026-08-11 ([`cut-ax-plan.md`](cut-ax-plan.md), [`cut-ax-implementation.md`](cut-ax-implementation.md)). NTFS MCB VLE encode (Cut I inverse; FS write foothold); Path B after post-AW raised-bar cluster audit (XFS/AHCI/network/PE Path A / address-math siblings rejected); reloc-free. **Stop; do not start Cut AY.**
 
 ### Stage 3 — Compat syscall façade (selected)
 
@@ -87,7 +88,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 ### Stage 5 — FS plugin / net protocol islands
 
 - One filesystem; optional TCP path.
-- **Status:** foothold via Cuts AC/M/V/AS/AU (IPv4 route + TCP timers + socket_check + fragment-slot lookup); AHCI cmdslot via Cut AV; XFS AG→sector via Cut AW; broader protocol/driver islands still open.
+- **Status:** foothold via Cuts AC/M/V/AS/AU (IPv4 route + TCP timers + socket_check + fragment-slot lookup); AHCI cmdslot via Cut AV; XFS AG→sector via Cut AW; NTFS MCB encode via Cut AX; broader protocol/driver islands still open.
 
 ### Stage 6 — Scheduler policy + process create
 

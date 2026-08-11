@@ -316,6 +316,8 @@ high_code:
         call    xfs_hashname_rust_smoke_test
         ; Cut AW: xfs._.blkrel2sectabs smoke (Rust when USE_RUST_XFS_BLKREL2SECTABS=1).
         call    xfs_blkrel2sectabs_rust_smoke_test
+        ; Cut AX: createMcbEntry smoke (Rust when USE_RUST_NTFS_CREATE_MCB_ENTRY=1).
+        call    ntfs_create_mcb_rust_smoke_test
         ; Cut AQ: get_pg_addr smoke (Rust when USE_RUST_GET_PG_ADDR=1).
         call    get_pg_addr_rust_smoke_test
         ; Cut U: fat_gen_short_name smoke (Rust when USE_RUST_FAT_GEN_SHORT_NAME=1).

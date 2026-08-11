@@ -97,6 +97,8 @@ include "rust/fs_calculate_time.inc"
 include "rust/block_clip.inc"
 ; Cut I: ntfs_decode_mcb_entry — Rust blob + smoke (see docs/migration/cut-i-plan.md)
 include "rust/ntfs_decode_mcb_entry.inc"
+; Cut AX: createMcbEntry — Rust blob + smoke (USE_RUST_NTFS_CREATE_MCB_ENTRY)
+include "rust/ntfs_create_mcb_entry.inc"
 ; Cut J: ntfs_restore_usa — Rust blob + smoke (see docs/migration/cut-j-plan.md)
 include "rust/ntfs_restore_usa.inc"
 ; Cut K: fat_next_short_name — Rust blob + smoke (see docs/migration/cut-k-plan.md)

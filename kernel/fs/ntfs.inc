@@ -2896,6 +2896,45 @@ writeRecord:
         pop     ecx
         jmp     fs_write64_sys
 
+; Cut AX: USE_RUST_NTFS_CREATE_MCB_ENTRY=1 routes through Rust
+; rust_ntfs_create_mcb_entry (see rust/ntfs_create_mcb_entry.inc).
+; Set USE_RUST_NTFS_CREATE_MCB_ENTRY=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–AW / Cut I decode.
+; Critical ABI: EDI inout to terminator; EBX/EBP preserved; DF→0 iff FRS slide;
+; sizeWithHeader +8 before FRS-full early-out quirk retained.
+
+USE_RUST_NTFS_CREATE_MCB_ENTRY = 1
+
+if USE_RUST_NTFS_CREATE_MCB_ENTRY
+
+; Compatibility trampoline: EBP→NTFS + EDI/ESI → Rust stdcall → EDI.
+; Omit-FP: EBP must remain the live NTFS pointer (no standard prologue).
+; Preserve EBX (legacy untouched; live across write callers). EAX/ECX/EDX/ESI
+; are legacy-clobbered. EAX bit0 from Rust ⇒ `cld` after FRS slide path.
+align 4
+createMcbEntry:
+        push    ebx
+        sub     esp, 4                  ; out_dest slot
+        mov     [esp], edi
+        mov     eax, esp                ; &out_dest
+        push    eax                     ; arg6: out_dest
+        push    dword [ebp+NTFS.frs_buffer] ; arg5: frs
+        push    esi                     ; arg4: attr
+        push    edi                     ; arg3: dest
+        push    dword [ebp+NTFS.fileDataSize] ; arg2
+        push    dword [ebp+NTFS.fileDataStart] ; arg1
+        call    rust_ntfs_create_mcb_entry ; ret 24; EAX bit0=need_cld
+        mov     edi, [esp]              ; updated dest
+        add     esp, 4
+        test    al, 1
+        jz      @f
+        cld                             ; match FASM slide path DF=0
+@@:
+        pop     ebx
+        ret
+
+else
+
 createMcbEntry:
 ;   in:
 ; [ebp+NTFS.fileDataStart] = position value
@@ -2956,6 +2995,8 @@ createMcbEntry:
         mov     [edi], cl
 .end:
         ret
+
+end if
 
 resizeAttribute:
 ;   in:

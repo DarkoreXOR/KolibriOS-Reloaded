@@ -1,8 +1,8 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
-//! EXT Unix→BDFE, FAT packed-time→BDFE, video geometry, NTFS MCB decode, NTFS USA restore,
+//! EXT Unix→BDFE, FAT packed-time→BDFE, video geometry, NTFS MCB decode+encode, NTFS USA restore,
 //! FAT 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator
 //! + persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall
 //! userspace region gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS
@@ -40,6 +40,7 @@ mod ipv4_route;
 mod iso9660_compare;
 mod mouse;
 mod ntfs_bootsec;
+mod ntfs_create_mcb;
 mod ntfs_mcb;
 mod ntfs_usa;
 mod partition;
@@ -120,6 +121,11 @@ pub use mouse::mouse_acceleration;
 pub use ntfs_bootsec::{
     fasm_oracle_ntfs_test_bootsec, make_valid_ntfs_bootsec, ntfs_test_bootsec,
     ntfs_test_bootsec_ptr, NTFS_BOOTSEC_MIN_LEN, NTFS_TEST_BOOTSEC_PRNG_SEED,
+};
+pub use ntfs_create_mcb::{
+    mcb_size_width, mcb_start_width, ntfs_create_mcb_entry_fixture, ntfs_create_mcb_entry_ptr,
+    CreateMcbFixtureResult, NTFS_CREATE_MCB_ENTRY_PRNG_SEED, OFF_RECORD_ALLOCATED_SIZE,
+    OFF_RECORD_REAL_SIZE, OFF_SIZE_WITH_HEADER,
 };
 pub use ntfs_mcb::{ntfs_decode_mcb_entry, McbDecodeResult};
 pub use ntfs_usa::{ntfs_restore_usa, UsaRestoreResult};

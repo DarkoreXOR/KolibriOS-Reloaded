@@ -26,6 +26,7 @@ use crate::socket_check::socket_check_ptr;
 use crate::iso9660_compare::iso9660_compare_name_ptr;
 use crate::mouse::mouse_acceleration;
 use crate::ntfs_bootsec::ntfs_test_bootsec_ptr;
+use crate::ntfs_create_mcb::ntfs_create_mcb_entry_ptr;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
 use crate::ntfs_usa::ntfs_restore_usa_ptr;
 use crate::partition::{is_partition_table_entry_ptr, is_protective_mbr_ptr};
@@ -614,6 +615,31 @@ pub unsafe extern "stdcall" fn rust_ntfs_decode_mcb_entry(
 ) -> u32 {
     // SAFETY: kernel trampoline passes &ESI slot and caller stack buffer.
     unsafe { ntfs_decode_mcb_entry_ptr(esi_inout, buffer) }
+}
+
+/// `stdcall` rust_ntfs_create_mcb_entry(start, size, dest, attr, frs, out_dest)
+/// → EAX bit0 = need_cld (FRS slide ran); *out_dest = new EDI.
+///
+/// Cut AX: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 24 bytes (`ret 24`). FASM trampoline issues `cld` when
+/// bit0 is set; preserves EBX; EBP→NTFS stays caller-owned (omit-FP).
+///
+/// # Safety
+/// `dest`/`attr`/`frs` must be live writable FRS-relative regions;
+/// `out_dest` must be a writable pointer slot.
+#[no_mangle]
+#[link_section = ".text.rust_ntfs_create_mcb_entry"]
+pub unsafe extern "stdcall" fn rust_ntfs_create_mcb_entry(
+    start: u32,
+    size: u32,
+    dest: *mut u8,
+    attr: *mut u8,
+    frs: *mut u8,
+    out_dest: *mut *mut u8,
+) -> u32 {
+    // SAFETY: kernel trampoline passes live NTFS FRS/attr/dest pointers.
+    unsafe { ntfs_create_mcb_entry_ptr(start, size, dest, attr, frs, out_dest) }
 }
 
 /// `stdcall` rust_ntfs_restore_usa(record, size) -> EAX = 0 OK / 1 fail.
