@@ -290,6 +290,7 @@ high_code:
         call    anti_aliasing_rust_smoke_test
         call    test_app_header_rust_smoke_test
         call    is_region_userspace_rust_smoke_test
+        call    is_string_userspace_rust_smoke_test
         call    file_system_is_operation_safe_rust_smoke_test
         ; Cut BA: pci_make_config_cmd smoke (Rust when USE_RUST_PCI_MAKE_CONFIG_CMD=1).
         call    pci_make_config_cmd_rust_smoke_test
@@ -4734,6 +4735,35 @@ align 4
 ; @param base Base address of string
 ; @return ZF = 1 if string in userspace memory,
 ;         zf = 0 otherwise
+; Cut BJ: USE_RUST_IS_STRING_USERSPACE=1 routes through Rust
+; rust_is_string_userspace (see rust/is_string_userspace.inc).
+; Production ON (Cut BJ complete). Set =0 to restore the original FASM body.
+
+USE_RUST_IS_STRING_USERSPACE = 1
+
+if USE_RUST_IS_STRING_USERSPACE
+
+; Compatibility trampoline: existing stdcall ZF-out ABI → Rust stdcall scalar.
+; Proven caller requirements: preserve EAX, ECX, EDI (FASM push/pop); EDX
+; canary (REG-001); ZF = FASM result; DF unchanged; ret 4.
+; Sequence verified: cmp sets ZF; pop does not modify EFLAGS.
+proc is_string_userspace stdcall, base:dword
+        push    edi
+        push    ecx
+        push    edx
+        push    eax
+        stdcall rust_is_string_userspace, [base]
+        cmp     eax, 1          ; ZF=1 iff Rust returned 1 (legacy ZF=1)
+        pop     eax             ; restore caller EAX; flags unchanged
+        pop     edx
+        pop     ecx
+        pop     edi
+        ret
+endp
+
+else
+
+; --- original FASM implementation (rollback) ---
 proc is_string_userspace stdcall, base:dword
         push    eax ecx edi
         xor     eax, eax
@@ -4752,6 +4782,8 @@ proc is_string_userspace stdcall, base:dword
         pop     edi ecx eax
         ret
 endp
+
+end if
 
 if ~ lang eq es_ES
 diff16 "end of .text segment",0,$

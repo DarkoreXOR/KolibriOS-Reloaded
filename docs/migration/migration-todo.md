@@ -4,10 +4,10 @@
 Rust hybrid migration scope. One-time project map; update when a Cut
 completes or the scoped candidate set changes.
 
-**Last inventory baseline:** post–Cut BI (2026-08-12).
+**Last inventory baseline:** post–Cut BJ (2026-08-12).
 
 **Gates source of truth:** `project/build.toml` `[[rust.migrations]]`
-    (64 production entries, all `enabled = true` after BI).
+    (65 production entries, all `enabled = true` after BJ).
 
 ---
 
@@ -232,8 +232,8 @@ leaves. Path A rejections are recorded in cut plans, not as fake completions.
 ## syscall
 
 - [x] `is_region_userspace` — Cut P
+- [x] `is_string_userspace` — Cut BJ
 - [ ] `i40` — unsuitable: Cut C0 — preserve syscall entry asm
-- [ ] `is_string_userspace` — thin: Cut P sibling (AZ #5)
 - [ ] `syscall_entry` — unsuitable: Cut C0 — preserve entry asm
 - [ ] `sysenter_entry` — unsuitable: Cut C0 — preserve entry asm
 - [ ] `sysfn_getfreemem` — deferred: Stage 3 query façade
@@ -307,9 +307,9 @@ Documented across Cuts AO–AZ plans:
 
 **Functions completed / functions total**
 
-`64 / 135`
+`65 / 135`
 
-(Mechanically: `64` `[x]` + `71` `[ ]` = `135`.)
+(Mechanically: `65` `[x]` + `70` `[ ]` = `135`.)
 
 When a new Cut completes: mark its `[ ]` → `[x]`, move the note to the Cut id,
 and update this counter so it still matches the checklist.

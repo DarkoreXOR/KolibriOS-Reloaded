@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
@@ -6,7 +6,8 @@
 //! EXT Unix→BDFE, FAT packed-time→BDFE, video geometry, NTFS MCB decode+encode, NTFS USA restore,
 //! FAT 8.3 short-name collision + LFN→8.3 generator + LFN charset legality, HID mouse acceleration
 //! + hotkey field match, TCP RTT estimator + persist-timer arming + state→header flags, GUI font
-//! anti-aliasing, MENUET app-header validation, syscall userspace region gate + sysfn70/80
+//! anti-aliasing, MENUET app-header validation, syscall userspace region gate + NUL-terminated
+//! string userspace gate + sysfn70/80
 //! operation-safe size→gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS
 //! extent unpack + dir leaf hash binary search + DA node first-match-by-hash + dir name hash +
 //! AG-relative block→absolute sector, window screen-fit helpers, TSS I/O permission bitmap
@@ -204,7 +205,8 @@ pub use time::{
 };
 pub use unicode::{cp866_decode, cp866_encode, utf16_encode, utf8_decode, ANSI2UNI_CHAR_PRNG_SEED};
 pub use userspace::{
-    is_region_userspace, trampoline_zf_from_rust_return, IS_REGION_USERSPACE_PRNG_SEED,
+    is_region_userspace, is_string_userspace, is_string_userspace_at,
+    trampoline_zf_from_rust_return, IS_REGION_USERSPACE_PRNG_SEED, IS_STRING_USERSPACE_PRNG_SEED,
 };
 pub use utf16_to_8::{
     pack_sf_eax, trampoline_eax_from_packed, trampoline_sf_from_packed, unpack_sf_eax, utf16_to_8,

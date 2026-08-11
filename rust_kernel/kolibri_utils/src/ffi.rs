@@ -44,7 +44,7 @@ use crate::time::{
     ntfs_calculate_time_ptr, ntfs_datetime_to_bdfe_ptr, xfs_bigtime_to_secs,
 };
 use crate::unicode::{cp866_decode, cp866_encode, utf16_encode, utf8_decode};
-use crate::userspace::is_region_userspace;
+use crate::userspace::{is_region_userspace, is_string_userspace};
 use crate::utf16_to_8::utf16_to_8_ptr;
 use crate::utf8to16::utf8to16_ptr;
 use crate::window::check_window_position_ptr;
@@ -1131,6 +1131,26 @@ pub unsafe extern "stdcall" fn rust_test_app_header(
 #[link_section = ".text.rust_is_region_userspace"]
 pub extern "stdcall" fn rust_is_region_userspace(base: u32, len: u32) -> u32 {
     is_region_userspace(base, len)
+}
+
+/// `stdcall` rust_is_string_userspace(base) -> EAX ∈ {0,1}.
+///
+/// Cut BJ: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 4 bytes (`ret 4`).
+///
+/// Return `1` = legacy FASM `ZF=1` (NUL found in userspace window);
+/// `0` = legacy FASM `ZF=0` (reject). The FASM trampoline reconstructs ZF
+/// via `cmp eax, 1` and restores caller EAX/ECX/EDX/EDI with flag-neutral pops.
+///
+/// # Safety
+/// When `base as u32 <= OS_BASE-1`, `base` must be readable for
+/// `min(OS_BASE - base, 0x10000)` bytes or until the first NUL inclusive.
+#[no_mangle]
+#[link_section = ".text.rust_is_string_userspace"]
+pub unsafe extern "stdcall" fn rust_is_string_userspace(base: *const u8) -> u32 {
+    // SAFETY: kernel trampoline passes the caller string pointer.
+    unsafe { is_string_userspace(base) }
 }
 
 /// `stdcall` rust_file_system_is_operation_safe(inf) -> EAX ∈ {0,1}.
