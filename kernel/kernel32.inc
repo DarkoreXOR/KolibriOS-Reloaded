@@ -134,6 +134,8 @@ include "rust/test_app_header.inc"
 include "rust/is_region_userspace.inc"
 ; Cut BJ: is_string_userspace — Rust blob + smoke (USE_RUST_IS_STRING_USERSPACE)
 include "rust/is_string_userspace.inc"
+; Cut BK: coff_get_align — Rust blob + smoke (USE_RUST_COFF_GET_ALIGN)
+include "rust/coff_get_align.inc"
 ; Cut Q: UTF16to8 — Rust blob + smoke (USE_RUST_UTF16_TO_8=1; production ON)
 include "rust/utf16_to_8.inc"
 ; Cut R: xfs._.extent_unpack — Rust blob + smoke (USE_RUST_XFS_EXTENT_UNPACK)

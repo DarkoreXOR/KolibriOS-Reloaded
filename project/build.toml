@@ -5,7 +5,7 @@
 # Do not put secrets here.
 
 # ---------------------------------------------------------------------------
-# Rust freestanding components (Cuts A–BJ Strategy A+C blobs)
+# Rust freestanding components (Cuts A–BK Strategy A+C blobs)
 # ---------------------------------------------------------------------------
 [rust]
 # Cargo workspace containing `kolibri_utils`.
@@ -35,9 +35,16 @@ python = "python"
 generic_script = "rust_kernel/kolibri_utils/scripts/extract_reloc_free_text.py"
 probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 
-# Blobs required by the hybrid kernel (Cuts A–BJ). Newest-first extraction order;
+# Blobs required by the hybrid kernel (Cuts A–BK). Newest-first extraction order;
 # FASM embeds whichever files `kernel/rust/*.inc` reference. Blobs are always
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_coff_get_align"
+symbol = "rust_coff_get_align"
+expect_ret_imm = 4
+out = "rust_coff_get_align.bin"
+
 [[rust.blobs]]
 kind = "generic"
 section = ".text.rust_is_string_userspace"
@@ -497,12 +504,21 @@ out = "rust_crc_32.bin"
 kind = "probe"
 out = "rust_phase_c_probe.bin"
 
-# Production migration registry (Cuts A–BJ). Each entry maps one independent
+# Production migration registry (Cuts A–BK). Each entry maps one independent
 # `USE_RUST_*` gate to its blob, embed include, and gate assignment file.
 # `enabled` is applied to `gate_file` before every kernel assemble (independent
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "BK"
+blob = "rust_coff_get_align.bin"
+symbol = "rust_coff_get_align"
+gate = "USE_RUST_COFF_GET_ALIGN"
+include = "kernel/rust/coff_get_align.inc"
+gate_file = "kernel/core/dll.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "BJ"
 blob = "rust_is_string_userspace.bin"

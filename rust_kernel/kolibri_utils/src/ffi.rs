@@ -10,6 +10,7 @@ use crate::ahci_find_cmdslot::ahci_find_cmdslot;
 use crate::app_header::test_app_header_ptr;
 use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
+use crate::coff_get_align::coff_get_align_ptr;
 use crate::coff_reloc::fix_coff_relocs_ptr;
 use crate::crc::crc32_update;
 use crate::exfat_checksum::{calculate_set_checksum_field_ptr, exfat_hash_calculate_ptr};
@@ -361,6 +362,23 @@ pub unsafe extern "stdcall" fn rust_swap_bytes_in_words(base: *mut u16, len: u32
 #[link_section = ".text.rust_pci_make_config_cmd"]
 pub extern "stdcall" fn rust_pci_make_config_cmd(bus: u32, devfn: u32, reg: u32) -> u32 {
     pci_make_config_cmd(bus, devfn, reg)
+}
+
+/// `stdcall` rust_coff_get_align(section) -> EAX = alignment mask.
+///
+/// Cut BK: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 4 bytes (`ret 4`). Returns `(1 << n) - 1` from
+/// `COFF_SECTION.Characteristics` (4K default/clamp). FASM trampoline keeps
+/// register ABI (`EDX→section`) and preserves ECX/EDX (REG-001).
+///
+/// # Safety
+/// `section` must point to a readable `COFF_SECTION` through Characteristics.
+#[no_mangle]
+#[link_section = ".text.rust_coff_get_align"]
+pub unsafe extern "stdcall" fn rust_coff_get_align(section: *const u8) -> u32 {
+    // SAFETY: kernel trampoline passes EDX→COFF_SECTION.
+    unsafe { coff_get_align_ptr(section) }
 }
 
 /// `stdcall` rust_xfs_blkrel2sectabs(block_lo, block_hi, agblklog, agblocks,

@@ -865,6 +865,29 @@ endp
 
 ; in: edx -> COFF_SECTION struct
 ; out: eax = alignment as mask for bits to drop
+; Cut BK: USE_RUST_COFF_GET_ALIGN=1 routes through Rust
+; rust_coff_get_align (see rust/coff_get_align.inc).
+; Set USE_RUST_COFF_GET_ALIGN=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–BJ / Cut Y / Cut AT.
+; REG-001: trampoline preserves ECX+EDX (load_library keeps EBX size /
+; ECX preferred-base / EDI image cursor / ESI DLLDESCR across the call).
+
+USE_RUST_COFF_GET_ALIGN = 1
+
+if USE_RUST_COFF_GET_ALIGN
+
+; Compatibility trampoline: register ABI (EDX→section) → Rust stdcall → EAX.
+align 4
+coff_get_align:
+        push    ecx
+        push    edx
+        stdcall rust_coff_get_align, edx
+        pop     edx
+        pop     ecx
+        ret
+
+else
+
 coff_get_align:
 ; Rules:
 ; - if alignment is not given, use default = 4K;
@@ -885,6 +908,8 @@ coff_get_align:
         pop     ecx
         dec     eax
         ret
+
+end if
 
 align 4
 proc load_library stdcall, file_name:dword, encoding:dword
