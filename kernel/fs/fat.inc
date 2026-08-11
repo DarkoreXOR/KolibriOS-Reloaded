@@ -1121,6 +1121,29 @@ fat_find_lfn:
         stc
         ret
 
+; Cut AO: USE_RUST_FAT_TIME_TO_BDFE=1 routes through Rust
+; rust_fat_time_to_bdfe (see rust/fat_time_to_bdfe.inc).
+; Set USE_RUST_FAT_TIME_TO_BDFE=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–AN / FAT short-name gates.
+; REG-001: trampoline preserves ECX+EDX (legacy body push/pop; entry→BDFE callers
+; keep ESI/EDI live across the call; stdcall would clobber ECX/EDX).
+
+USE_RUST_FAT_TIME_TO_BDFE = 1
+
+if USE_RUST_FAT_TIME_TO_BDFE
+
+; Compatibility trampoline: EAX FAT time → EAX BDFE time; ECX/EDX preserved.
+align 4
+fat_time_to_bdfe:
+        push    ecx
+        push    edx
+        stdcall rust_fat_time_to_bdfe, eax
+        pop     edx
+        pop     ecx
+        ret
+
+else
+
 fat_time_to_bdfe:
 ; in: eax=FAT time
 ; out: eax=BDFE time
@@ -1137,6 +1160,8 @@ fat_time_to_bdfe:
         mov     ah, cl  ; minutes
         pop     edx ecx
         ret
+
+end if
 
 fat_date_to_bdfe:
         push    ecx edx

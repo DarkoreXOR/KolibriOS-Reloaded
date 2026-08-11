@@ -23,7 +23,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 
 - Cut A from boundaries.
 - **Risk:** low.
-- **Status (2026-08-11):** **COMPLETE** — Phase C + Cuts A–AN production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–AN re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
+- **Status (2026-08-11):** **COMPLETE** — Phase C + Cuts A–AO production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–AO re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
 - **Done:** Phase C probe + CRC32 + UTF-16 + CP866 + UTF-8. Baseline: [`cut-a-final-architecture.md`](cut-a-final-architecture.md).
 - **Cut B (pure util, not allocator):** `cp866toUpper` — **done** 2026-08-09 ([`cut-b-plan.md`](cut-b-plan.md), [`cut-b-implementation.md`](cut-b-implementation.md)).
 - **Cut C:** `utf16toUpper` — **done** ([`cut-c-implementation.md`](cut-c-implementation.md)).
@@ -63,7 +63,8 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut AK:** `xfs._.conv_bigtime_to_kos_epoch` — **done** 2026-08-10 ([`cut-ak-plan.md`](cut-ak-plan.md), [`cut-ak-implementation.md`](cut-ak-implementation.md)). XFS v5 bigtime (ns) → BDFE; Path B after post-AJ raised-bar cluster audit (`cd_compare_name` already AJ-routed; no Path A); reloc-free.
 - **Cut AL:** `ext_read_time` — **done** 2026-08-11 ([`cut-al-plan.md`](cut-al-plan.md), [`cut-al-implementation.md`](cut-al-implementation.md)). EXT/ext4 Unix (+extra epoch bits) → BDFE; Path B after post-AK raised-bar cluster audit (first EXT foothold; no Path A); reloc-free.
 - **Cut AM:** `xfs._.get_before_by_hashval` — **done** 2026-08-11 ([`cut-am-plan.md`](cut-am-plan.md), [`cut-am-implementation.md`](cut-am-implementation.md)). XFS DA interior-node first-match-by-hash (v4/v5; EBX=node quirk); Path B after post-AL raised-bar cluster audit (no Path A; complements Cut W without claiming XFS ownership); reloc-free.
-- **Cut AN:** `ansi2uni_char` — **done** 2026-08-11 ([`cut-an-plan.md`](cut-an-plan.md), [`cut-an-implementation.md`](cut-an-implementation.md)). CP866 → Unicode decode (Cut A encode inverse); Path B after post-AM raised-bar + REG-001 trampoline discipline (ECX+EDX preserve); reloc-free. **Stop; do not start Cut AO.**
+- **Cut AN:** `ansi2uni_char` — **done** 2026-08-11 ([`cut-an-plan.md`](cut-an-plan.md), [`cut-an-implementation.md`](cut-an-implementation.md)). CP866 → Unicode decode (Cut A encode inverse); Path B after post-AM raised-bar + REG-001 trampoline discipline (ECX+EDX preserve); reloc-free.
+- **Cut AO:** `fat_time_to_bdfe` — **done** 2026-08-11 ([`cut-ao-plan.md`](cut-ao-plan.md), [`cut-ao-implementation.md`](cut-ao-implementation.md)). DOS FAT packed-time → BDFE unpack (FAT+exFAT entry paths); Path B after post-AN raised-bar cluster audit (no Path A; `--disk exfat` A/B); reloc-free. **Stop; do not start Cut AP.**
 
 ### Stage 3 — Compat syscall façade (selected)
 

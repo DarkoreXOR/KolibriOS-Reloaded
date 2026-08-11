@@ -1,15 +1,15 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
-//! EXT Unix→BDFE, video geometry, NTFS MCB decode, NTFS USA restore, FAT 8.3 short-name collision
-//! + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator + persist-timer arming, GUI
-//! font anti-aliasing, MENUET app-header validation, syscall userspace region gate, UTF-16→UTF-8
-//! streaming encode, UTF-8→UTF-16 streaming decode, XFS extent unpack + dir leaf hash binary
-//! search + DA node first-match-by-hash, window screen-fit helpers, TSS I/O permission bitmap
-//! updates, COFF reloc application, MBR/EBR partition-table entry validation, GPT protective-MBR
-//! recognition, process TID→slot lookup, and IPv4 on-link/gateway/broadcast routing for KolibriOS
-//! hybrid migration.
+//! EXT Unix→BDFE, FAT packed-time→BDFE, video geometry, NTFS MCB decode, NTFS USA restore,
+//! FAT 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator
+//! + persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall
+//! userspace region gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS
+//! extent unpack + dir leaf hash binary search + DA node first-match-by-hash, window screen-fit
+//! helpers, TSS I/O permission bitmap updates, COFF reloc application, MBR/EBR partition-table
+//! entry validation, GPT protective-MBR recognition, process TID→slot lookup, and IPv4
+//! on-link/gateway/broadcast routing for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -114,14 +114,14 @@ pub use tcp::{
     TIMER_FLAG_PERSIST, TIMER_FLAG_RETRANSMISSION,
 };
 pub use time::{
-    bigtime_from_secs_2001, ext_read_time, ext_read_time_ptr, ext_unix_to_secs,
+    bigtime_from_secs_2001, ext_read_time, ext_read_time_ptr, ext_unix_to_secs, fat_time_to_bdfe,
     filetime_from_secs_2001, fs_calculate_time, fs_time2bdfe, fs_time2bdfe_ptr, ntfs_calculate_time,
     ntfs_calculate_time_ptr, ntfs_datetime_to_bdfe, ntfs_datetime_to_bdfe_ptr, ntfs_filetime_to_secs,
     pack_bigtime_be, pack_filetime, xfs_bigtime_to_secs, xfs_conv_bigtime_to_kos_epoch,
-    xfs_conv_bigtime_to_kos_epoch_ptr, BdfeTime, EXT_READ_TIME_PRNG_SEED, NTFS_CALCULATE_TIME_PRNG_SEED,
-    NTFS_DATETIME_TO_BDFE_PRNG_SEED, NTFS_FILETIME_BIAS_HI, NTFS_FILETIME_BIAS_LO,
-    NTFS_FILETIME_PER_SEC, UNIXTIME_TO_KOS_OFFSET, XFS_BIGTIME_TO_KOS_OFFSET_NS,
-    XFS_BIGTIME_TO_KOS_OFFSET_NS_HI, XFS_BIGTIME_TO_KOS_OFFSET_NS_LO,
+    xfs_conv_bigtime_to_kos_epoch_ptr, BdfeTime, EXT_READ_TIME_PRNG_SEED, FAT_TIME_TO_BDFE_PRNG_SEED,
+    NTFS_CALCULATE_TIME_PRNG_SEED, NTFS_DATETIME_TO_BDFE_PRNG_SEED, NTFS_FILETIME_BIAS_HI,
+    NTFS_FILETIME_BIAS_LO, NTFS_FILETIME_PER_SEC, UNIXTIME_TO_KOS_OFFSET,
+    XFS_BIGTIME_TO_KOS_OFFSET_NS, XFS_BIGTIME_TO_KOS_OFFSET_NS_HI, XFS_BIGTIME_TO_KOS_OFFSET_NS_LO,
     XFS_CONV_BIGTIME_TO_KOS_EPOCH_PRNG_SEED, XFS_NANOSEC_PER_SEC,
 };
 pub use unicode::{cp866_decode, cp866_encode, utf16_encode, utf8_decode, ANSI2UNI_CHAR_PRNG_SEED};

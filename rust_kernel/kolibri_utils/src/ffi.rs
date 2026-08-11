@@ -27,8 +27,8 @@ use crate::pid_to_slot::pid_to_slot_ptr;
 use crate::string::strncmp;
 use crate::tcp::{tcp_set_persist_ptr, tcp_xmit_timer_ptr};
 use crate::time::{
-    ext_unix_to_secs, fs_calculate_time_ptr, fs_time2bdfe_ptr, ntfs_calculate_time_ptr,
-    ntfs_datetime_to_bdfe_ptr, xfs_bigtime_to_secs,
+    ext_unix_to_secs, fat_time_to_bdfe, fs_calculate_time_ptr, fs_time2bdfe_ptr,
+    ntfs_calculate_time_ptr, ntfs_datetime_to_bdfe_ptr, xfs_bigtime_to_secs,
 };
 use crate::unicode::{cp866_decode, cp866_encode, utf16_encode, utf8_decode};
 use crate::userspace::is_region_userspace;
@@ -139,6 +139,18 @@ pub extern "stdcall" fn rust_unicode_cp866_encode(cp: u32) -> u32 {
 #[link_section = ".text.rust_ansi2uni_char"]
 pub extern "stdcall" fn rust_ansi2uni_char(ch: u32) -> u32 {
     cp866_decode(ch)
+}
+
+/// `stdcall` rust_fat_time_to_bdfe(fat_time) -> EAX = BDFE time dword.
+///
+/// Cut AO: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 4 bytes (`ret 4`). FASM trampoline preserves ECX+EDX
+/// (REG-001 / legacy `push ecx edx` body).
+#[no_mangle]
+#[link_section = ".text.rust_fat_time_to_bdfe"]
+pub extern "stdcall" fn rust_fat_time_to_bdfe(fat_time: u32) -> u32 {
+    fat_time_to_bdfe(fat_time)
 }
 
 /// `stdcall` rust_cp866_to_upper(ch) -> uppercased CP866 byte in AL (EAX).

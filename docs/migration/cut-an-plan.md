@@ -6,7 +6,7 @@
 
 > **Nomenclature:** **Cut AN** migrates CP866 → Unicode decode —
 > `ansi2uni_char` in `parse_fn.inc`.  
-> Cuts A–AM remain complete and must not be redone. Do not start Cut AO.
+> Cuts A–AM remain complete and must not be redone. Cut AO follows separately.
 
 ---
 

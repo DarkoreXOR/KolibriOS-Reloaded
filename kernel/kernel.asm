@@ -253,6 +253,7 @@ high_code:
 ; Cut AL: ext_read_time smoke ON when USE_RUST_EXT_READ_TIME=1.
 ; Cut AM: xfs._.get_before_by_hashval smoke ON when USE_RUST_XFS_GET_BEFORE_BY_HASHVAL=1.
 ; Cut AN: ansi2uni_char smoke ON when USE_RUST_ANSI2UNI_CHAR=1.
+; Cut AO: fat_time_to_bdfe smoke ON when USE_RUST_FAT_TIME_TO_BDFE=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -301,6 +302,8 @@ high_code:
         call    xfs_get_before_by_hashval_rust_smoke_test
         ; Cut AN: ansi2uni_char smoke (Rust when USE_RUST_ANSI2UNI_CHAR=1).
         call    ansi2uni_char_rust_smoke_test
+        ; Cut AO: fat_time_to_bdfe smoke (Rust when USE_RUST_FAT_TIME_TO_BDFE=1).
+        call    fat_time_to_bdfe_rust_smoke_test
         ; Cut U: fat_gen_short_name smoke (Rust when USE_RUST_FAT_GEN_SHORT_NAME=1).
         call    fat_gen_short_name_rust_smoke_test
         ; Cut V: tcp_set_persist smoke (Rust when USE_RUST_TCP_SET_PERSIST=1).
