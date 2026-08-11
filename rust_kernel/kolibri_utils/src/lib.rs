@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
@@ -8,9 +8,10 @@
 //! userspace region gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS
 //! extent unpack + dir leaf hash binary search + DA node first-match-by-hash + dir name hash,
 //! window screen-fit helpers, TSS I/O permission bitmap updates + port-area reserve/free,
-//! COFF reloc application, MBR/EBR partition-table entry validation, GPT protective-MBR
-//! recognition, process TID→slot lookup, IPv4 on-link/gateway/broadcast routing, kernel
-//! VA→PA page translation, and socket-list membership for KolibriOS hybrid migration.
+//! COFF reloc application + symbol name→Value lookup, MBR/EBR partition-table entry validation,
+//! GPT protective-MBR recognition, process TID→slot lookup, IPv4 on-link/gateway/broadcast
+//! routing, kernel VA→PA page translation, and socket-list membership for KolibriOS hybrid
+//! migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -30,6 +31,7 @@ mod exfat_checksum;
 mod fat_name;
 mod font;
 mod geometry;
+mod get_coff_sym;
 mod get_pg_addr;
 mod io_access;
 mod ipv4_route;
@@ -81,6 +83,11 @@ pub use fat_name::{
 };
 pub use font::{anti_aliasing, ANTI_ALIASING_PRNG_SEED};
 pub use geometry::{block_clip, BlockClipResult, Rect};
+pub use get_coff_sym::{
+    get_coff_sym, get_coff_sym_oracle, get_coff_sym_ptr, make_sym, name_eq_n, COFF_SYM_NAME_LEN,
+    GET_COFF_SYM_PRNG_SEED, OFF_SYM_VALUE as GET_COFF_SYM_OFF_VALUE,
+    COFF_SYM_SIZE as GET_COFF_SYM_SIZE,
+};
 pub use get_pg_addr::{
     get_pg_addr, get_pg_addr_ptr, GET_PG_ADDR_PRNG_SEED, IDENTITY_WINDOW, OS_BASE as GET_PG_ADDR_OS_BASE,
     PAGE_SIZE as GET_PG_ADDR_PAGE_SIZE, PAGE_TABS,

@@ -282,6 +282,29 @@ proc get_proc stdcall, exp:dword, sz_name:dword
 endp
 
 align 4
+; Cut AT: USE_RUST_GET_COFF_SYM=1 routes through Rust
+; rust_get_coff_sym (see rust/get_coff_sym.inc).
+; Set USE_RUST_GET_COFF_SYM=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–AS / Cut Y.
+;
+; Legacy has no `uses`; does not touch EBX/ESI/EDI/EBP. Trampoline
+; preserves EBX/ECX/EDX/ESI/EDI/EBP explicitly (REG-001: load_library
+; keeps ESI→DLLDESCR and EBX→coff across the call).
+
+USE_RUST_GET_COFF_SYM = 1
+
+if USE_RUST_GET_COFF_SYM
+
+align 4
+proc get_coff_sym stdcall uses ebx ecx edx esi edi ebp, pSym:dword, \
+        count:dword, sz_sym:dword
+        stdcall rust_get_coff_sym, [pSym], [count], [sz_sym]
+        ret
+endp
+
+else
+
+align 4
 proc get_coff_sym stdcall, pSym:dword,count:dword, sz_sym:dword
 
 @@:
@@ -298,6 +321,8 @@ proc get_coff_sym stdcall, pSym:dword,count:dword, sz_sym:dword
         mov     eax, [eax+COFF_SYM.Value]
         ret
 endp
+
+end if
 
 
 align 4

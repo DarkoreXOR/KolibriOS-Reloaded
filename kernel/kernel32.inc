@@ -152,6 +152,8 @@ include "rust/get_pg_addr.inc"
 include "rust/r_f_port_area.inc"
 ; Cut AS: socket_check — Rust blob + smoke (USE_RUST_SOCKET_CHECK)
 include "rust/socket_check.inc"
+; Cut AT: get_coff_sym — Rust blob + smoke (USE_RUST_GET_COFF_SYM)
+include "rust/get_coff_sym.inc"
 ; Cut U: fat_gen_short_name — Rust blob + smoke (USE_RUST_FAT_GEN_SHORT_NAME)
 include "rust/fat_gen_short_name.inc"
 ; Cut V: tcp_set_persist — Rust blob + smoke (USE_RUST_TCP_SET_PERSIST)

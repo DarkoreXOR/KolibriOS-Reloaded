@@ -15,6 +15,7 @@ use crate::exfat_checksum::{calculate_set_checksum_field_ptr, exfat_hash_calcula
 use crate::fat_name::{fat_gen_short_name_ptr, fat_next_short_name_ptr};
 use crate::font::anti_aliasing;
 use crate::geometry::block_clip_ptr;
+use crate::get_coff_sym::get_coff_sym_ptr;
 use crate::get_pg_addr::get_pg_addr_ptr;
 use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_route::ipv4_route_ptr;
@@ -241,6 +242,28 @@ pub unsafe extern "stdcall" fn rust_socket_check(
 ) -> u32 {
     // SAFETY: kernel trampoline passes live net_sockets sentinel.
     unsafe { socket_check_ptr(candidate, net_sockets) }
+}
+
+/// `stdcall` rust_get_coff_sym(pSym, count, sz_sym) -> EAX.
+///
+/// Cut AT: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). Returns symbol `Value` or `0`.
+/// FASM trampoline preserves EBX/ESI/EDI/EBP (REG-001; `load_library`
+/// keeps ESI→DLLDESCR / EBX→coff across the call).
+///
+/// # Safety
+/// `pSym` must address a readable `COFF_SYM` array for the walked range;
+/// `sz_sym` must be readable for up to 8 bytes / until NUL.
+#[no_mangle]
+#[link_section = ".text.rust_get_coff_sym"]
+pub unsafe extern "stdcall" fn rust_get_coff_sym(
+    p_sym: *const u8,
+    count: u32,
+    sz_sym: *const u8,
+) -> u32 {
+    // SAFETY: kernel trampoline / load_library passes live symbol table + name.
+    unsafe { get_coff_sym_ptr(p_sym, count, sz_sym) }
 }
 
 /// `stdcall` rust_cp866_to_upper(ch) -> uppercased CP866 byte in AL (EAX).

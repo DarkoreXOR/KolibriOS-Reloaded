@@ -258,6 +258,7 @@ high_code:
 ; Cut AQ: get_pg_addr smoke ON when USE_RUST_GET_PG_ADDR=1.
 ; Cut AR: r_f_port_area smoke ON when USE_RUST_R_F_PORT_AREA=1 (after reserve_irqs_ports).
 ; Cut AS: socket_check smoke ON when USE_RUST_SOCKET_CHECK=1 (after stack_init).
+; Cut AT: get_coff_sym smoke ON when USE_RUST_GET_COFF_SYM=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -495,6 +496,8 @@ high_code:
 
         ; Cut Y: fix_coff_relocs smoke — after LTR (stable stack like Cut X).
         call    fix_coff_relocs_rust_smoke_test
+        ; Cut AT: get_coff_sym smoke — synthetic COFF_SYM table (near Cut Y).
+        call    get_coff_sym_rust_smoke_test
         ; Cut X: set_io_access_rights smoke — requires live tss._io_map_0.
         call    set_io_access_rights_rust_smoke_test
         ; Cut Z: is_partition_table_entry smoke — synthetic entry + DISK stub.

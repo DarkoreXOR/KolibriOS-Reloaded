@@ -23,7 +23,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 
 - Cut A from boundaries.
 - **Risk:** low.
-- **Status (2026-08-11):** **COMPLETE** — Phase C + Cuts A–AS production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–AS re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
+- **Status (2026-08-11):** **COMPLETE** — Phase C + Cuts A–AT production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–AT re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
 - **Done:** Phase C probe + CRC32 + UTF-16 + CP866 + UTF-8. Baseline: [`cut-a-final-architecture.md`](cut-a-final-architecture.md).
 - **Cut B (pure util, not allocator):** `cp866toUpper` — **done** 2026-08-09 ([`cut-b-plan.md`](cut-b-plan.md), [`cut-b-implementation.md`](cut-b-implementation.md)).
 - **Cut C:** `utf16toUpper` — **done** ([`cut-c-implementation.md`](cut-c-implementation.md)).
@@ -68,7 +68,8 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut AP:** `xfs_hashname` — **done** 2026-08-11 ([`cut-ap-plan.md`](cut-ap-plan.md), [`cut-ap-implementation.md`](cut-ap-implementation.md)). XFS dir name ROL7 hash (feeds W/AM lookup); Path B after post-AO raised-bar cluster audit (no Path A; `--disk xfs` A/B); reloc-free.
 - **Cut AQ:** `get_pg_addr` — **done** 2026-08-11 ([`cut-aq-plan.md`](cut-aq-plan.md), [`cut-aq-implementation.md`](cut-aq-implementation.md)). Kernel VA→PA page translate (Stage-4 foothold); Path B after post-AP raised-bar cluster audit (no Path A; REG-001 ECX/EDX trampoline; `--disk xfs` DMA soak); reloc-free.
 - **Cut AR:** `r_f_port_area` — **done** 2026-08-11 ([`cut-ar-plan.md`](cut-ar-plan.md), [`cut-ar-implementation.md`](cut-ar-implementation.md)). I/O port-area reserve/free (syscall 46; Cut X follow-on); Path B after post-AQ Stage-4 audit (paging Path A rejected; Stage-4 leaves exhausted); reloc-free.
-- **Cut AS:** `socket_check` — **done** 2026-08-11 ([`cut-as-plan.md`](cut-as-plan.md), [`cut-as-implementation.md`](cut-as-implementation.md)). Socket-list lock-free ZF membership (Stage-5 foothold); Path B after post-AR raised-bar cluster audit (X+AR Path A rejected); reloc-free. **Stop; do not start Cut AT.**
+- **Cut AS:** `socket_check` — **done** 2026-08-11 ([`cut-as-plan.md`](cut-as-plan.md), [`cut-as-implementation.md`](cut-as-implementation.md)). Socket-list lock-free ZF membership (Stage-5 foothold); Path B after post-AR raised-bar cluster audit (X+AR Path A rejected); reloc-free.
+- **Cut AT:** `get_coff_sym` — **done** 2026-08-11 ([`cut-at-plan.md`](cut-at-plan.md), [`cut-at-implementation.md`](cut-at-implementation.md)). PE/COFF symbol name→Value scan (Stage-8 foothold); Path B after post-AS raised-bar cluster audit (socket Path A / Y+sym Path A rejected; preferred over `createMcbEntry`); reloc-free. **Stop; do not start Cut AU.**
 
 ### Stage 3 — Compat syscall façade (selected)
 
@@ -98,7 +99,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 ### Stage 8 — PE driver loader
 
 - Export directory ownership in Rust.
-- **Status:** not started.
+- **Status:** foothold via Cuts Y/AT (`fix_coff_relocs` + `get_coff_sym`); loader orchestration remains FASM.
 
 ### Stage 9 — Boot ownership
 
