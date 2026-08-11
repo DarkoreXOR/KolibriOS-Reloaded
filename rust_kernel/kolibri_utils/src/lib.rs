@@ -1,19 +1,20 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
 //! EXT Unix→BDFE, FAT packed-time→BDFE, video geometry, NTFS MCB decode+encode, NTFS USA restore,
-//! FAT 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator
-//! + persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall
-//! userspace region gate + sysfn70/80 operation-safe size→gate, UTF-16→UTF-8 streaming encode,
-//! UTF-8→UTF-16 streaming decode, XFS extent unpack + dir leaf hash binary search + DA node
-//! first-match-by-hash + dir name hash + AG-relative block→absolute sector, window screen-fit
-//! helpers, TSS I/O permission bitmap updates + port-area reserve/free, COFF reloc application +
-//! symbol name→Value lookup, MBR/EBR partition-table entry validation, GPT protective-MBR
-//! recognition, process TID→slot lookup, IPv4 on-link/gateway/broadcast routing + fragment-slot
-//! lookup, AHCI free command-slot scan, kernel VA→PA page translation, socket-list membership,
-//! NIC device-list ptr→index×4, PCI config-space address encode, and reverse
-//! character search (`strrchr`) for KolibriOS hybrid migration.
+//! FAT 8.3 short-name collision + LFN→8.3 generator + LFN charset legality, HID mouse acceleration
+//! + hotkey field match, TCP RTT estimator + persist-timer arming + state→header flags, GUI font
+//! anti-aliasing, MENUET app-header validation, syscall userspace region gate + sysfn70/80
+//! operation-safe size→gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS
+//! extent unpack + dir leaf hash binary search + DA node first-match-by-hash + dir name hash +
+//! AG-relative block→absolute sector, window screen-fit helpers, TSS I/O permission bitmap
+//! updates + port-area reserve/free, COFF reloc application + symbol name→Value lookup, MBR/EBR
+//! partition-table entry validation, GPT protective-MBR recognition, process TID→slot lookup,
+//! IPv4 on-link/gateway/broadcast routing + fragment-slot lookup, AHCI free command-slot scan,
+//! kernel VA→PA page translation, socket-list membership, NIC device-list ptr→index×4, PCI
+//! config-space address encode, and reverse character search (`strrchr`) for KolibriOS hybrid
+//! migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -41,6 +42,7 @@ mod io_access;
 mod ipv4_find_fragment_slot;
 mod ipv4_route;
 mod iso9660_compare;
+mod hotkey;
 mod mouse;
 mod ntfs_bootsec;
 mod ntfs_create_mcb;
@@ -128,6 +130,7 @@ pub use iso9660_compare::{
     iso9660_compare_name, iso9660_compare_name_ptr, Iso9660CompareNameResult,
     ISO9660_COMPARE_NAME_PRNG_SEED, ISO9660_DIR_OFF_NAME, ISO9660_DIR_OFF_NAME_LEN,
 };
+pub use hotkey::{hotkey_do_test, HOTKEY_DO_TEST_PRNG_SEED, HOTKEY_TESTS_NUM};
 pub use mouse::mouse_acceleration;
 pub use net_ptr_to_num4::{
     net_ptr_to_num4, net_ptr_to_num4_from_slice, net_ptr_to_num4_ptr, NET_PTR_TO_NUM4_MISS,

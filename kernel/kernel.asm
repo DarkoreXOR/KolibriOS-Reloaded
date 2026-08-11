@@ -267,6 +267,7 @@ high_code:
 ; Cut BB: strrchr smoke ON when USE_RUST_STRRCHR=1.
 ; Cut BC: fat_name_is_legal smoke ON when USE_RUST_FAT_NAME_IS_LEGAL=1.
 ; Cut BD: tcp_outflags smoke ON when USE_RUST_TCP_OUTFLAGS=1.
+; Cut BE: hotkey_do_test smoke ON when USE_RUST_HOTKEY_DO_TEST=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -296,6 +297,8 @@ high_code:
         call    fat_name_is_legal_rust_smoke_test
         ; Cut BD: tcp_outflags smoke (Rust when USE_RUST_TCP_OUTFLAGS=1).
         call    tcp_outflags_rust_smoke_test
+        ; Cut BE: hotkey_do_test smoke (Rust when USE_RUST_HOTKEY_DO_TEST=1).
+        call    hotkey_do_test_rust_smoke_test
         call    utf16_to_8_rust_smoke_test
         call    utf8to16_rust_smoke_test
         ; Cut R: xfs._.extent_unpack smoke (Rust trampoline when USE_RUST_XFS_EXTENT_UNPACK=1).

@@ -26,6 +26,7 @@ use crate::port_area::r_f_port_area_ptr;
 use crate::net_ptr_to_num4::net_ptr_to_num4_ptr;
 use crate::socket_check::socket_check_ptr;
 use crate::iso9660_compare::iso9660_compare_name_ptr;
+use crate::hotkey::hotkey_do_test;
 use crate::mouse::mouse_acceleration;
 use crate::ntfs_bootsec::ntfs_test_bootsec_ptr;
 use crate::ntfs_create_mcb::ntfs_create_mcb_entry_ptr;
@@ -828,6 +829,18 @@ pub unsafe extern "stdcall" fn rust_tcp_set_persist(socket: *mut u8) {
 pub unsafe extern "stdcall" fn rust_tcp_outflags(socket: *const u8) -> u32 {
     // SAFETY: kernel trampoline passes EAX → valid socket.
     unsafe { tcp_outflags_ptr(socket) }
+}
+
+/// `stdcall` rust_hotkey_do_test(funcs, kb_state, cl) -> EAX = 0 pass / ≠0 fail.
+///
+/// Cut BE: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). FASM trampoline injects `[eax+4]` and
+/// `[kb_state]`, preserves `EAX` (hotkey node), and maps the return to CF.
+#[no_mangle]
+#[link_section = ".text.rust_hotkey_do_test"]
+pub extern "stdcall" fn rust_hotkey_do_test(funcs: u32, kb_state: u32, cl: u32) -> u32 {
+    hotkey_do_test(funcs, kb_state, cl)
 }
 
 /// `stdcall` rust_set_io_access_rights(port, clear_access, io_map) -> void.

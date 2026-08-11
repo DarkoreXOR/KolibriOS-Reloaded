@@ -5,7 +5,7 @@
 # Do not put secrets here.
 
 # ---------------------------------------------------------------------------
-# Rust freestanding components (Cuts A–BD Strategy A+C blobs)
+# Rust freestanding components (Cuts A–BE Strategy A+C blobs)
 # ---------------------------------------------------------------------------
 [rust]
 # Cargo workspace containing `kolibri_utils`.
@@ -35,9 +35,16 @@ python = "python"
 generic_script = "rust_kernel/kolibri_utils/scripts/extract_reloc_free_text.py"
 probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 
-# Blobs required by the hybrid kernel (Cuts A–BD). Newest-first extraction order;
+# Blobs required by the hybrid kernel (Cuts A–BE). Newest-first extraction order;
 # FASM embeds whichever files `kernel/rust/*.inc` reference. Blobs are always
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_hotkey_do_test"
+symbol = "rust_hotkey_do_test"
+expect_ret_imm = 12
+out = "rust_hotkey_do_test.bin"
+
 [[rust.blobs]]
 kind = "generic"
 section = ".text.rust_tcp_outflags"
@@ -455,12 +462,21 @@ out = "rust_crc_32.bin"
 kind = "probe"
 out = "rust_phase_c_probe.bin"
 
-# Production migration registry (Cuts A–BC). Each entry maps one independent
+# Production migration registry (Cuts A–BE). Each entry maps one independent
 # `USE_RUST_*` gate to its blob, embed include, and gate assignment file.
 # `enabled` is applied to `gate_file` before every kernel assemble (independent
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "BE"
+blob = "rust_hotkey_do_test.bin"
+symbol = "rust_hotkey_do_test"
+gate = "USE_RUST_HOTKEY_DO_TEST"
+include = "kernel/rust/hotkey_do_test.inc"
+gate_file = "kernel/hid/keyboard.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "BD"
 blob = "rust_tcp_outflags.bin"

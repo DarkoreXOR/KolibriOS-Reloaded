@@ -110,6 +110,8 @@ include "rust/strrchr.inc"
 include "rust/fat_name_is_legal.inc"
 ; Cut BD: tcp_outflags — Rust blob + smoke (USE_RUST_TCP_OUTFLAGS)
 include "rust/tcp_outflags.inc"
+; Cut BE: hotkey_do_test — Rust blob + smoke (USE_RUST_HOTKEY_DO_TEST)
+include "rust/hotkey_do_test.inc"
 ; Cut J: ntfs_restore_usa — Rust blob + smoke (see docs/migration/cut-j-plan.md)
 include "rust/ntfs_restore_usa.inc"
 ; Cut K: fat_next_short_name — Rust blob + smoke (see docs/migration/cut-k-plan.md)

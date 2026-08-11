@@ -76,6 +76,41 @@ hotkey_test4:
         setz    al
         ret
 ;---------------------------------------------------------------------
+; Cut BE: USE_RUST_HOTKEY_DO_TEST=1 routes through Rust
+; rust_hotkey_do_test (see rust/hotkey_do_test.inc).
+; Set USE_RUST_HOTKEY_DO_TEST=0 to restore the original FASM body
+; without deleting it. Independent of Cut L (hotkey match, not mouse).
+
+USE_RUST_HOTKEY_DO_TEST = 1
+
+if USE_RUST_HOTKEY_DO_TEST
+
+; Compatibility trampoline: register ABI → Rust stdcall → CF.
+; Callers: EAX→hotkey node, CL∈{0,2,4}; CF clear=pass / set=fail.
+; EAX must be preserved (list walk). REG-001: also preserve EBX/ECX/EDX.
+; kb_state injected so the Rust blob never references that global.
+align 4
+hotkey_do_test:
+        push    ebx
+        push    ecx
+        push    edx
+        push    eax
+        movzx   edx, cl
+        stdcall rust_hotkey_do_test, dword [eax+4], [kb_state], edx
+        test    eax, eax
+        pop     eax
+        pop     edx
+        pop     ecx
+        pop     ebx
+        jnz     .rust_fail
+        clc
+        ret
+.rust_fail:
+        stc
+        ret
+
+else
+
 hotkey_do_test:
         push    eax
         mov     edx, [kb_state]
@@ -98,6 +133,8 @@ hotkey_do_test:
         stc
         pop     eax
         ret
+
+end if
 ;---------------------------------------------------------------------
 align 4
 ; @brief Export function - Add new scancode in buffer
