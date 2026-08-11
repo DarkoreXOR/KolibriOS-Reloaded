@@ -130,6 +130,33 @@ pci_service_not_supported:
 ;      command dword returned in eax ( 10000000 bbbbbbbb dddddfff rrrrrr00 )
 ;***************************************************************************
 
+; Cut BA: USE_RUST_PCI_MAKE_CONFIG_CMD=1 routes through Rust
+; rust_pci_make_config_cmd (see rust/pci_make_config_cmd.inc).
+; Set USE_RUST_PCI_MAKE_CONFIG_CMD=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–AZ.
+; REG-001: trampoline preserves EBX+ECX+EDX (callers keep ESI=size across call).
+
+USE_RUST_PCI_MAKE_CONFIG_CMD = 1
+
+if USE_RUST_PCI_MAKE_CONFIG_CMD
+
+; Compatibility trampoline: register ABI (AH/BH/BL) → Rust stdcall → EAX.
+align 4
+pci_make_config_cmd:
+        push    ebx
+        push    ecx
+        push    edx
+        movzx   ecx, ah                 ; bus
+        movzx   edx, bh                 ; device+func
+        movzx   ebx, bl                 ; register
+        stdcall rust_pci_make_config_cmd, ecx, edx, ebx
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
 align 4
 
 pci_make_config_cmd:
@@ -138,6 +165,8 @@ pci_make_config_cmd:
         and     eax, 0xffffff
         or      eax, 0x80000000
         ret
+
+end if
 
 ;***************************************************************************
 ;   Function

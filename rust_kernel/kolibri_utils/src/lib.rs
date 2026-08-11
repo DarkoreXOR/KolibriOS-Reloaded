@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
@@ -12,7 +12,7 @@
 //! symbol name→Value lookup, MBR/EBR partition-table entry validation, GPT protective-MBR
 //! recognition, process TID→slot lookup, IPv4 on-link/gateway/broadcast routing + fragment-slot
 //! lookup, AHCI free command-slot scan, kernel VA→PA page translation, socket-list membership,
-//! and NIC device-list ptr→index×4 for KolibriOS hybrid migration.
+//! NIC device-list ptr→index×4, and PCI config-space address encode for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -46,6 +46,7 @@ mod ntfs_create_mcb;
 mod ntfs_mcb;
 mod ntfs_usa;
 mod partition;
+mod pci_make_config_cmd;
 mod pid_to_slot;
 mod port_area;
 mod net_ptr_to_num4;
@@ -148,6 +149,9 @@ pub use partition::{
     IS_PARTITION_TABLE_ENTRY_PRNG_SEED, IS_PROTECTIVE_MBR_PRNG_SEED, OFF_BOOTABLE,
     OFF_FIRST_ABS_SECTOR, OFF_LENGTH, OFF_TYPE, PARTITION_TABLE_ENTRY_SIZE, PROTECTIVE_MBR_TYPE,
     PROTECTIVE_TRAILING_BYTES,
+};
+pub use pci_make_config_cmd::{
+    pci_make_config_cmd, pci_make_config_cmd_from_regs, PCI_MAKE_CONFIG_CMD_PRNG_SEED,
 };
 pub use pid_to_slot::{
     pid_to_slot, pid_to_slot_ptr, plant_slot, write_u32_le, APPDATA_SIZE, APPDATA_SIZE_SHIFT,

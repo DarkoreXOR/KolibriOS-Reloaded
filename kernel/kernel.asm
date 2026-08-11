@@ -285,6 +285,8 @@ high_code:
         call    test_app_header_rust_smoke_test
         call    is_region_userspace_rust_smoke_test
         call    file_system_is_operation_safe_rust_smoke_test
+        ; Cut BA: pci_make_config_cmd smoke (Rust when USE_RUST_PCI_MAKE_CONFIG_CMD=1).
+        call    pci_make_config_cmd_rust_smoke_test
         call    utf16_to_8_rust_smoke_test
         call    utf8to16_rust_smoke_test
         ; Cut R: xfs._.extent_unpack smoke (Rust trampoline when USE_RUST_XFS_EXTENT_UNPACK=1).

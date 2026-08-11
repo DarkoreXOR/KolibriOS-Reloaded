@@ -32,6 +32,7 @@ use crate::ntfs_create_mcb::ntfs_create_mcb_entry_ptr;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
 use crate::ntfs_usa::ntfs_restore_usa_ptr;
 use crate::partition::{is_partition_table_entry_ptr, is_protective_mbr_ptr};
+use crate::pci_make_config_cmd::pci_make_config_cmd;
 use crate::pid_to_slot::pid_to_slot_ptr;
 use crate::string::strncmp;
 use crate::tcp::{tcp_set_persist_ptr, tcp_xmit_timer_ptr};
@@ -328,6 +329,19 @@ pub unsafe extern "stdcall" fn rust_ipv4_find_fragment_slot(
 #[link_section = ".text.rust_ahci_find_cmdslot"]
 pub extern "stdcall" fn rust_ahci_find_cmdslot(slots: u32, ncs: u32) -> u32 {
     ahci_find_cmdslot(slots, ncs)
+}
+
+/// `stdcall` rust_pci_make_config_cmd(bus, devfn, reg) -> EAX.
+///
+/// Cut BA: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). Returns PCI mechanism-1 config address
+/// dword with enable bit. FASM trampoline unpacks AH/BH/BL and preserves
+/// EBX/ECX/EDX (REG-001; callers keep ESI size encode across the call).
+#[no_mangle]
+#[link_section = ".text.rust_pci_make_config_cmd"]
+pub extern "stdcall" fn rust_pci_make_config_cmd(bus: u32, devfn: u32, reg: u32) -> u32 {
+    pci_make_config_cmd(bus, devfn, reg)
 }
 
 /// `stdcall` rust_xfs_blkrel2sectabs(block_lo, block_hi, agblklog, agblocks,
