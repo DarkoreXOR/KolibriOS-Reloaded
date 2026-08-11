@@ -156,6 +156,8 @@ include "rust/socket_check.inc"
 include "rust/ipv4_find_fragment_slot.inc"
 ; Cut AV: ahci_find_cmdslot — Rust blob + smoke (USE_RUST_AHCI_FIND_CMDSLOT)
 include "rust/ahci_find_cmdslot.inc"
+; Cut AW: xfs._.blkrel2sectabs — Rust blob + smoke (USE_RUST_XFS_BLKREL2SECTABS)
+include "rust/xfs_blkrel2sectabs.inc"
 ; Cut AT: get_coff_sym — Rust blob + smoke (USE_RUST_GET_COFF_SYM)
 include "rust/get_coff_sym.inc"
 ; Cut U: fat_gen_short_name — Rust blob + smoke (USE_RUST_FAT_GEN_SHORT_NAME)

@@ -435,6 +435,51 @@ proc xfs._.read_block
 endp
 
 
+; Cut AW: USE_RUST_XFS_BLKREL2SECTABS=1 routes through Rust
+; rust_xfs_blkrel2sectabs (see rust/xfs_blkrel2sectabs.inc).
+; Set USE_RUST_XFS_BLKREL2SECTABS=0 to restore the original FASM body
+; without deleting it. Independent of Cuts R/W/AM/AP/AK.
+; Critical ABI: register call; in EDX:EAX=AG-rel block, EBP→XFS;
+; out EDX:EAX=absolute sector; uses esi; clobbers ecx; ret 0.
+; REG-001: trampoline preserves EBX+ESI (EBX live buffer across read_blocks)
+; plus ECX/EDI canaries; must NOT push ebp (omit-FP / EBP→XFS).
+
+USE_RUST_XFS_BLKREL2SECTABS = 1
+
+if USE_RUST_XFS_BLKREL2SECTABS
+
+; Compatibility trampoline: extract XFS fields → Rust stdcall;
+; EDX:EAX in/out. No ebp frame.
+align 4
+xfs._.blkrel2sectabs:
+        push    ebx
+        push    ecx
+        push    esi
+        push    edi
+        ; edx:eax = AG-relative block; ebp → XFS
+        mov     esi, eax                ; block_lo
+        mov     edi, edx                ; block_hi
+        sub     esp, 4                  ; out_hi slot
+        mov     ebx, esp
+        push    ebx                     ; arg8: out_hi
+        push    dword [ebp+XFS.sectpblog]
+        push    dword [ebp+XFS.agblockmask.hi]
+        push    dword [ebp+XFS.agblockmask.lo]
+        push    dword [ebp+XFS.agblocks]
+        push    dword [ebp+XFS.agblklog]
+        push    edi                     ; block_hi
+        push    esi                     ; block_lo
+        call    rust_xfs_blkrel2sectabs ; ret 32; EAX=sector_lo
+        mov     edx, [ebx]              ; sector_hi
+        add     esp, 4                  ; drop out_hi slot
+        pop     edi
+        pop     esi
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
 proc xfs._.blkrel2sectabs uses esi
         push    edx eax
 
@@ -461,6 +506,8 @@ proc xfs._.blkrel2sectabs uses esi
         shl     eax, cl
         ret
 endp
+
+end if
 
 
 ;---------------------------------------------------------------

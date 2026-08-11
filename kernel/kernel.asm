@@ -260,6 +260,7 @@ high_code:
 ; Cut AS: socket_check smoke ON when USE_RUST_SOCKET_CHECK=1 (after stack_init).
 ; Cut AU: ipv4_find_fragment_slot smoke ON when USE_RUST_IPV4_FIND_FRAGMENT_SLOT=1 (after stack_init).
 ; Cut AV: ahci_find_cmdslot smoke ON when USE_RUST_AHCI_FIND_CMDSLOT=1 (after ahci_init).
+; Cut AW: xfs._.blkrel2sectabs smoke ON when USE_RUST_XFS_BLKREL2SECTABS=1.
 ; Cut AT: get_coff_sym smoke ON when USE_RUST_GET_COFF_SYM=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
@@ -313,6 +314,8 @@ high_code:
         call    fat_time_to_bdfe_rust_smoke_test
         ; Cut AP: xfs_hashname smoke (Rust when USE_RUST_XFS_HASHNAME=1).
         call    xfs_hashname_rust_smoke_test
+        ; Cut AW: xfs._.blkrel2sectabs smoke (Rust when USE_RUST_XFS_BLKREL2SECTABS=1).
+        call    xfs_blkrel2sectabs_rust_smoke_test
         ; Cut AQ: get_pg_addr smoke (Rust when USE_RUST_GET_PG_ADDR=1).
         call    get_pg_addr_rust_smoke_test
         ; Cut U: fat_gen_short_name smoke (Rust when USE_RUST_FAT_GEN_SHORT_NAME=1).

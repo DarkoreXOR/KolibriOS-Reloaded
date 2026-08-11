@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
@@ -6,12 +6,12 @@
 //! FAT 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator
 //! + persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall
 //! userspace region gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS
-//! extent unpack + dir leaf hash binary search + DA node first-match-by-hash + dir name hash,
-//! window screen-fit helpers, TSS I/O permission bitmap updates + port-area reserve/free,
-//! COFF reloc application + symbol name→Value lookup, MBR/EBR partition-table entry validation,
-//! GPT protective-MBR recognition, process TID→slot lookup, IPv4 on-link/gateway/broadcast
-//! routing + fragment-slot lookup, AHCI free command-slot scan, kernel VA→PA page translation,
-//! and socket-list membership for KolibriOS hybrid migration.
+//! extent unpack + dir leaf hash binary search + DA node first-match-by-hash + dir name hash +
+//! AG-relative block→absolute sector, window screen-fit helpers, TSS I/O permission bitmap
+//! updates + port-area reserve/free, COFF reloc application + symbol name→Value lookup,
+//! MBR/EBR partition-table entry validation, GPT protective-MBR recognition, process TID→slot
+//! lookup, IPv4 on-link/gateway/broadcast routing + fragment-slot lookup, AHCI free command-slot
+//! scan, kernel VA→PA page translation, and socket-list membership for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -54,6 +54,7 @@ mod userspace;
 mod utf16_to_8;
 mod utf8to16;
 mod window;
+mod xfs_blkrel2sectabs;
 mod xfs_extent;
 mod xfs_hash_lookup;
 mod xfs_hashname;
@@ -171,6 +172,10 @@ pub use utf16_to_8::{
 pub use utf8to16::{utf8to16, utf8to16_ptr, Utf8To16Result, UTF8TO16_PRNG_SEED};
 pub use window::{
     check_window_position, check_window_position_ptr, WindowBox, CHECK_WINDOW_POSITION_PRNG_SEED,
+};
+pub use xfs_blkrel2sectabs::{
+    xfs_blkrel2sectabs, xfs_blkrel2sectabs_from_regs, xfs_blkrel2sectabs_ptr,
+    XFS_BLKREL2SECTABS_PRNG_SEED,
 };
 pub use xfs_extent::{
     read_xfs_bmbt_irec, write_xfs_bmbt_irec, xfs_extent_unpack, xfs_extent_unpack_into,

@@ -43,6 +43,7 @@ use crate::utf8to16::utf8to16_ptr;
 use crate::window::check_window_position_ptr;
 use crate::xfs_extent::xfs_extent_unpack_ptr;
 use crate::xfs_hash_lookup::{pack_eax_zf, xfs_get_addr_by_hash_ptr};
+use crate::xfs_blkrel2sectabs::xfs_blkrel2sectabs_ptr;
 use crate::xfs_hashname::xfs_hashname_ptr;
 use crate::xfs_node_hash::xfs_get_before_by_hashval_ptr;
 use crate::PHASE_C_PROBE_MAGIC;
@@ -302,6 +303,38 @@ pub unsafe extern "stdcall" fn rust_ipv4_find_fragment_slot(
 #[link_section = ".text.rust_ahci_find_cmdslot"]
 pub extern "stdcall" fn rust_ahci_find_cmdslot(slots: u32, ncs: u32) -> u32 {
     ahci_find_cmdslot(slots, ncs)
+}
+
+/// `stdcall` rust_xfs_blkrel2sectabs(block_lo, block_hi, agblklog, agblocks,
+/// mask_lo, mask_hi, sectpblog, out_hi) -> EAX = sector_lo.
+///
+/// Cut AW: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 32 bytes (`ret 32`). Writes sector_hi to `*out_hi`.
+/// FASM trampoline extracts XFS fields from EBP→XFS and preserves
+/// EBX/ESI (legacy `uses esi`; EBX live across `read_blocks`).
+///
+/// # Safety
+/// `out_hi` must be a writable `u32` slot.
+#[no_mangle]
+#[link_section = ".text.rust_xfs_blkrel2sectabs"]
+pub unsafe extern "stdcall" fn rust_xfs_blkrel2sectabs(
+    block_lo: u32,
+    block_hi: u32,
+    agblklog: u32,
+    agblocks: u32,
+    mask_lo: u32,
+    mask_hi: u32,
+    sectpblog: u32,
+    out_hi: *mut u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes a live stack slot for sector_hi.
+    unsafe {
+        xfs_blkrel2sectabs_ptr(
+            block_lo, block_hi, agblklog, agblocks, mask_lo, mask_hi, sectpblog,
+            out_hi,
+        )
+    }
 }
 
 /// `stdcall` rust_cp866_to_upper(ch) -> uppercased CP866 byte in AL (EAX).
