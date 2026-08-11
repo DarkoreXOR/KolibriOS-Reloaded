@@ -36,6 +36,7 @@ use crate::partition::{is_partition_table_entry_ptr, is_protective_mbr_ptr};
 use crate::pci_make_config_cmd::pci_make_config_cmd;
 use crate::pid_to_slot::pid_to_slot_ptr;
 use crate::string::{strncmp, strncpy, strrchr};
+use crate::swap_bytes_in_words::swap_bytes_in_words;
 use crate::tcp::{tcp_outflags_ptr, tcp_set_persist_ptr, tcp_xmit_timer_ptr};
 use crate::time::{
     ext_unix_to_secs, fat_time_to_bdfe, fs_calculate_time_ptr, fs_time2bdfe_ptr,
@@ -330,6 +331,22 @@ pub unsafe extern "stdcall" fn rust_ipv4_find_fragment_slot(
 #[link_section = ".text.rust_ahci_find_cmdslot"]
 pub extern "stdcall" fn rust_ahci_find_cmdslot(slots: u32, ncs: u32) -> u32 {
     ahci_find_cmdslot(slots, ncs)
+}
+
+/// `stdcall` rust_swap_bytes_in_words(base, len).
+///
+/// Cut BG: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). In-place swaps `len` words at `base`.
+/// FASM trampoline preserves EAX/EBX/ECX/EDX/ESI/EDI/EBP (REG-001; legacy
+/// restores EAX/EBX/ECX and leaves EDX+ESI/EDI/EBP untouched).
+///
+/// # Safety
+/// `base` must be writable for `len * 2` bytes when `len > 0`.
+#[no_mangle]
+#[link_section = ".text.rust_swap_bytes_in_words"]
+pub unsafe extern "stdcall" fn rust_swap_bytes_in_words(base: *mut u16, len: u32) {
+    swap_bytes_in_words(base, len);
 }
 
 /// `stdcall` rust_pci_make_config_cmd(bus, devfn, reg) -> EAX.

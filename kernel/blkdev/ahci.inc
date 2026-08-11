@@ -2173,6 +2173,27 @@ endp
 ; base - address of first word
 ; len - how many words to swap bytes in
 ; doesn't clobber any registers
+; Cut BG: USE_RUST_SWAP_BYTES_IN_WORDS=1 routes through Rust
+; rust_swap_bytes_in_words (see rust/swap_bytes_in_words.inc).
+; Set USE_RUST_SWAP_BYTES_IN_WORDS=0 to restore the original FASM
+; body without deleting it. Independent of Cuts A–BF / AV.
+;
+; Legacy preserves EAX/EBX/ECX via push/pop; EDX/ESI/EDI/EBP untouched.
+; Trampoline preserves all of them (Rust stdcall would clobber EAX/ECX/EDX).
+
+USE_RUST_SWAP_BYTES_IN_WORDS = 1
+
+if USE_RUST_SWAP_BYTES_IN_WORDS
+
+proc swap_bytes_in_words stdcall, base: dword, len: dword
+        push    eax ebx ecx edx esi edi ebp
+        stdcall rust_swap_bytes_in_words, [base], [len]
+        pop     ebp edi esi edx ecx ebx eax
+        ret
+endp
+
+else
+
 proc swap_bytes_in_words stdcall, base: dword, len: dword
         push    eax ebx ecx
         xor     ecx, ecx
@@ -2189,3 +2210,5 @@ proc swap_bytes_in_words stdcall, base: dword, len: dword
         pop     ecx ebx eax
         ret
 endp
+
+end if
