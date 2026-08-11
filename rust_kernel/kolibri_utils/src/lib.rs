@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
@@ -9,7 +9,8 @@
 //! extent unpack + dir leaf hash binary search + DA node first-match-by-hash + dir name hash,
 //! window screen-fit helpers, TSS I/O permission bitmap updates, COFF reloc application,
 //! MBR/EBR partition-table entry validation, GPT protective-MBR recognition, process TID→slot
-//! lookup, and IPv4 on-link/gateway/broadcast routing for KolibriOS hybrid migration.
+//! lookup, IPv4 on-link/gateway/broadcast routing, and kernel VA→PA page translation for
+//! KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -29,6 +30,7 @@ mod exfat_checksum;
 mod fat_name;
 mod font;
 mod geometry;
+mod get_pg_addr;
 mod io_access;
 mod ipv4_route;
 mod iso9660_compare;
@@ -77,6 +79,10 @@ pub use fat_name::{
 };
 pub use font::{anti_aliasing, ANTI_ALIASING_PRNG_SEED};
 pub use geometry::{block_clip, BlockClipResult, Rect};
+pub use get_pg_addr::{
+    get_pg_addr, get_pg_addr_ptr, GET_PG_ADDR_PRNG_SEED, IDENTITY_WINDOW, OS_BASE as GET_PG_ADDR_OS_BASE,
+    PAGE_SIZE as GET_PG_ADDR_PAGE_SIZE, PAGE_TABS,
+};
 pub use io_access::{
     io_map_bit, set_io_access_rights, set_io_access_rights_ptr, IO_MAP_BITS, IO_MAP_BYTES,
     SET_IO_ACCESS_RIGHTS_PRNG_SEED,

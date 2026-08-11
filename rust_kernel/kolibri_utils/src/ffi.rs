@@ -15,6 +15,7 @@ use crate::exfat_checksum::{calculate_set_checksum_field_ptr, exfat_hash_calcula
 use crate::fat_name::{fat_gen_short_name_ptr, fat_next_short_name_ptr};
 use crate::font::anti_aliasing;
 use crate::geometry::block_clip_ptr;
+use crate::get_pg_addr::get_pg_addr_ptr;
 use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_route::ipv4_route_ptr;
 use crate::iso9660_compare::iso9660_compare_name_ptr;
@@ -168,6 +169,27 @@ pub extern "stdcall" fn rust_fat_time_to_bdfe(fat_time: u32) -> u32 {
 pub unsafe extern "stdcall" fn rust_xfs_hashname(name: *const u8, len: u32) -> u32 {
     // SAFETY: kernel trampoline passes directory-name pointer + length.
     unsafe { xfs_hashname_ptr(name, len) }
+}
+
+/// `stdcall` rust_get_pg_addr(linear, page_tabs, os_base) -> EAX = phys page.
+///
+/// Cut AQ: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). FASM trampoline injects `page_tabs` /
+/// `OS_BASE` and preserves ECX+EDX (REG-001; HD DMA / USB `get_phys_addr`
+/// keep those registers live across the call).
+///
+/// # Safety
+/// `page_tabs` must be readable for the computed PTE index on the high path.
+#[no_mangle]
+#[link_section = ".text.rust_get_pg_addr"]
+pub unsafe extern "stdcall" fn rust_get_pg_addr(
+    linear: u32,
+    page_tabs: *const u32,
+    os_base: u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes live page_tabs + OS_BASE.
+    unsafe { get_pg_addr_ptr(linear, page_tabs, os_base) }
 }
 
 /// `stdcall` rust_cp866_to_upper(ch) -> uppercased CP866 byte in AL (EAX).

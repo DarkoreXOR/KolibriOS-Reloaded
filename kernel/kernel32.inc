@@ -146,6 +146,8 @@ include "rust/ansi2uni_char.inc"
 include "rust/fat_time_to_bdfe.inc"
 ; Cut AP: xfs_hashname — Rust blob + smoke (USE_RUST_XFS_HASHNAME)
 include "rust/xfs_hashname.inc"
+; Cut AQ: get_pg_addr — Rust blob + smoke (USE_RUST_GET_PG_ADDR)
+include "rust/get_pg_addr.inc"
 ; Cut U: fat_gen_short_name — Rust blob + smoke (USE_RUST_FAT_GEN_SHORT_NAME)
 include "rust/fat_gen_short_name.inc"
 ; Cut V: tcp_set_persist — Rust blob + smoke (USE_RUST_TCP_SET_PERSIST)

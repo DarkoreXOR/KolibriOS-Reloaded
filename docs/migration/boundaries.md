@@ -135,6 +135,6 @@ Findings from [`../compatibility/abi-audit.md`](../compatibility/abi-audit.md):
 
 **LOCAL FACT (Cut B complete):** `rust_cp866_to_upper` (`cp866toUpper`) is also reloc-free (71 B, 0 relocs) via the same path ([`cut-b-implementation.md`](cut-b-implementation.md)). Note: this “Cut B” is the next pure-util migration, **not** the allocator cut named “Cut B” elsewhere in this document.
 
-**LOCAL FACT (Cuts A–AP complete, 2026-08-11):** Stage 2 production envelope through Cut AP (`xfs_hashname`) — see [`migration-plan.md`](migration-plan.md). Prefer `scripts/` + `project/build.toml` blob/migration registry over manual per-cut scripts for day-to-day builds. Post-AO raised-bar cluster audit concluded Path B remains appropriate (XFS ROL7 name-hash leaf; W+AM+hashname ≠ Path A; FAT datetime siblings / Unicode/ISO/exFAT/EXT/GUI pairs rejected).
+**LOCAL FACT (Cuts A–AQ complete, 2026-08-11):** Stage 2 production envelope through Cut AQ (`get_pg_addr`) — see [`migration-plan.md`](migration-plan.md). Prefer `scripts/` + `project/build.toml` blob/migration registry over manual per-cut scripts for day-to-day builds. Post-AP raised-bar cluster audit concluded Path B remains appropriate (Stage-4 VA→PA leaf; pairing with Cut P / `v86_get_lin_addr` ≠ Path A; FS/hash/datetime/unicode siblings, GUI/PE thin peers, sockets rejected).
 
 **INFERENCE (future functions):** anything that reintroduces `.rodata`/GOTOFF/cross-section refs needs either a reloc-free rewrite or `rust-lld` at the FASM placement VMA — evaluate per function.

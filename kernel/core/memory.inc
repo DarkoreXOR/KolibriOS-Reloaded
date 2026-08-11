@@ -537,6 +537,39 @@ endp
 ;
 ; retval
 ;  eax= physical page address
+;
+; Cut AQ: USE_RUST_GET_PG_ADDR=1 routes through Rust rust_get_pg_addr
+; (see rust/get_pg_addr.inc). Set USE_RUST_GET_PG_ADDR=0 to restore the
+; original FASM body without deleting it. Independent of Cuts A–AP.
+;
+; Legacy body leaves ECX/EDX untouched. Callers (HD DMA scatter-gather,
+; USB get_phys_addr) keep ECX and/or EDX live across the call — REG-001.
+
+USE_RUST_GET_PG_ADDR = 1
+
+if USE_RUST_GET_PG_ADDR
+
+; Compatibility trampoline: register ABI → Rust stdcall → EAX.
+; Injects page_tabs + OS_BASE so the Rust blob stays reloc-free.
+; Preserves EBX/ECX/EDX/ESI/EDI/EBP (REG-001 / Cut D / Cut AA class).
+align 4
+get_pg_addr:
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    edi
+        push    ebp
+        stdcall rust_get_pg_addr, eax, page_tabs, OS_BASE
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+else
 
 align 4
 get_pg_addr:
@@ -548,6 +581,8 @@ get_pg_addr:
 @@:
         and     eax, -PAGE_SIZE
         ret
+
+end if
 
 
 align 4
