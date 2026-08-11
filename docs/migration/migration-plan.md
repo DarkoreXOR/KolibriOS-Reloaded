@@ -23,7 +23,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 
 - Cut A from boundaries.
 - **Risk:** low.
-- **Status (2026-08-11):** **COMPLETE** — Phase C + Cuts A–AR production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–AR re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
+- **Status (2026-08-11):** **COMPLETE** — Phase C + Cuts A–AS production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–AS re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
 - **Done:** Phase C probe + CRC32 + UTF-16 + CP866 + UTF-8. Baseline: [`cut-a-final-architecture.md`](cut-a-final-architecture.md).
 - **Cut B (pure util, not allocator):** `cp866toUpper` — **done** 2026-08-09 ([`cut-b-plan.md`](cut-b-plan.md), [`cut-b-implementation.md`](cut-b-implementation.md)).
 - **Cut C:** `utf16toUpper` — **done** ([`cut-c-implementation.md`](cut-c-implementation.md)).
@@ -67,7 +67,8 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut AO:** `fat_time_to_bdfe` — **done** 2026-08-11 ([`cut-ao-plan.md`](cut-ao-plan.md), [`cut-ao-implementation.md`](cut-ao-implementation.md)). DOS FAT packed-time → BDFE unpack (FAT+exFAT entry paths); Path B after post-AN raised-bar cluster audit (no Path A; `--disk exfat` A/B); reloc-free.
 - **Cut AP:** `xfs_hashname` — **done** 2026-08-11 ([`cut-ap-plan.md`](cut-ap-plan.md), [`cut-ap-implementation.md`](cut-ap-implementation.md)). XFS dir name ROL7 hash (feeds W/AM lookup); Path B after post-AO raised-bar cluster audit (no Path A; `--disk xfs` A/B); reloc-free.
 - **Cut AQ:** `get_pg_addr` — **done** 2026-08-11 ([`cut-aq-plan.md`](cut-aq-plan.md), [`cut-aq-implementation.md`](cut-aq-implementation.md)). Kernel VA→PA page translate (Stage-4 foothold); Path B after post-AP raised-bar cluster audit (no Path A; REG-001 ECX/EDX trampoline; `--disk xfs` DMA soak); reloc-free.
-- **Cut AR:** `r_f_port_area` — **done** 2026-08-11 ([`cut-ar-plan.md`](cut-ar-plan.md), [`cut-ar-implementation.md`](cut-ar-implementation.md)). I/O port-area reserve/free (syscall 46; Cut X follow-on); Path B after post-AQ Stage-4 audit (paging Path A rejected; Stage-4 leaves exhausted); reloc-free. **Stop; do not start Cut AS.**
+- **Cut AR:** `r_f_port_area` — **done** 2026-08-11 ([`cut-ar-plan.md`](cut-ar-plan.md), [`cut-ar-implementation.md`](cut-ar-implementation.md)). I/O port-area reserve/free (syscall 46; Cut X follow-on); Path B after post-AQ Stage-4 audit (paging Path A rejected; Stage-4 leaves exhausted); reloc-free.
+- **Cut AS:** `socket_check` — **done** 2026-08-11 ([`cut-as-plan.md`](cut-as-plan.md), [`cut-as-implementation.md`](cut-as-implementation.md)). Socket-list lock-free ZF membership (Stage-5 foothold); Path B after post-AR raised-bar cluster audit (X+AR Path A rejected); reloc-free. **Stop; do not start Cut AT.**
 
 ### Stage 3 — Compat syscall façade (selected)
 
@@ -82,7 +83,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 ### Stage 5 — FS plugin / net protocol islands
 
 - One filesystem; optional TCP path.
-- **Status:** not started.
+- **Status:** foothold via Cuts AC/M/V/AS (IPv4 route + TCP timers + socket_check); broader protocol islands still open.
 
 ### Stage 6 — Scheduler policy + process create
 

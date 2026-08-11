@@ -2308,6 +2308,38 @@ socket_ptr_to_num:
 ;       ZF = set on error                                         ;
 ;                                                                 ;
 ;-----------------------------------------------------------------;
+; Cut AS: USE_RUST_SOCKET_CHECK=1 routes through Rust
+; rust_socket_check (see rust/socket_check.inc).
+; Set USE_RUST_SOCKET_CHECK=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–AR.
+;
+; Legacy preserves EBX; trampoline also keeps ECX/EDX/ESI/EDI/EBP
+; (REG-001) and restores ZF via test after stdcall.
+
+USE_RUST_SOCKET_CHECK = 1
+
+if USE_RUST_SOCKET_CHECK
+
+align 4
+socket_check:
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    edi
+        push    ebp
+        stdcall rust_socket_check, eax, net_sockets
+        test    eax, eax                ; ZF = miss/null (legacy)
+        pop     ebp                     ; pop does not modify EFLAGS
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
 align 4
 socket_check:
 
@@ -2336,6 +2368,7 @@ socket_check:
         DEBUGF  DEBUG_NETWORK_ERROR, "stack: 0x%x, 0x%x, 0x%x\n", [esp], [esp+4], [esp+8]
         ret
 
+end if
 
 
 ;-----------------------------------------------------------------;

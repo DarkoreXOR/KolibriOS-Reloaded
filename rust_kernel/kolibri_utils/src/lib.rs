@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
@@ -9,8 +9,8 @@
 //! extent unpack + dir leaf hash binary search + DA node first-match-by-hash + dir name hash,
 //! window screen-fit helpers, TSS I/O permission bitmap updates + port-area reserve/free,
 //! COFF reloc application, MBR/EBR partition-table entry validation, GPT protective-MBR
-//! recognition, process TID→slot lookup, IPv4 on-link/gateway/broadcast routing, and kernel
-//! VA→PA page translation for KolibriOS hybrid migration.
+//! recognition, process TID→slot lookup, IPv4 on-link/gateway/broadcast routing, kernel
+//! VA→PA page translation, and socket-list membership for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -41,6 +41,7 @@ mod ntfs_usa;
 mod partition;
 mod pid_to_slot;
 mod port_area;
+mod socket_check;
 mod string;
 mod tcp;
 mod time;
@@ -118,6 +119,10 @@ pub use port_area::{
     r_f_port_area, r_f_port_area_ptr, ENTRY_SIZE as PORT_AREA_ENTRY_SIZE, MAX_RESERVED,
     OFF_END as PORT_AREA_OFF_END, OFF_START as PORT_AREA_OFF_START, OFF_TID as PORT_AREA_OFF_TID,
     R_F_PORT_AREA_PRNG_SEED,
+};
+pub use socket_check::{
+    socket_check, socket_check_from_first, socket_check_ptr, OFF_NEXT_PTR as SOCKET_OFF_NEXT_PTR,
+    SOCKET_CHECK_PRNG_SEED,
 };
 pub use string::strncmp;
 pub use tcp::{

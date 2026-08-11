@@ -19,6 +19,7 @@ use crate::get_pg_addr::get_pg_addr_ptr;
 use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_route::ipv4_route_ptr;
 use crate::port_area::r_f_port_area_ptr;
+use crate::socket_check::socket_check_ptr;
 use crate::iso9660_compare::iso9660_compare_name_ptr;
 use crate::mouse::mouse_acceleration;
 use crate::ntfs_bootsec::ntfs_test_bootsec_ptr;
@@ -218,6 +219,28 @@ pub unsafe extern "stdcall" fn rust_r_f_port_area(
 ) -> u32 {
     // SAFETY: kernel trampoline passes live table / tid / IO map.
     unsafe { r_f_port_area_ptr(op, start, end, reserved_ports, tid, io_map) }
+}
+
+/// `stdcall` rust_socket_check(candidate, net_sockets) -> EAX.
+///
+/// Cut AS: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). FASM trampoline injects `net_sockets`,
+/// preserves EBX/ECX/EDX/ESI/EDI/EBP (REG-001), and restores ZF via
+/// `test eax, eax` after the call (`pop` leaves flags).
+///
+/// Returns candidate pointer on hit, `0` on miss/null.
+///
+/// # Safety
+/// `net_sockets` must be the live socket-list sentinel.
+#[no_mangle]
+#[link_section = ".text.rust_socket_check"]
+pub unsafe extern "stdcall" fn rust_socket_check(
+    candidate: u32,
+    net_sockets: *const u8,
+) -> u32 {
+    // SAFETY: kernel trampoline passes live net_sockets sentinel.
+    unsafe { socket_check_ptr(candidate, net_sockets) }
 }
 
 /// `stdcall` rust_cp866_to_upper(ch) -> uppercased CP866 byte in AL (EAX).

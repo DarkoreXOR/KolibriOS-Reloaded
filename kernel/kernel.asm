@@ -257,6 +257,7 @@ high_code:
 ; Cut AP: xfs_hashname smoke ON when USE_RUST_XFS_HASHNAME=1.
 ; Cut AQ: get_pg_addr smoke ON when USE_RUST_GET_PG_ADDR=1.
 ; Cut AR: r_f_port_area smoke ON when USE_RUST_R_F_PORT_AREA=1 (after reserve_irqs_ports).
+; Cut AS: socket_check smoke ON when USE_RUST_SOCKET_CHECK=1 (after stack_init).
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -1039,6 +1040,7 @@ include "detect/vortex86.inc"                     ; Vortex86 SoC detection code
 ; STACK AND FDC
 
         call    stack_init
+        call    socket_check_rust_smoke_test
         call    fdc_init
 
 ; PALETTE FOR 320x200 and 640x480 16 col
