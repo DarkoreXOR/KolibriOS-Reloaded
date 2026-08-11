@@ -108,6 +108,8 @@ include "rust/pci_make_config_cmd.inc"
 include "rust/strrchr.inc"
 ; Cut BF: strncpy — Rust blob + smoke (USE_RUST_STRNCPY)
 include "rust/strncpy.inc"
+; Cut BH: strlen — Rust blob + smoke (USE_RUST_STRLEN)
+include "rust/strlen.inc"
 ; Cut BG: swap_bytes_in_words — Rust blob + smoke (USE_RUST_SWAP_BYTES_IN_WORDS)
 include "rust/swap_bytes_in_words.inc"
 ; Cut BC: fat_name_is_legal — Rust blob + smoke (USE_RUST_FAT_NAME_IS_LEGAL)

@@ -297,6 +297,8 @@ high_code:
         call    strrchr_rust_smoke_test
         ; Cut BF: strncpy smoke (Rust when USE_RUST_STRNCPY=1).
         call    strncpy_rust_smoke_test
+        ; Cut BH: strlen smoke (Rust when USE_RUST_STRLEN=1).
+        call    strlen_rust_smoke_test
         ; Cut BC: fat_name_is_legal smoke (Rust when USE_RUST_FAT_NAME_IS_LEGAL=1).
         call    fat_name_is_legal_rust_smoke_test
         ; Cut BD: tcp_outflags smoke (Rust when USE_RUST_TCP_OUTFLAGS=1).

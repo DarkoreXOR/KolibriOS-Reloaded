@@ -493,6 +493,38 @@ utf8to16:
 
 end if
 
+; Cut BH: USE_RUST_STRLEN=1 routes through Rust rust_strlen
+; (see rust/strlen.inc). Set USE_RUST_STRLEN=0 to restore the
+; original FASM body without deleting it. Independent of Cuts A–BG.
+; Legacy register ABI: ESI→string in; ECX=length out; plain ret.
+; Preserves EAX/EDI (push/pop) + ESI/EBX/EDX/EBP (untouched).
+; DF unchanged (no cld). REG-001: trampoline restores EAX after
+; moving length EAX→ECX (Rust stdcall returns in EAX).
+
+USE_RUST_STRLEN = 1
+
+if USE_RUST_STRLEN
+
+align 4
+strlen:
+        push    eax
+        push    ebx
+        push    edx
+        push    esi
+        push    edi
+        push    ebp
+        stdcall rust_strlen, esi
+        mov     ecx, eax
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ebx
+        pop     eax
+        ret
+
+else
+
 strlen:
 ; in: esi -> source
 ; out: ecx = length
@@ -505,3 +537,5 @@ strlen:
         not     ecx
         pop     eax edi
         ret
+
+end if

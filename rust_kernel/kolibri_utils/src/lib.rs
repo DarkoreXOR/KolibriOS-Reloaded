@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
@@ -14,7 +14,8 @@
 //! IPv4 on-link/gateway/broadcast routing + fragment-slot lookup, AHCI free command-slot scan,
 //! kernel VA→PA page translation, socket-list membership, NIC device-list ptr→index×4, PCI
 //! config-space address encode, reverse character search (`strrchr`), bounded padded
-//! copy (`strncpy`), and endian word-byte swap (`swap_bytes_in_words`) for KolibriOS hybrid
+//! copy (`strncpy`), C-string length (`strlen`), and endian word-byte swap
+//! (`swap_bytes_in_words`) for KolibriOS hybrid
 //! migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
@@ -172,7 +173,9 @@ pub use socket_check::{
     socket_check, socket_check_from_first, socket_check_ptr, OFF_NEXT_PTR as SOCKET_OFF_NEXT_PTR,
     SOCKET_CHECK_PRNG_SEED,
 };
-pub use string::{strncmp, strncpy, strrchr, STRNCPY_PRNG_SEED, STRRCHR_PRNG_SEED};
+pub use string::{
+    strlen, strncmp, strncpy, strrchr, STRLEN_PRNG_SEED, STRNCPY_PRNG_SEED, STRRCHR_PRNG_SEED,
+};
 pub use swap_bytes_in_words::{
     swap_bytes_in_words, swap_bytes_in_words_slice, SWAP_BYTES_IN_WORDS_PRNG_SEED,
 };

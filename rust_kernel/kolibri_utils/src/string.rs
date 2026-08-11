@@ -1,10 +1,49 @@
-//! String helpers matching FASM leaves in `kernel/core/string.inc`.
+//! String helpers matching FASM leaves in `kernel/core/string.inc`
+//! and `strlen` in `kernel/fs/parse_fn.inc`.
 
 /// Cut BB differential PRNG seed (`'CUBB'`).
 pub const STRRCHR_PRNG_SEED: u32 = 0x4355_4242;
 
 /// Cut BF differential PRNG seed (`'CUBF'`).
 pub const STRNCPY_PRNG_SEED: u32 = 0x4355_4246;
+
+/// Cut BH differential PRNG seed (`'CUBH'`).
+pub const STRLEN_PRNG_SEED: u32 = 0x4355_4248;
+
+/// C-string length matching FASM `strlen` (`parse_fn.inc`).
+///
+/// Mirrors:
+/// ```text
+///   or ecx, -1
+///   mov edi, esi
+///   xor eax, eax
+///   repnz scasb
+///   inc ecx
+///   not ecx
+/// ```
+///
+/// Returns the byte count before the terminating NUL (empty → 0).
+/// Does not write memory; does not change DF.
+///
+/// # Safety
+/// `s` must be a readable NUL-terminated C string.
+#[inline(always)]
+pub unsafe fn strlen(s: *const u8) -> u32 {
+    // FASM: or ecx,-1 / repnz scasb / inc ecx / not ecx
+    let mut ecx = 0u32.wrapping_sub(1); // -1
+    let mut edi = s as usize;
+    loop {
+        // SAFETY: within readable C string through NUL.
+        let b = unsafe { *(edi as *const u8) };
+        edi = edi.wrapping_add(1);
+        ecx = ecx.wrapping_sub(1);
+        if b == 0 {
+            break;
+        }
+    }
+    ecx = ecx.wrapping_add(1);
+    !ecx
+}
 
 /// Bounded padded copy matching FASM `strncpy` (`string.inc`).
 ///
@@ -230,8 +269,8 @@ pub fn strrchr_fasm_oracle(s: &[u8], c: u32) -> Option<usize> {
 #[cfg(test)]
 mod tests {
     use super::{
-        strncmp, strncmp_fasm_oracle, strncpy, strncpy_fasm_oracle, strrchr, strrchr_fasm_oracle,
-        STRNCPY_PRNG_SEED, STRRCHR_PRNG_SEED,
+        strlen, strncmp, strncmp_fasm_oracle, strncpy, strncpy_fasm_oracle, strrchr,
+        strrchr_fasm_oracle, STRLEN_PRNG_SEED, STRNCPY_PRNG_SEED, STRRCHR_PRNG_SEED,
     };
 
     fn check_strncpy(s2: &[u8], n: u32) {
@@ -494,6 +533,71 @@ mod tests {
                 strncmp_fasm_oracle(a, b, n_choice),
                 "len={len} n={n_choice} a={a:?} b={b:?}"
             );
+        }
+    }
+
+    // --- Cut BH: strlen ---
+
+    /// Independent FASM-flow oracle for `strlen` (`parse_fn.inc`).
+    fn strlen_fasm_oracle(s: &[u8]) -> u32 {
+        assert!(!s.is_empty() && s[s.len() - 1] == 0);
+        let mut ecx = 0u32.wrapping_sub(1);
+        let mut i = 0usize;
+        loop {
+            let b = s[i];
+            i += 1;
+            ecx = ecx.wrapping_sub(1);
+            if b == 0 {
+                break;
+            }
+        }
+        ecx = ecx.wrapping_add(1);
+        !ecx
+    }
+
+    fn check_strlen(s: &[u8]) {
+        assert!(!s.is_empty() && s[s.len() - 1] == 0);
+        let got = unsafe { strlen(s.as_ptr()) };
+        let expect = strlen_fasm_oracle(s);
+        assert_eq!(got, expect, "s={s:?} got={got} expect={expect}");
+        // Sanity: length excludes the terminator.
+        assert_eq!(got as usize, s.len() - 1);
+    }
+
+    #[test]
+    fn strlen_empty_and_short() {
+        check_strlen(b"\0");
+        check_strlen(b"a\0");
+        check_strlen(b"ab\0");
+        check_strlen(b"abc\0");
+        check_strlen(b"hello\0");
+    }
+
+    #[test]
+    fn strlen_binary_and_high_bytes() {
+        check_strlen(&[0xFF, 0]);
+        check_strlen(&[1, 2, 3, 0]);
+        check_strlen(&[0x80, 0x7F, 0x00]);
+        check_strlen(b"/sys/lib/libname.obj\0");
+    }
+
+    #[test]
+    fn strlen_prng_50k_matches_oracle() {
+        let mut state = STRLEN_PRNG_SEED;
+        let mut buf = [0u8; 128];
+        for _ in 0..50_000 {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            let len = (state % 96) as usize;
+            for i in 0..len {
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+                buf[i] = (state as u8).wrapping_add(1).max(1); // no early NUL
+            }
+            buf[len] = 0;
+            check_strlen(&buf[..=len]);
         }
     }
 }

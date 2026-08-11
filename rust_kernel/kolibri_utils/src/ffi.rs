@@ -35,7 +35,7 @@ use crate::ntfs_usa::ntfs_restore_usa_ptr;
 use crate::partition::{is_partition_table_entry_ptr, is_protective_mbr_ptr};
 use crate::pci_make_config_cmd::pci_make_config_cmd;
 use crate::pid_to_slot::pid_to_slot_ptr;
-use crate::string::{strncmp, strncpy, strrchr};
+use crate::string::{strlen, strncmp, strncpy, strrchr};
 use crate::swap_bytes_in_words::swap_bytes_in_words;
 use crate::tcp::{tcp_outflags_ptr, tcp_set_persist_ptr, tcp_xmit_timer_ptr};
 use crate::time::{
@@ -466,6 +466,22 @@ pub unsafe extern "stdcall" fn rust_strncpy(s1: *mut u8, s2: *const u8, n: u32) 
     // SAFETY: kernel callers pass valid regions for this copy.
     // Freestanding i686: usize == u32.
     unsafe { strncpy(s1, s2, n) as u32 }
+}
+
+/// `stdcall` rust_strlen(s) -> EAX = length (byte count before NUL).
+///
+/// Cut BH: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 4 bytes (`ret 4`). FASM trampoline moves EAX → ECX and
+/// restores EAX/EBX/EDX/ESI/EDI/EBP (legacy ECX-out register ABI).
+///
+/// # Safety
+/// `s` must be a readable NUL-terminated C string.
+#[no_mangle]
+#[link_section = ".text.rust_strlen"]
+pub unsafe extern "stdcall" fn rust_strlen(s: *const u8) -> u32 {
+    // SAFETY: kernel callers pass valid C-string regions for this length.
+    unsafe { strlen(s) }
 }
 
 /// `stdcall` rust_checksum_1(seed, data, length) -> EAX = partial sum.
