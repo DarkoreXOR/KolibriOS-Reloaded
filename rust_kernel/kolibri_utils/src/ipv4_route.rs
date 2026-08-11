@@ -54,11 +54,12 @@ unsafe fn device_link_state(net_device_list: *const u32, idx4: u32) -> Option<(u
     Some((dev, link))
 }
 
-/// Inline `net_ptr_to_num4`: find `device_ptr` in `net_device_list`.
+/// Inline device-list scan used by the explicit-device route path.
 ///
-/// Returns byte offset `n*4`, or `None` if missing / null device.
+/// Mirrors FASM `net_ptr_to_num4` (Cut AY owns the public leaf). Returns byte
+/// offset `n*4`, or `None` if missing / null device.
 #[inline(always)]
-pub unsafe fn net_ptr_to_num4(device_ptr: u32, net_device_list: *const u32) -> Option<u32> {
+pub unsafe fn find_device_idx4(device_ptr: u32, net_device_list: *const u32) -> Option<u32> {
     if device_ptr == 0 {
         return None;
     }
@@ -225,7 +226,7 @@ unsafe fn ipv4_route_got_device(
     ipv4_gateway: *const u32,
     net_device_list: *const u32,
 ) -> Ipv4RouteResult {
-    let Some(edi) = (unsafe { net_ptr_to_num4(device_ptr, net_device_list) }) else {
+    let Some(edi) = (unsafe { find_device_idx4(device_ptr, net_device_list) }) else {
         // .fail: xor eax,eax; edi left at -1 from net_ptr_to_num4
         return Ipv4RouteResult {
             dest_ip: 0,

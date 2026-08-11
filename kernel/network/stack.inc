@@ -627,6 +627,40 @@ net_ptr_to_num:
 
         ret
 
+;-----------------------------------------------------------------;
+; Cut AY: USE_RUST_NET_PTR_TO_NUM4=1 routes through Rust
+; rust_net_ptr_to_num4 (see rust/net_ptr_to_num4.inc).
+; Set USE_RUST_NET_PTR_TO_NUM4=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–AX.
+;
+; Legacy: EBX=device in; EDI=index×4/−1 out; preserves
+; EAX/EBX/ECX/EDX/ESI/EBP (ECX via push/pop). Trampoline restores
+; EAX (REG-001 — tcp_output keeps socket* in EAX across the call).
+
+USE_RUST_NET_PTR_TO_NUM4 = 1
+
+if USE_RUST_NET_PTR_TO_NUM4
+
+align 4
+net_ptr_to_num4:
+        push    eax
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    ebp
+        stdcall rust_net_ptr_to_num4, ebx, net_device_list, NET_DEVICES_MAX
+        mov     edi, eax
+        pop     ebp
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        pop     eax
+        ret
+
+else
+
 align 4
 net_ptr_to_num4:                ; Todo, place number in device structure so we only need to verify?
 
@@ -652,6 +686,8 @@ net_ptr_to_num4:                ; Todo, place number in device structure so we o
         sub     edi, net_device_list
         pop     ecx
         ret
+
+end if
 
 ;-----------------------------------------------------------------;
 ;                                                                 ;

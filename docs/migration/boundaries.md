@@ -135,6 +135,6 @@ Findings from [`../compatibility/abi-audit.md`](../compatibility/abi-audit.md):
 
 **LOCAL FACT (Cut B complete):** `rust_cp866_to_upper` (`cp866toUpper`) is also reloc-free (71 B, 0 relocs) via the same path ([`cut-b-implementation.md`](cut-b-implementation.md)). Note: this “Cut B” is the next pure-util migration, **not** the allocator cut named “Cut B” elsewhere in this document.
 
-**LOCAL FACT (Cuts A–AX complete, 2026-08-11):** Stage 2 production envelope through Cut AX (`createMcbEntry`) — see [`migration-plan.md`](migration-plan.md). Prefer `scripts/` + `project/build.toml` blob/migration registry over manual per-cut scripts for day-to-day builds. Post-AW audit: Path A for XFS/AHCI/network/PE rejected; address-math siblings deferred; Cut AX is Path B (NTFS MCB VLE encode; Cut I inverse).
+**LOCAL FACT (Cuts A–AY complete, 2026-08-11):** Stage 2 production envelope through Cut AY (`net_ptr_to_num4`) — see [`migration-plan.md`](migration-plan.md). Prefer `scripts/` + `project/build.toml` blob/migration registry over manual per-cut scripts for day-to-day builds. Post-AX audit: Path A for XFS/NTFS-MCB/AHCI/PE/network rejected; calendar/USB/address-math leftovers deferred; Cut AY is Path B (NIC device-list ptr→index×4).
 
 **INFERENCE (future functions):** anything that reintroduces `.rodata`/GOTOFF/cross-section refs needs either a reloc-free rewrite or `rust-lld` at the FASM placement VMA — evaluate per function.

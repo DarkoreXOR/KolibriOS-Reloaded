@@ -99,6 +99,8 @@ include "rust/block_clip.inc"
 include "rust/ntfs_decode_mcb_entry.inc"
 ; Cut AX: createMcbEntry — Rust blob + smoke (USE_RUST_NTFS_CREATE_MCB_ENTRY)
 include "rust/ntfs_create_mcb_entry.inc"
+; Cut AY: net_ptr_to_num4 — Rust blob + smoke (USE_RUST_NET_PTR_TO_NUM4)
+include "rust/net_ptr_to_num4.inc"
 ; Cut J: ntfs_restore_usa — Rust blob + smoke (see docs/migration/cut-j-plan.md)
 include "rust/ntfs_restore_usa.inc"
 ; Cut K: fat_next_short_name — Rust blob + smoke (see docs/migration/cut-k-plan.md)

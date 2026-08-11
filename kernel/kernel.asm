@@ -262,6 +262,7 @@ high_code:
 ; Cut AV: ahci_find_cmdslot smoke ON when USE_RUST_AHCI_FIND_CMDSLOT=1 (after ahci_init).
 ; Cut AW: xfs._.blkrel2sectabs smoke ON when USE_RUST_XFS_BLKREL2SECTABS=1.
 ; Cut AT: get_coff_sym smoke ON when USE_RUST_GET_COFF_SYM=1.
+; Cut AY: net_ptr_to_num4 smoke ON when USE_RUST_NET_PTR_TO_NUM4=1 (after stack_init).
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -1053,6 +1054,7 @@ include "detect/vortex86.inc"                     ; Vortex86 SoC detection code
         call    stack_init
         call    socket_check_rust_smoke_test
         call    ipv4_find_fragment_slot_rust_smoke_test
+        call    net_ptr_to_num4_rust_smoke_test
         call    fdc_init
 
 ; PALETTE FOR 320x200 and 640x480 16 col

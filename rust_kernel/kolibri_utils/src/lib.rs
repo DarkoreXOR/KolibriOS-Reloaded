@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
@@ -11,7 +11,8 @@
 //! updates + port-area reserve/free, COFF reloc application + symbol name→Value lookup,
 //! MBR/EBR partition-table entry validation, GPT protective-MBR recognition, process TID→slot
 //! lookup, IPv4 on-link/gateway/broadcast routing + fragment-slot lookup, AHCI free command-slot
-//! scan, kernel VA→PA page translation, and socket-list membership for KolibriOS hybrid migration.
+//! scan, kernel VA→PA page translation, socket-list membership, and NIC device-list ptr→index×4
+//! for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -46,6 +47,7 @@ mod ntfs_usa;
 mod partition;
 mod pid_to_slot;
 mod port_area;
+mod net_ptr_to_num4;
 mod socket_check;
 mod string;
 mod tcp;
@@ -110,7 +112,7 @@ pub use ipv4_find_fragment_slot::{
     OFF_SLOT_PTR, OFF_SLOT_SRC_IP, OFF_SLOT_TTL,
 };
 pub use ipv4_route::{
-    ipv4_route, ipv4_route_ptr, net_ptr_to_num4, Ipv4RouteResult, IPV4_BROADCAST,
+    ipv4_route, ipv4_route_ptr, Ipv4RouteResult, IPV4_BROADCAST,
     IPV4_ROUTE_PRNG_SEED, NET_DEVICES_MAX, OFF_LINK_STATE, TABLE_BYTES,
 };
 pub use iso9660_compare::{
@@ -118,6 +120,10 @@ pub use iso9660_compare::{
     ISO9660_COMPARE_NAME_PRNG_SEED, ISO9660_DIR_OFF_NAME, ISO9660_DIR_OFF_NAME_LEN,
 };
 pub use mouse::mouse_acceleration;
+pub use net_ptr_to_num4::{
+    net_ptr_to_num4, net_ptr_to_num4_from_slice, net_ptr_to_num4_ptr, NET_PTR_TO_NUM4_MISS,
+    NET_PTR_TO_NUM4_PRNG_SEED,
+};
 pub use ntfs_bootsec::{
     fasm_oracle_ntfs_test_bootsec, make_valid_ntfs_bootsec, ntfs_test_bootsec,
     ntfs_test_bootsec_ptr, NTFS_BOOTSEC_MIN_LEN, NTFS_TEST_BOOTSEC_PRNG_SEED,

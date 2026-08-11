@@ -52,6 +52,7 @@ Use this before enabling a migration gate and when debugging a live FS bug.
    those registers across `call unicode.*` / similar.
    - Precedent: Cut D (`strncmp` → `get_service` EDX=`SRV*`).
    - Precedent: REG-001 (`copy_filename` → BDFE base in EDX).
+   - Precedent: REG-003 (smoke wiped `net_device_list[0]` / loopback — not a leaf bug).
 2. Prefer fixing at the **wrapper that owns the live register** (`uses …`) or
    the trampoline that claims FASM-compatible preserve — document which.
 3. ABI smoke must assert **caller-live** registers, not only the leaf’s
@@ -81,6 +82,10 @@ Use this before enabling a migration gate and when debugging a live FS bug.
    sizes, volume name, nested paths.
 10. Prefer a prior known-good image (`dev_build/cut-*-final.img`) as A/B
     baseline, not only gate flips on the current tree.
+11. **ABI smoke must not mutate live subsystem tables** that boot already
+    initialized (e.g. `net_device_list` after `loop_init`). Save/restore or
+    query existing entries; never plant-then-zero a live slot. Desktop smoke
+    alone will not catch a destroyed loopback (REG-003).
 
 ---
 
@@ -90,6 +95,7 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 |----|------|-------|--------|
 | [REG-001](#reg-001--xfs-directories-as-files-zero-sizes-2026-08-11) | 2026-08-11 | XFS directories as files / zero sizes | Fixed |
 | [REG-002](#reg-002--xfs-volume-label-whitespace--garbage-2026-08-11) | 2026-08-11 | XFS volume label whitespace + garbage | Fixed |
+| [REG-003](#reg-003--no-network-after-cut-ay-smoke-2026-08-11) | 2026-08-11 | No network after Cut AY smoke | Fixed |
 
 ---
 
@@ -124,6 +130,22 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | Avoid next time | FS cut or soak checklist: empty path → volume BDFE with terminated name. Compare new FS `GetFileInfo` to EXT. Set intentional labels on regression disks when UI is compared to the boot floppy. |
 
 **Class:** missing FS feature parity / uninitialized userspace-facing buffer.
+
+---
+
+### REG-003 — no network after Cut AY smoke (2026-08-11)
+
+| Field | Value |
+|-------|-------|
+| Symptom | No network connection after Cut AY; Cut AX image still had network. |
+| Suspected | Cut AY Rust `net_ptr_to_num4` trampoline / register preserve. |
+| Cleared by A/B | Leaf algorithm + trampoline ABI smoke already passed host differentials and boot marker `NPT4`; failure was independent of gate ON vs leaf correctness. |
+| Root cause | `net_ptr_to_num4_rust_smoke_test` runs **after** `stack_init` → `loop_init`, which registers loopback at `net_device_list[0]`. Smoke planted a fake pointer into slot 0 then wrote `0`, **orphaning loopback** while leaving `net_device_count` stale. Desktop non-black smoke still passed. |
+| Fix | `kernel/rust/net_ptr_to_num4.inc`: stop mutating the live list; hit-test uses the existing loopback pointer at slot 0; miss/null still use non-member/null queries. |
+| Verify | Rebuild ON; QEMU desktop PASS; user network path should match Cut AX (loopback present). |
+| Avoid next time | Post-`stack_init` network smokes must save/restore or only read live `net_device_list` / similar tables. Never plant-then-zero boot-initialized slots. |
+
+**Class:** ABI smoke destroys live boot state (not stdcall register drift).
 
 ---
 

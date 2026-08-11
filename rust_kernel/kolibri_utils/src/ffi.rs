@@ -22,6 +22,7 @@ use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_find_fragment_slot::ipv4_find_fragment_slot_ptr;
 use crate::ipv4_route::ipv4_route_ptr;
 use crate::port_area::r_f_port_area_ptr;
+use crate::net_ptr_to_num4::net_ptr_to_num4_ptr;
 use crate::socket_check::socket_check_ptr;
 use crate::iso9660_compare::iso9660_compare_name_ptr;
 use crate::mouse::mouse_acceleration;
@@ -224,6 +225,28 @@ pub unsafe extern "stdcall" fn rust_r_f_port_area(
 ) -> u32 {
     // SAFETY: kernel trampoline passes live table / tid / IO map.
     unsafe { r_f_port_area_ptr(op, start, end, reserved_ports, tid, io_map) }
+}
+
+/// `stdcall` rust_net_ptr_to_num4(device, list_base, max) -> EAX.
+///
+/// Cut AY: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). Returns index×4 or `0xFFFFFFFF`.
+/// FASM trampoline injects `net_device_list` + `NET_DEVICES_MAX`, moves
+/// EAX→EDI, and preserves EAX/EBX/ECX/EDX/ESI/EBP (REG-001; TCP send keeps
+/// EAX→socket across the call; ipv4/arp keep EDX→header).
+///
+/// # Safety
+/// `list_base` must be a readable array of at least `max` device pointers.
+#[no_mangle]
+#[link_section = ".text.rust_net_ptr_to_num4"]
+pub unsafe extern "stdcall" fn rust_net_ptr_to_num4(
+    device: u32,
+    list_base: *const u32,
+    max: u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes live net_device_list + NET_DEVICES_MAX.
+    unsafe { net_ptr_to_num4_ptr(device, list_base, max) }
 }
 
 /// `stdcall` rust_socket_check(candidate, net_sockets) -> EAX.
