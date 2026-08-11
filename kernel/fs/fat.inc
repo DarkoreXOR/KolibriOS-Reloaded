@@ -374,6 +374,38 @@ label fat_legal_chars byte
         db      3,3,3,3,3,3,3,3,3,3,3,3,0,3,3,0
 endg
 
+; Cut BC: USE_RUST_FAT_NAME_IS_LEGAL=1 routes through Rust
+; rust_fat_name_is_legal (see rust/fat_name_is_legal.inc).
+; Set USE_RUST_FAT_NAME_IS_LEGAL=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–BB.
+; in: esi -> UTF-8 name
+; out: CF=1 -> legal
+
+USE_RUST_FAT_NAME_IS_LEGAL = 1
+
+if USE_RUST_FAT_NAME_IS_LEGAL
+
+; Compatibility trampoline: ESI → Rust stdcall → EAX → CF.
+; REG-001: preserve ECX/EDX (FASM leaf never touched them; Rust stdcall
+; clobbers both). ESI preserved (arg copied on stack). EAX clobbered
+; (matches original).
+align 4
+fat_name_is_legal:
+        push    ecx
+        push    edx
+        stdcall rust_fat_name_is_legal, esi
+        test    eax, eax
+        pop     edx
+        pop     ecx
+        jz      .rust_illegal
+        stc
+        ret
+.rust_illegal:
+        clc
+        ret
+
+else
+
 fat_name_is_legal:
 ; in: esi -> UTF-8 name
 ; out: CF=1 -> legal
@@ -391,6 +423,8 @@ fat_name_is_legal:
 @@:
         pop     esi
         ret
+
+end if
 
 ; Cut K: USE_RUST_FAT_NEXT_SHORT_NAME=1 routes through Rust
 ; rust_fat_next_short_name (see rust/fat_next_short_name.inc).

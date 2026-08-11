@@ -13,7 +13,7 @@ use crate::checksum::{checksum_1, checksum_2};
 use crate::coff_reloc::fix_coff_relocs_ptr;
 use crate::crc::crc32_update;
 use crate::exfat_checksum::{calculate_set_checksum_field_ptr, exfat_hash_calculate_ptr};
-use crate::fat_name::{fat_gen_short_name_ptr, fat_next_short_name_ptr};
+use crate::fat_name::{fat_gen_short_name_ptr, fat_name_is_legal_ptr, fat_next_short_name_ptr};
 use crate::font::anti_aliasing;
 use crate::fs_operation_safe::file_system_is_operation_safe_ptr;
 use crate::geometry::block_clip_ptr;
@@ -748,6 +748,22 @@ pub unsafe extern "stdcall" fn rust_fat_next_short_name(name: *mut u8) -> u32 {
 pub unsafe extern "stdcall" fn rust_fat_gen_short_name(src: *const u8, out: *mut u8) {
     // SAFETY: kernel trampoline passes ESI/EDI → valid name + out buffer.
     unsafe { fat_gen_short_name_ptr(src, out) }
+}
+
+/// `stdcall` rust_fat_name_is_legal(name) -> EAX = 1 legal / 0 illegal.
+///
+/// Cut BC: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 4 bytes (`ret 4`). FASM trampoline maps EAX → `stc`/`clc`
+/// (1 = CF set = legal, 0 = CF clear = illegal); preserves ECX/EDX (REG-001).
+///
+/// # Safety
+/// `name` must be a readable NUL-terminated UTF-8 (or byte) name.
+#[no_mangle]
+#[link_section = ".text.rust_fat_name_is_legal"]
+pub unsafe extern "stdcall" fn rust_fat_name_is_legal(name: *const u8) -> u32 {
+    // SAFETY: kernel trampoline passes ESI → valid C-string name.
+    unsafe { fat_name_is_legal_ptr(name) }
 }
 
 /// `stdcall` rust_mouse_acceleration(delta, delay, speed_factor) -> EAX.

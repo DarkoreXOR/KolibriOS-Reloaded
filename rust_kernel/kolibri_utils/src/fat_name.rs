@@ -1,15 +1,20 @@
 //! Cut K: `fat_next_short_name` — FAT 8.3 short-name collision mutate.
 //! Cut U: `fat_gen_short_name` — UTF-8 LFN → 8.3 short-name generator.
+//! Cut BC: `fat_name_is_legal` — UTF-8 LFN charset legality (CF-out).
 //!
 //! Matches `kernel/fs/fat.inc` FASM leaf semantics (reverse `~` search,
 //! digit increment / expand into trailing spaces / shrink prefix, CF
-//! exhausted; UTF-8→8.3 state machine with `fat_legal_chars` / multi-dot).
-//! No `.rodata` in freestanding blobs — legality table is stack-materialized.
+//! exhausted; UTF-8→8.3 state machine with `fat_legal_chars` / multi-dot;
+//! LFN bit0 legality scan with high-bit UTF-8 skip).
+//! No `.rodata` in freestanding blobs — legality checks are predicate-form.
 //!
 //! Freestanding FFI path uses explicit / volatile byte stores — never
 //! `memcpy`/`memset`/`memmove` (those create reloc/GOT blockers; Cut I lesson).
 
 use crate::casefold::cp866_to_upper;
+
+/// Cut BC differential PRNG seed (`'CUBC'`).
+pub const FAT_NAME_IS_LEGAL_PRNG_SEED: u32 = 0x4355_4342;
 
 /// 8.3 name length in bytes (8 basename + 3 extension).
 pub const FAT_NAME_LEN: usize = 11;
@@ -216,6 +221,128 @@ fn fat_short_char_ok(c: u8) -> bool {
         return true;
     }
     false
+}
+
+/// Materialize FASM `fat_legal_chars` bit0 test without `.rodata`.
+///
+/// Returns true iff `(fat_legal_chars[c] & 1) != 0` (allowed in long names).
+/// Table values: `0` reject, `1` LFN-only, `3` LFN+short — bit0 accepts 1 and 3.
+///
+/// Exact iglobal layout (`fat.inc`): index 0x20 is the first `db` of the
+/// printable row (space = 1), not a zero from `times 32 db 0`.
+///
+/// If/else only — no `match` jump tables (Cut AZ reloc lesson).
+#[inline(always)]
+fn fat_lfn_char_ok(c: u8) -> bool {
+    // 0x20..0x2F: 1,3,0,3,3,3,3,3,3,3,0,1,1,3,3,0
+    if c == b' ' || c == b'!' {
+        return true;
+    }
+    if c == b'"' {
+        return false;
+    }
+    if c >= b'#' && c <= b')' {
+        return true;
+    }
+    if c == b'*' {
+        return false;
+    }
+    if c == b'+' || c == b',' {
+        return true;
+    }
+    if c == b'-' || c == b'.' {
+        return true;
+    }
+    if c == b'/' {
+        return false;
+    }
+    // 0x30..0x3F: 3×10, 0,1,0,1,0,0
+    if c >= b'0' && c <= b'9' {
+        return true;
+    }
+    if c == b':' {
+        return false;
+    }
+    if c == b';' {
+        return true;
+    }
+    if c == b'<' {
+        return false;
+    }
+    if c == b'=' {
+        return true;
+    }
+    if c == b'>' || c == b'?' {
+        return false;
+    }
+    // 0x40..0x5A @A-Z = 3; [ =1; \ =0; ] =1; ^_ =3
+    if c >= b'@' && c <= b'Z' {
+        return true;
+    }
+    if c == b'[' || c == b']' {
+        return true;
+    }
+    if c == b'\\' {
+        return false;
+    }
+    if c == b'^' || c == b'_' {
+        return true;
+    }
+    // 0x60..0x7B `a-z{ = 3; | =0; }~ =3; DEL =0
+    if c >= b'`' && c <= b'{' {
+        return true;
+    }
+    if c == b'|' {
+        return false;
+    }
+    if c == b'}' || c == b'~' {
+        return true;
+    }
+    false
+}
+
+/// UTF-8 LFN charset legality (FASM `fat_name_is_legal`).
+///
+/// Walks the C string at `name`. Bytes with the high bit set (`AL` SF) are
+/// skipped (UTF-8 multi-byte payload). ASCII bytes must have
+/// `fat_legal_chars[c] & 1 != 0`. Reaching NUL → legal; first illegal ASCII
+/// → illegal.
+///
+/// Returns `true` when FASM would set CF (legal), `false` when CF clear.
+///
+/// # Safety
+/// `name` must be a readable NUL-terminated byte string.
+#[inline(always)]
+pub unsafe fn fat_name_is_legal(name: *const u8) -> bool {
+    let mut p = name;
+    loop {
+        // SAFETY: caller guarantees readable C string through NUL.
+        let al = unsafe { *p };
+        p = unsafe { p.add(1) };
+        // test al, al / js @b — high-bit UTF-8 bytes skip the table.
+        if (al as i8) < 0 {
+            continue;
+        }
+        // test [fat_legal_chars+eax], 1 / jnz @b
+        if fat_lfn_char_ok(al) {
+            continue;
+        }
+        // Not table-ok: NUL → legal (stc); else illegal (CF clear).
+        return al == 0;
+    }
+}
+
+/// FFI helper: `1` = legal (CF set), `0` = illegal (CF clear).
+///
+/// # Safety
+/// Same as [`fat_name_is_legal`].
+#[inline(always)]
+pub unsafe fn fat_name_is_legal_ptr(name: *const u8) -> u32 {
+    if unsafe { fat_name_is_legal(name) } {
+        1
+    } else {
+        0
+    }
 }
 
 /// Generate a FAT 8.3 short name from a UTF-8 LFN (FASM `fat_gen_short_name`).
@@ -884,6 +1011,126 @@ mod tests {
             }
             let ora = fat_gen_fasm_oracle(&s);
             assert_eq!(prod, ora, "PRNG mismatch src={:?}", s);
+        }
+    }
+
+    // -------- Cut BC: fat_name_is_legal --------
+
+    /// Host-side FASM `fat_legal_chars` bit0 oracle (full table form).
+    fn fasm_legal_bit0(c: u8) -> bool {
+        let mut t = [0u8; 128];
+        let r1 = [1u8, 3, 0, 3, 3, 3, 3, 3, 3, 3, 0, 1, 1, 3, 3, 0];
+        let r2 = [3u8, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 1, 0, 1, 0, 0];
+        let r3 = [3u8, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 1, 0, 1, 3, 3];
+        let r4 = [3u8, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 0, 3, 3, 0];
+        t[32..48].copy_from_slice(&r1);
+        t[48..64].copy_from_slice(&r2);
+        for i in 64..80 {
+            t[i] = 3;
+        }
+        t[80..96].copy_from_slice(&r3);
+        for i in 96..112 {
+            t[i] = 3;
+        }
+        t[112..128].copy_from_slice(&r4);
+        if (c as usize) >= 128 {
+            return false;
+        }
+        (t[c as usize] & 1) != 0
+    }
+
+    /// Independent FASM-flow oracle for `fat_name_is_legal`.
+    fn fat_name_is_legal_oracle(src: &[u8]) -> bool {
+        let mut bytes = src.to_vec();
+        if bytes.last().copied() != Some(0) {
+            bytes.push(0);
+        }
+        let mut i = 0usize;
+        loop {
+            let al = bytes[i];
+            i += 1;
+            // test al, al / js @b
+            if (al as i8) < 0 {
+                continue;
+            }
+            // test [fat_legal_chars+eax], 1 / jnz @b
+            if (al as usize) < 128 && fasm_legal_bit0(al) {
+                continue;
+            }
+            // test al, al / jnz @f; stc
+            return al == 0;
+        }
+    }
+
+    fn check_legal(s: &[u8], expect: bool) {
+        let mut buf = s.to_vec();
+        if buf.last().copied() != Some(0) {
+            buf.push(0);
+        }
+        let got = unsafe { fat_name_is_legal(buf.as_ptr()) };
+        let ora = fat_name_is_legal_oracle(&buf);
+        assert_eq!(ora, expect, "oracle disagreed for {:?}", s);
+        assert_eq!(got, expect, "rust disagreed for {:?}", s);
+    }
+
+    #[test]
+    fn fat_name_is_legal_boundaries() {
+        check_legal(b"", true); // empty → legal
+        check_legal(b"readme.txt", true);
+        check_legal(b"file name", true); // space = LFN-only (table 1)
+        check_legal(b"a*b", false); // '*'
+        check_legal(b"ok+plus", true); // '+' LFN-only
+        check_legal(b"semi;colon", true); // ';' LFN-only
+        check_legal(b"brace{x", true); // '{' = 3
+        check_legal(b"tilde~x", true); // '~' = 3
+        check_legal(b"pipe|ok", false); // '|' = 0
+        check_legal(b"close}ok", true); // '}' = 3
+        check_legal(b"\"quotes\"", false); // '"' = 0
+        // High-bit UTF-8 bytes skipped; trailing ASCII name still legal.
+        check_legal(&[0xD0, 0x90, b'A', 0], true); // Cyrillic А + A
+        // Only high-bit bytes + NUL → legal (all skipped).
+        check_legal(&[0xC0, 0x80, 0], true);
+        check_legal(b"?", false);
+        check_legal(b"a/b", false); // '/' = 0
+    }
+
+    #[test]
+    fn fat_name_is_legal_predicate_matches_table() {
+        for c in 0u8..=127 {
+            assert_eq!(
+                fat_lfn_char_ok(c),
+                fasm_legal_bit0(c),
+                "predicate mismatch c={c:#x} '{}'",
+                c as char
+            );
+        }
+    }
+
+    #[test]
+    fn fat_name_is_legal_prng_50k() {
+        let mut state = FAT_NAME_IS_LEGAL_PRNG_SEED;
+        let mut next = || {
+            state = state
+                .wrapping_mul(1664525)
+                .wrapping_add(1013904223);
+            state
+        };
+        for _ in 0..50_000 {
+            let len = (next() % 24) as usize;
+            let mut s = Vec::with_capacity(len + 1);
+            for _ in 0..len {
+                s.push((next() & 0xff) as u8);
+            }
+            s.push(0);
+            // Avoid embedded NULs mid-string (FASM would stop early).
+            for b in &mut s[..len] {
+                if *b == 0 {
+                    *b = b'x';
+                }
+            }
+            let got = unsafe { fat_name_is_legal(s.as_ptr()) };
+            let ora = fat_name_is_legal_oracle(&s);
+            assert_eq!(got, ora, "PRNG mismatch src={:?}", s);
         }
     }
 }

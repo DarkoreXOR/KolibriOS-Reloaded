@@ -23,7 +23,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 
 - Cut A from boundaries.
 - **Risk:** low.
-- **Status (2026-08-12):** **COMPLETE** — Phase C + Cuts A–BB production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–BB re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
+- **Status (2026-08-12):** **COMPLETE** — Phase C + Cuts A–BC production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–BC re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
 - **Done:** Phase C probe + CRC32 + UTF-16 + CP866 + UTF-8. Baseline: [`cut-a-final-architecture.md`](cut-a-final-architecture.md).
 - **Cut B (pure util, not allocator):** `cp866toUpper` — **done** 2026-08-09 ([`cut-b-plan.md`](cut-b-plan.md), [`cut-b-implementation.md`](cut-b-implementation.md)).
 - **Cut C:** `utf16toUpper` — **done** ([`cut-c-implementation.md`](cut-c-implementation.md)).
@@ -77,7 +77,8 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut AY:** `net_ptr_to_num4` — **done** 2026-08-11 ([`cut-ay-plan.md`](cut-ay-plan.md), [`cut-ay-implementation.md`](cut-ay-implementation.md)). NIC device-list ptr→index×4 (Stage-5 foothold); Path B after post-AX raised-bar cluster audit (no Path A; PE/calendar/USB leftovers deferred); reloc-free. REG-003 (smoke wiped loopback) fixed post-completion.
 - **Cut AZ:** `file_system_is_operation_safe` — **done** 2026-08-11 ([`cut-az-plan.md`](cut-az-plan.md), [`cut-az-implementation.md`](cut-az-implementation.md)). Sysfn70/80 buffer-size→userspace ZF gate (Stage-3); Path B after post-AY raised-bar cluster audit (no Path A; PE/TCP/calendar ban-list); reloc-free.
 - **Cut BA:** `pci_make_config_cmd` — **done** 2026-08-11 ([`cut-ba-plan.md`](cut-ba-plan.md), [`cut-ba-implementation.md`](cut-ba-implementation.md)). PCI mech-1 config address encode (bus/PCI foothold); Path B after post-AZ raised-bar cluster audit + one-time [`migration-todo.md`](migration-todo.md) inventory (no Path A; PE/TCP/FAT deepen rejected); reloc-free.
-- **Cut BB:** `strrchr` — **done** 2026-08-12 ([`cut-bb-plan.md`](cut-bb-plan.md), [`cut-bb-implementation.md`](cut-bb-implementation.md)). Reverse character search (process-create path + PE export); Path B after post-BA raised-bar cluster audit (`strtoint_dec` dead/unlinked; no Path A; PE/TCP/FAT deepen rejected); reloc-free. **Stop; do not start Cut BC.**
+- **Cut BB:** `strrchr` — **done** 2026-08-12 ([`cut-bb-plan.md`](cut-bb-plan.md), [`cut-bb-implementation.md`](cut-bb-implementation.md)). Reverse character search (process-create path + PE export); Path B after post-BA raised-bar cluster audit (`strtoint_dec` dead/unlinked; no Path A; PE/TCP/FAT deepen rejected); reloc-free.
+- **Cut BC:** `fat_name_is_legal` — **done** 2026-08-12 ([`cut-bc-plan.md`](cut-bc-plan.md), [`cut-bc-implementation.md`](cut-bc-implementation.md)). FAT LFN charset legality (bit0 of `fat_legal_chars`; UTF-8 high-bit skip); Path B after post-BB raised-bar cluster audit (no Path A; `strchr` export-only; PE/TCP/string deepen rejected); reloc-free. **Stop; do not start Cut BD.**
 
 ### Stage 3 — Compat syscall façade (selected)
 
@@ -92,7 +93,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 ### Stage 5 — FS plugin / net protocol islands
 
 - One filesystem; optional TCP path.
-- **Status:** foothold via Cuts AC/M/V/AS/AU/AY (IPv4 route + TCP timers + socket_check + fragment-slot lookup + NIC device-list index); AHCI cmdslot via Cut AV; XFS AG→sector via Cut AW; NTFS MCB encode via Cut AX; PCI config address via Cut BA; broader protocol/driver islands still open.
+- **Status:** foothold via Cuts AC/M/V/AS/AU/AY (IPv4 route + TCP timers + socket_check + fragment-slot lookup + NIC device-list index); AHCI cmdslot via Cut AV; XFS AG→sector via Cut AW; NTFS MCB encode via Cut AX; PCI config address via Cut BA; FAT LFN charset via Cut BC; broader protocol/driver islands still open.
 
 ### Stage 6 — Scheduler policy + process create
 
