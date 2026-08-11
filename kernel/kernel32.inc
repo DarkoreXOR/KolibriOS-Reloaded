@@ -108,6 +108,8 @@ include "rust/pci_make_config_cmd.inc"
 include "rust/strrchr.inc"
 ; Cut BC: fat_name_is_legal — Rust blob + smoke (USE_RUST_FAT_NAME_IS_LEGAL)
 include "rust/fat_name_is_legal.inc"
+; Cut BD: tcp_outflags — Rust blob + smoke (USE_RUST_TCP_OUTFLAGS)
+include "rust/tcp_outflags.inc"
 ; Cut J: ntfs_restore_usa — Rust blob + smoke (see docs/migration/cut-j-plan.md)
 include "rust/ntfs_restore_usa.inc"
 ; Cut K: fat_next_short_name — Rust blob + smoke (see docs/migration/cut-k-plan.md)

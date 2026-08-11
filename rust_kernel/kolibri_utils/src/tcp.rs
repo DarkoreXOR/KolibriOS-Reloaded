@@ -1,5 +1,6 @@
 //! Cut M: `tcp_xmit_timer` — TCP RFC793-style SRTT/RTTVAR update.
 //! Cut V: `tcp_set_persist` — TCP persist-timer arming from SRTT/RTTVAR.
+//! Cut BD: `tcp_outflags` — TCP state → header flags table lookup.
 //!
 //! Matches `kernel/network/tcp_subr.inc` FASM leaf semantics, including:
 //! * gate on `TCP_SOCKET.t_rtt == 0` for the init path
@@ -8,9 +9,13 @@
 //! * unsigned `add` then `ja` clamp-to-1 (zero or CF → 1)
 //! * persist: retransmit mutual exclusion; `(srtt>>2 + rttvar)>>1 << rxtshift`;
 //!   unsigned `tcpt_rangeset` clamp to `[8,94]`; OR persist flag; bump `t_rxtshift`
+//! * outflags: dword `t_state` indexes an 11-byte TH_* table (no bounds check in
+//!   FASM for in-range 0..=10; Rust defines only that domain)
 //!
 //! Field offsets are locked from a FASM struct audit of `socket.inc`.
 
+/// `TCP_SOCKET.t_state` offset (bytes) — dword before `t_rxtshift`.
+pub const TCP_OFF_T_STATE: usize = 114;
 /// `TCP_SOCKET.t_rxtshift` offset (bytes) — `db` + 3-byte pad.
 pub const TCP_OFF_T_RXTSHIFT: usize = 118;
 /// `TCP_SOCKET.t_rtt` offset (bytes).
@@ -42,6 +47,17 @@ pub const TIMER_FLAG_PERSIST: u32 = 8;
 pub const TCP_XMIT_TIMER_PRNG_SEED: u32 = 0x7C90_0001;
 /// Cut V differential PRNG seed (documented).
 pub const TCP_SET_PERSIST_PRNG_SEED: u32 = 0x7C90_0002;
+/// Cut BD differential PRNG seed (`CUBD`).
+pub const TCP_OUTFLAGS_PRNG_SEED: u32 = 0x4355_4244;
+
+/// TCP header flag bits (`tcp.inc`).
+pub const TH_FIN: u8 = 1 << 0;
+pub const TH_SYN: u8 = 1 << 1;
+pub const TH_RST: u8 = 1 << 2;
+pub const TH_ACK: u8 = 1 << 4;
+
+/// `TCPS_TIME_WAIT` — last defined state index for `.flaglist`.
+pub const TCPS_TIME_WAIT: u32 = 10;
 
 /// Unaligned dword load — `TCP_SOCKET` fields sit at offset 202+ (SOCKET size 74
 /// leaves them 2-byte aligned). Matches x86 permissive `[mem]` loads.
@@ -187,6 +203,53 @@ pub unsafe fn tcp_set_persist_ptr(socket: *mut u8) {
     unsafe { tcp_set_persist(socket) }
 }
 
+/// FASM `.flaglist` for `tcp_outflags` — built on the stack so the freestanding
+/// blob stays reloc-free (no `.rodata` / GOTOFF). Indices are `TCPS_*` 0..=10.
+#[inline(always)]
+fn tcp_outflags_table(buf: &mut [u8; 11]) {
+    // Matches tcp_subr.inc `.flaglist` byte-for-byte.
+    buf[0] = TH_RST | TH_ACK; // TCPS_CLOSED
+    buf[1] = 0; // TCPS_LISTEN
+    buf[2] = TH_SYN; // TCPS_SYN_SENT
+    buf[3] = TH_SYN | TH_ACK; // TCPS_SYN_RECEIVED
+    buf[4] = TH_ACK; // TCPS_ESTABLISHED
+    buf[5] = TH_ACK; // TCPS_CLOSE_WAIT
+    buf[6] = TH_FIN | TH_ACK; // TCPS_FIN_WAIT_1
+    buf[7] = TH_FIN | TH_ACK; // TCPS_CLOSING
+    buf[8] = TH_FIN | TH_ACK; // TCPS_LAST_ACK
+    buf[9] = TH_ACK; // TCPS_FIN_WAIT_2
+    buf[10] = TH_ACK; // TCPS_TIME_WAIT
+}
+
+/// Look up TCP header flags for `TCP_SOCKET.t_state` at `socket`.
+///
+/// Matches `tcp_outflags` in `tcp_subr.inc`: load dword state, then
+/// `movzx` the byte at `flaglist[state]`. Defined for `state <= 10`;
+/// out-of-range returns 0 (FASM would read past the table into following
+/// code — not reproducible in a reloc-free blob).
+///
+/// # Safety
+/// `socket` must point to a readable `TCP_SOCKET` through `t_state`.
+#[inline(always)]
+pub unsafe fn tcp_outflags(socket: *const u8) -> u32 {
+    let state = unsafe { read_u32(socket, TCP_OFF_T_STATE) };
+    if state > TCPS_TIME_WAIT {
+        return 0;
+    }
+    let mut table = [0u8; 11];
+    tcp_outflags_table(&mut table);
+    u32::from(table[state as usize])
+}
+
+/// Pointer-friendly entry used by the stdcall FFI.
+///
+/// # Safety
+/// Same as [`tcp_outflags`].
+#[inline(always)]
+pub unsafe fn tcp_outflags_ptr(socket: *const u8) -> u32 {
+    unsafe { tcp_outflags(socket) }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -293,6 +356,7 @@ mod tests {
 
     #[test]
     fn offsets_locked() {
+        assert_eq!(TCP_OFF_T_STATE, 114);
         assert_eq!(TCP_OFF_T_RTT, 202);
         assert_eq!(TCP_OFF_T_SRTT, 210);
         assert_eq!(TCP_OFF_T_RTTVAR, 214);
@@ -484,6 +548,94 @@ mod tests {
             state = state.wrapping_mul(1664525).wrapping_add(1013904223);
             let persist_in = state;
             persist_check(flags, srtt, rttvar, rxtshift, persist_in);
+        }
+    }
+
+    /// Independent FASM-flow oracle for `tcp_outflags` (`tcp_subr.inc` `.flaglist`).
+    fn outflags_oracle(state: u32) -> u32 {
+        const FLAGLIST: [u8; 11] = [
+            TH_RST | TH_ACK,
+            0,
+            TH_SYN,
+            TH_SYN | TH_ACK,
+            TH_ACK,
+            TH_ACK,
+            TH_FIN | TH_ACK,
+            TH_FIN | TH_ACK,
+            TH_FIN | TH_ACK,
+            TH_ACK,
+            TH_ACK,
+        ];
+        if state > TCPS_TIME_WAIT {
+            0
+        } else {
+            u32::from(FLAGLIST[state as usize])
+        }
+    }
+
+    fn outflags_run(state: u32) -> u32 {
+        let mut buf = [0u8; 128];
+        unsafe {
+            write_u32(buf.as_mut_ptr(), TCP_OFF_T_STATE, state);
+            tcp_outflags(buf.as_ptr())
+        }
+    }
+
+    fn outflags_check(state: u32) {
+        let got = outflags_run(state);
+        let exp = outflags_oracle(state);
+        assert_eq!(got, exp, "outflags mismatch state={state}");
+    }
+
+    #[test]
+    fn outflags_all_defined_states() {
+        for state in 0u32..=TCPS_TIME_WAIT {
+            outflags_check(state);
+        }
+    }
+
+    #[test]
+    fn outflags_named() {
+        assert_eq!(outflags_run(0), u32::from(TH_RST | TH_ACK)); // CLOSED
+        assert_eq!(outflags_run(1), 0); // LISTEN
+        assert_eq!(outflags_run(2), u32::from(TH_SYN)); // SYN_SENT
+        assert_eq!(outflags_run(3), u32::from(TH_SYN | TH_ACK)); // SYN_RECEIVED
+        assert_eq!(outflags_run(4), u32::from(TH_ACK)); // ESTABLISHED
+        assert_eq!(outflags_run(6), u32::from(TH_FIN | TH_ACK)); // FIN_WAIT_1
+        assert_eq!(outflags_run(10), u32::from(TH_ACK)); // TIME_WAIT
+    }
+
+    #[test]
+    fn outflags_out_of_range_returns_zero() {
+        outflags_check(11);
+        outflags_check(0xFFFF_FFFF);
+        outflags_check(100);
+    }
+
+    #[test]
+    fn outflags_does_not_mutate_socket() {
+        let mut buf = [0u8; 128];
+        unsafe {
+            write_u32(buf.as_mut_ptr(), TCP_OFF_T_STATE, 4);
+            write_u32(buf.as_mut_ptr(), TCP_OFF_T_RXTSHIFT, 0xA5A5_A5A5);
+            let _ = tcp_outflags(buf.as_ptr());
+            assert_eq!(read_u32(buf.as_ptr(), TCP_OFF_T_STATE), 4);
+            assert_eq!(read_u32(buf.as_ptr(), TCP_OFF_T_RXTSHIFT), 0xA5A5_A5A5);
+        }
+    }
+
+    #[test]
+    fn outflags_prng_50k() {
+        let mut state = TCP_OUTFLAGS_PRNG_SEED;
+        for _ in 0..50_000 {
+            state = state.wrapping_mul(1664525).wrapping_add(1013904223);
+            // Mix in-range and a few out-of-range patterns.
+            let t_state = if (state & 0x1F) == 0x1F {
+                state
+            } else {
+                state % 11
+            };
+            outflags_check(t_state);
         }
     }
 }

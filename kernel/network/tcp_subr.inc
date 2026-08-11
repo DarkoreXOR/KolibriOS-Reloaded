@@ -247,6 +247,35 @@ tcp_close:
 ;  OUT: edx = flags                                               ;
 ;                                                                 ;
 ;-----------------------------------------------------------------;
+; Cut BD: USE_RUST_TCP_OUTFLAGS=1 routes through Rust
+; rust_tcp_outflags (see rust/tcp_outflags.inc).
+; Set USE_RUST_TCP_OUTFLAGS=0 to restore the original FASM body
+; without deleting it. Independent of Cuts M/V (state→flags table,
+; not timer arithmetic).
+
+USE_RUST_TCP_OUTFLAGS = 1
+
+if USE_RUST_TCP_OUTFLAGS
+
+; Compatibility trampoline: register ABI → Rust stdcall.
+; Callers keep `call tcp_outflags` with EAX=socket pointer.
+; EAX must be preserved (tcp_output uses it after return).
+; EBX/ECX preserved (SND delta / window live across call — REG-001).
+; Result placed in EDX (legacy OUT).
+align 4
+tcp_outflags:
+        push    ebx
+        push    ecx
+        push    eax
+        stdcall rust_tcp_outflags, eax
+        mov     edx, eax                        ; flags → EDX
+        pop     eax                             ; restore socket
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
 align 4
 tcp_outflags:
 
@@ -269,6 +298,8 @@ tcp_outflags:
         db      TH_FIN + TH_ACK         ; TCPS_LAST_ACK
         db               TH_ACK         ; TCPS_FIN_WAIT_2
         db               TH_ACK         ; TCPS_TIME_WAIT
+
+end if
 
 
 ;-----------------------------------------------------------------;

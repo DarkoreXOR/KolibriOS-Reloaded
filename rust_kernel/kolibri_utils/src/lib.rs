@@ -169,10 +169,11 @@ pub use socket_check::{
 };
 pub use string::{strncmp, strrchr, STRRCHR_PRNG_SEED};
 pub use tcp::{
-    tcp_set_persist, tcp_set_persist_ptr, tcp_xmit_timer, TCP_MAX_RXTSHIFT, TCP_OFF_TIMER_FLAGS,
-    TCP_OFF_TIMER_PERSIST, TCP_OFF_T_RTT, TCP_OFF_T_RTTVAR, TCP_OFF_T_RXTSHIFT, TCP_OFF_T_SRTT,
+    tcp_outflags, tcp_outflags_ptr, tcp_set_persist, tcp_set_persist_ptr, tcp_xmit_timer,
+    TCP_MAX_RXTSHIFT, TCP_OFF_TIMER_FLAGS, TCP_OFF_TIMER_PERSIST, TCP_OFF_T_RTT, TCP_OFF_T_RTTVAR,
+    TCP_OFF_T_RXTSHIFT, TCP_OFF_T_SRTT, TCP_OFF_T_STATE, TCP_OUTFLAGS_PRNG_SEED,
     TCP_SET_PERSIST_PRNG_SEED, TCP_TIME_PERS_MAX, TCP_TIME_PERS_MIN, TCP_XMIT_TIMER_PRNG_SEED,
-    TIMER_FLAG_PERSIST, TIMER_FLAG_RETRANSMISSION,
+    TH_ACK, TH_FIN, TH_RST, TH_SYN, TIMER_FLAG_PERSIST, TIMER_FLAG_RETRANSMISSION, TCPS_TIME_WAIT,
 };
 pub use time::{
     bigtime_from_secs_2001, ext_read_time, ext_read_time_ptr, ext_unix_to_secs, fat_time_to_bdfe,

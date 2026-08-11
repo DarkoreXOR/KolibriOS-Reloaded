@@ -35,7 +35,7 @@ use crate::partition::{is_partition_table_entry_ptr, is_protective_mbr_ptr};
 use crate::pci_make_config_cmd::pci_make_config_cmd;
 use crate::pid_to_slot::pid_to_slot_ptr;
 use crate::string::{strncmp, strrchr};
-use crate::tcp::{tcp_set_persist_ptr, tcp_xmit_timer_ptr};
+use crate::tcp::{tcp_outflags_ptr, tcp_set_persist_ptr, tcp_xmit_timer_ptr};
 use crate::time::{
     ext_unix_to_secs, fat_time_to_bdfe, fs_calculate_time_ptr, fs_time2bdfe_ptr,
     ntfs_calculate_time_ptr, ntfs_datetime_to_bdfe_ptr, xfs_bigtime_to_secs,
@@ -812,6 +812,22 @@ pub unsafe extern "stdcall" fn rust_tcp_xmit_timer(rtt: u32, socket: *mut u8) {
 pub unsafe extern "stdcall" fn rust_tcp_set_persist(socket: *mut u8) {
     // SAFETY: kernel trampoline passes EAX → valid socket.
     unsafe { tcp_set_persist_ptr(socket) }
+}
+
+/// `stdcall` rust_tcp_outflags(socket) -> EAX = TCP header flags.
+///
+/// Cut BD: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 4 bytes (`ret 4`). FASM trampoline preserves
+/// `EAX`/`EBX`/`ECX` and places the result in `EDX` (legacy OUT).
+///
+/// # Safety
+/// `socket` must point to a readable `TCP_SOCKET` through `t_state`.
+#[no_mangle]
+#[link_section = ".text.rust_tcp_outflags"]
+pub unsafe extern "stdcall" fn rust_tcp_outflags(socket: *const u8) -> u32 {
+    // SAFETY: kernel trampoline passes EAX → valid socket.
+    unsafe { tcp_outflags_ptr(socket) }
 }
 
 /// `stdcall` rust_set_io_access_rights(port, clear_access, io_map) -> void.
