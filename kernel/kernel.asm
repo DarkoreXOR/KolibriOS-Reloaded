@@ -264,6 +264,7 @@ high_code:
 ; Cut AW: xfs._.blkrel2sectabs smoke ON when USE_RUST_XFS_BLKREL2SECTABS=1.
 ; Cut AT: get_coff_sym smoke ON when USE_RUST_GET_COFF_SYM=1.
 ; Cut BK: coff_get_align smoke ON when USE_RUST_COFF_GET_ALIGN=1.
+; Cut BL: v86_get_lin_addr smoke ON when USE_RUST_V86_GET_LIN_ADDR=1.
 ; Cut AY: net_ptr_to_num4 smoke ON when USE_RUST_NET_PTR_TO_NUM4=1 (after stack_init).
 ; Cut AZ: file_system_is_operation_safe smoke ON when USE_RUST_FILE_SYSTEM_IS_OPERATION_SAFE=1.
 ; Cut BB: strrchr smoke ON when USE_RUST_STRRCHR=1.
@@ -534,6 +535,8 @@ high_code:
         call    get_coff_sym_rust_smoke_test
         ; Cut BK: coff_get_align smoke — synthetic COFF_SECTION (near Cut AT).
         call    coff_get_align_rust_smoke_test
+        ; Cut BL: v86_get_lin_addr smoke — synthetic PTE table (near Cut AQ).
+        call    v86_get_lin_addr_rust_smoke_test
         ; Cut X: set_io_access_rights smoke — requires live tss._io_map_0.
         call    set_io_access_rights_rust_smoke_test
         ; Cut Z: is_partition_table_entry smoke — synthetic entry + DISK stub.

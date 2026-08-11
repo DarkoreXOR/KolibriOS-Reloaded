@@ -136,6 +136,8 @@ include "rust/is_region_userspace.inc"
 include "rust/is_string_userspace.inc"
 ; Cut BK: coff_get_align — Rust blob + smoke (USE_RUST_COFF_GET_ALIGN)
 include "rust/coff_get_align.inc"
+; Cut BL: v86_get_lin_addr — Rust blob + smoke (USE_RUST_V86_GET_LIN_ADDR)
+include "rust/v86_get_lin_addr.inc"
 ; Cut Q: UTF16to8 — Rust blob + smoke (USE_RUST_UTF16_TO_8=1; production ON)
 include "rust/utf16_to_8.inc"
 ; Cut R: xfs._.extent_unpack — Rust blob + smoke (USE_RUST_XFS_EXTENT_UNPACK)

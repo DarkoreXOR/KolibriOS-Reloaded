@@ -137,6 +137,41 @@ v86_create:
 ;     esi=handle
 ; out: eax=linear address
 ; destroys: nothing
+;
+; Cut BL: USE_RUST_V86_GET_LIN_ADDR=1 routes through Rust rust_v86_get_lin_addr
+; (see rust/v86_get_lin_addr.inc). Set USE_RUST_V86_GET_LIN_ADDR=0 to restore
+; the original FASM body without deleting it. Independent of Cuts A–BK.
+; Critical ABI: EAX in/out; ESI=handle unused by leaf but must be preserved;
+; legacy destroys nothing (push/pop ECX+EDX). REG-001 trampoline preserve.
+; Production default ON after Cut BL gates.
+
+USE_RUST_V86_GET_LIN_ADDR = 1
+
+if USE_RUST_V86_GET_LIN_ADDR
+
+; Compatibility trampoline: register ABI → Rust stdcall → EAX.
+; Injects page_tabs so the Rust blob stays reloc-free.
+; Preserves EBX/ECX/EDX/ESI/EDI/EBP (legacy destroys nothing; REG-001).
+align 4
+v86_get_lin_addr:
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    edi
+        push    ebp
+        stdcall rust_v86_get_lin_addr, eax, page_tabs
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
+align 4
 v86_get_lin_addr:
         push    ecx edx
         mov     ecx, eax
@@ -147,6 +182,8 @@ v86_get_lin_addr:
         or      eax, edx
         pop     edx ecx
         ret
+
+end if
 
 ;not used
 ; Sets linear address for V86-page

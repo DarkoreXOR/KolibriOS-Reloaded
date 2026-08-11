@@ -23,7 +23,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 
 - Cut A from boundaries.
 - **Risk:** low.
-- **Status (2026-08-12):** **COMPLETE** — Phase C + Cuts A–BK production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–BK re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
+- **Status (2026-08-12):** **COMPLETE** — Phase C + Cuts A–BL production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–BL re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
 - **Done:** Phase C probe + CRC32 + UTF-16 + CP866 + UTF-8. Baseline: [`cut-a-final-architecture.md`](cut-a-final-architecture.md).
 - **Cut B (pure util, not allocator):** `cp866toUpper` — **done** 2026-08-09 ([`cut-b-plan.md`](cut-b-plan.md), [`cut-b-implementation.md`](cut-b-implementation.md)).
 - **Cut C:** `utf16toUpper` — **done** ([`cut-c-implementation.md`](cut-c-implementation.md)).
@@ -87,6 +87,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut BI:** `iso9660_copy_name` — **done** 2026-08-12 ([`cut-bi-plan.md`](cut-bi-plan.md), [`cut-bi-implementation.md`](cut-bi-implementation.md)). ISO9660 volume-name encoding dispatch + NUL terminate; Path B after post-BH raised-bar cluster audit (no Path A; thin P sibling / address-math / PE thin / AHCI-trivial ranked below); reloc-free via inlined A/AN/Q helpers. **`--disk iso9660` soak PASS.**
 - **Cut BJ:** `is_string_userspace` — **done** 2026-08-12 ([`cut-bj-plan.md`](cut-bj-plan.md), [`cut-bj-implementation.md`](cut-bj-implementation.md)). NUL-terminated string userspace ZF gate (Stage-3; complements P+AZ); Path B after post-BI raised-bar cluster audit (no Path A; ISO Path B exhausted; address-math / PE thin / AHCI-trivial / HID side-effects ranked below); reloc-free. **Stop; do not start Cut BK.**
 - **Cut BK:** `coff_get_align` — **done** 2026-08-12 ([`cut-bk-plan.md`](cut-bk-plan.md), [`cut-bk-implementation.md`](cut-bk-implementation.md)). PE/COFF Characteristics→align mask (4K default/clamp); Path B after post-BJ raised-bar cluster audit (no Path A; Stage-3 Path B novelty exhausted; V86 weak-soak / AHCI-trivial / HID-TCP-XFS deepen ranked below); reloc-free. **Stop; do not start Cut BL.**
+- **Cut BL:** `v86_get_lin_addr` — **done** 2026-08-12 ([`cut-bl-plan.md`](cut-bl-plan.md), [`cut-bl-implementation.md`](cut-bl-implementation.md)). V86 addr→linear via `page_tabs` PTE; Path B after post-BK raised-bar cluster audit (no Path A; PE thin novelty exhausted Y+AT+BK; BIOS `/bd*` soak via `biosdisks=on`); reloc-free. **Stop; do not start Cut BM.**
 
 ### Stage 3 — Compat syscall façade (selected)
 
@@ -96,12 +97,12 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 ### Stage 4 — Memory exports
 
 - Rust page/heap behind same symbols.
-- **Status:** foothold via Cut AQ (`get_pg_addr`); allocator/map/fault remain FASM.
+- **Status:** foothold via Cuts AQ/BL (`get_pg_addr` + `v86_get_lin_addr`); allocator/map/fault remain FASM.
 
 ### Stage 5 — FS plugin / net protocol islands
 
 - One filesystem; optional TCP path.
-- **Status:** foothold via Cuts AC/M/V/AS/AU/AY/BD (IPv4 route + TCP timers + socket_check + fragment-slot lookup + NIC device-list index + TCP outflags); AHCI cmdslot via Cut AV; endian word-swap via Cut BG; XFS AG→sector via Cut AW; NTFS MCB encode via Cut AX; PCI config address via Cut BA; FAT LFN charset via Cut BC; HID hotkey match via Cut BE; string padded copy via Cut BF; C-string length via Cut BH; ISO9660 volume-name copy via Cut BI; Stage-3 string userspace gate via Cut BJ; PE section align mask via Cut BK; broader protocol/driver islands still open.
+- **Status:** foothold via Cuts AC/M/V/AS/AU/AY/BD (IPv4 route + TCP timers + socket_check + fragment-slot lookup + NIC device-list index + TCP outflags); AHCI cmdslot via Cut AV; endian word-swap via Cut BG; XFS AG→sector via Cut AW; NTFS MCB encode via Cut AX; PCI config address via Cut BA; FAT LFN charset via Cut BC; HID hotkey match via Cut BE; string padded copy via Cut BF; C-string length via Cut BH; ISO9660 volume-name copy via Cut BI; Stage-3 string userspace gate via Cut BJ; PE section align mask via Cut BK; V86 linear translate via Cut BL; broader protocol/driver islands still open.
 
 ### Stage 6 — Scheduler policy + process create
 

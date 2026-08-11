@@ -69,6 +69,7 @@ mod unicode;
 mod userspace;
 mod utf16_to_8;
 mod utf8to16;
+mod v86_get_lin_addr;
 mod window;
 mod xfs_blkrel2sectabs;
 mod xfs_extent;
@@ -219,6 +220,10 @@ pub use utf16_to_8::{
     utf16_to_8_ptr, Utf16To8Result, UTF16_TO_8_PRNG_SEED,
 };
 pub use utf8to16::{utf8to16, utf8to16_ptr, Utf8To16Result, UTF8TO16_PRNG_SEED};
+pub use v86_get_lin_addr::{
+    v86_get_lin_addr, v86_get_lin_addr_ptr, PAGE_OFFSET_MASK, PTE_FRAME_MASK,
+    V86_GET_LIN_ADDR_PRNG_SEED,
+};
 pub use window::{
     check_window_position, check_window_position_ptr, WindowBox, CHECK_WINDOW_POSITION_PRNG_SEED,
 };

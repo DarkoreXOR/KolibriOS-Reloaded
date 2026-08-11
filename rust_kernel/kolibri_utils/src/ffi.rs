@@ -11,6 +11,7 @@ use crate::app_header::test_app_header_ptr;
 use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
 use crate::coff_get_align::coff_get_align_ptr;
+use crate::v86_get_lin_addr::v86_get_lin_addr_ptr;
 use crate::coff_reloc::fix_coff_relocs_ptr;
 use crate::crc::crc32_update;
 use crate::exfat_checksum::{calculate_set_checksum_field_ptr, exfat_hash_calculate_ptr};
@@ -379,6 +380,26 @@ pub extern "stdcall" fn rust_pci_make_config_cmd(bus: u32, devfn: u32, reg: u32)
 pub unsafe extern "stdcall" fn rust_coff_get_align(section: *const u8) -> u32 {
     // SAFETY: kernel trampoline passes EDX→COFF_SECTION.
     unsafe { coff_get_align_ptr(section) }
+}
+
+/// `stdcall` rust_v86_get_lin_addr(v86_addr, page_tabs) -> EAX = linear.
+///
+/// Cut BL: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). FASM trampoline injects `page_tabs`,
+/// keeps register ABI (`EAX=V86 addr`), and preserves all GPRs (legacy
+/// destroys nothing; REG-001).
+///
+/// # Safety
+/// `page_tabs` must be readable at index `v86_addr >> 12`.
+#[no_mangle]
+#[link_section = ".text.rust_v86_get_lin_addr"]
+pub unsafe extern "stdcall" fn rust_v86_get_lin_addr(
+    v86_addr: u32,
+    page_tabs: *const u32,
+) -> u32 {
+    // SAFETY: kernel trampoline injects page_tabs base.
+    unsafe { v86_get_lin_addr_ptr(v86_addr, page_tabs) }
 }
 
 /// `stdcall` rust_xfs_blkrel2sectabs(block_lo, block_hi, agblklog, agblocks,
