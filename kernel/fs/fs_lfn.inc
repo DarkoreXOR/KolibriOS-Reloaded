@@ -136,6 +136,40 @@ fs_add:
 
 
 ; System function 70 security check
+; Cut AZ: USE_RUST_FILE_SYSTEM_IS_OPERATION_SAFE=1 routes through Rust
+; rust_file_system_is_operation_safe (see rust/file_system_is_operation_safe.inc).
+; Set USE_RUST_FILE_SYSTEM_IS_OPERATION_SAFE=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–AY / FS plugin gates.
+; REG-001: trampoline preserves EAX+EBX+ECX+EDX; ZF reconstructed via cmp eax,1
+; (Cut P class). Unknown subfn → ZF=1 without region check (legacy quirk).
+
+USE_RUST_FILE_SYSTEM_IS_OPERATION_SAFE = 1
+
+if USE_RUST_FILE_SYSTEM_IS_OPERATION_SAFE
+
+; Compatibility trampoline: stdcall ZF-out → Rust stdcall scalar.
+; Sequence: cmp sets ZF; pop does not modify EFLAGS (verified Cut P).
+align 4
+proc file_system_is_operation_safe stdcall, inf_struct_ptr: dword
+; in:
+;      inf_struct_ptr = pointer to information structure was given to sysfn70
+; out: ZF = 1 if operation is safe
+;      ZF = 0 if operation can cause kernel crash
+        push    ebx
+        push    ecx
+        push    edx
+        push    eax
+        stdcall rust_file_system_is_operation_safe, [inf_struct_ptr]
+        cmp     eax, 1          ; ZF=1 iff Rust returned 1 (legacy ZF=1)
+        pop     eax             ; restore caller EAX; flags unchanged
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+endp
+
+else
+
 align 4
 proc file_system_is_operation_safe stdcall, inf_struct_ptr: dword
 ; in:
@@ -196,6 +230,8 @@ proc file_system_is_operation_safe stdcall, inf_struct_ptr: dword
         pop     edx ecx ebx
         ret
 endp
+
+end if
 
 sys_fileSystemUnicode: ; with user pointer correctness checking
 ; in: ebx -> f.80 parameter structure

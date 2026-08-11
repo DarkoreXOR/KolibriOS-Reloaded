@@ -135,6 +135,6 @@ Findings from [`../compatibility/abi-audit.md`](../compatibility/abi-audit.md):
 
 **LOCAL FACT (Cut B complete):** `rust_cp866_to_upper` (`cp866toUpper`) is also reloc-free (71 B, 0 relocs) via the same path ([`cut-b-implementation.md`](cut-b-implementation.md)). Note: this “Cut B” is the next pure-util migration, **not** the allocator cut named “Cut B” elsewhere in this document.
 
-**LOCAL FACT (Cuts A–AY complete, 2026-08-11):** Stage 2 production envelope through Cut AY (`net_ptr_to_num4`) — see [`migration-plan.md`](migration-plan.md). Prefer `scripts/` + `project/build.toml` blob/migration registry over manual per-cut scripts for day-to-day builds. Post-AX audit: Path A for XFS/NTFS-MCB/AHCI/PE/network rejected; calendar/USB/address-math leftovers deferred; Cut AY is Path B (NIC device-list ptr→index×4).
+**LOCAL FACT (Cuts A–AZ complete, 2026-08-11):** Stage 2/3 production envelope through Cut AZ (`file_system_is_operation_safe`) — see [`migration-plan.md`](migration-plan.md). Prefer `scripts/` + `project/build.toml` blob/migration registry over manual per-cut scripts for day-to-day builds. Post-AY audit: Path A rejected; PE/TCP/calendar/USB leftovers deferred; Cut AZ is Path B (sysfn70/80 size→userspace ZF gate).
 
-**INFERENCE (future functions):** anything that reintroduces `.rodata`/GOTOFF/cross-section refs needs either a reloc-free rewrite or `rust-lld` at the FASM placement VMA — evaluate per function.
+**INFERENCE (future functions):** anything that reintroduces `.rodata`/GOTOFF/cross-section refs needs either a reloc-free rewrite or `rust-lld` at the FASM placement VMA — evaluate per function. Avoid Rust `match` jump tables in freestanding leaves (Cut AZ).

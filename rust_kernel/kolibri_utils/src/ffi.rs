@@ -15,6 +15,7 @@ use crate::crc::crc32_update;
 use crate::exfat_checksum::{calculate_set_checksum_field_ptr, exfat_hash_calculate_ptr};
 use crate::fat_name::{fat_gen_short_name_ptr, fat_next_short_name_ptr};
 use crate::font::anti_aliasing;
+use crate::fs_operation_safe::file_system_is_operation_safe_ptr;
 use crate::geometry::block_clip_ptr;
 use crate::get_coff_sym::get_coff_sym_ptr;
 use crate::get_pg_addr::get_pg_addr_ptr;
@@ -980,6 +981,26 @@ pub unsafe extern "stdcall" fn rust_test_app_header(
 #[link_section = ".text.rust_is_region_userspace"]
 pub extern "stdcall" fn rust_is_region_userspace(base: u32, len: u32) -> u32 {
     is_region_userspace(base, len)
+}
+
+/// `stdcall` rust_file_system_is_operation_safe(inf) -> EAX ∈ {0,1}.
+///
+/// Cut AZ: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 4 bytes (`ret 4`). Inlines Cut P region check (no
+/// cross-section call into `rust_is_region_userspace`).
+///
+/// Return `1` = legacy FASM `ZF=1` (safe / unknown-subfn accept);
+/// `0` = legacy FASM `ZF=0` (unsafe). The FASM trampoline reconstructs ZF
+/// via `cmp eax, 1` and restores caller EAX/EBX/ECX/EDX with flag-neutral pops.
+///
+/// # Safety
+/// `inf` must point at a readable sysfn70/80 information structure (≥20 bytes).
+#[no_mangle]
+#[link_section = ".text.rust_file_system_is_operation_safe"]
+pub unsafe extern "stdcall" fn rust_file_system_is_operation_safe(inf: *const u8) -> u32 {
+    // SAFETY: kernel trampoline passes the caller info-struct pointer.
+    unsafe { file_system_is_operation_safe_ptr(inf) }
 }
 
 /// `stdcall` rust_utf16_to_8(ch, dest_inout, ecx_inout) -> packed (SF<<31)|EAX.

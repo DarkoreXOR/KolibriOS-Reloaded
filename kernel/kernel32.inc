@@ -101,6 +101,8 @@ include "rust/ntfs_decode_mcb_entry.inc"
 include "rust/ntfs_create_mcb_entry.inc"
 ; Cut AY: net_ptr_to_num4 — Rust blob + smoke (USE_RUST_NET_PTR_TO_NUM4)
 include "rust/net_ptr_to_num4.inc"
+; Cut AZ: file_system_is_operation_safe — Rust blob + smoke (USE_RUST_FILE_SYSTEM_IS_OPERATION_SAFE)
+include "rust/file_system_is_operation_safe.inc"
 ; Cut J: ntfs_restore_usa — Rust blob + smoke (see docs/migration/cut-j-plan.md)
 include "rust/ntfs_restore_usa.inc"
 ; Cut K: fat_next_short_name — Rust blob + smoke (see docs/migration/cut-k-plan.md)

@@ -263,6 +263,7 @@ high_code:
 ; Cut AW: xfs._.blkrel2sectabs smoke ON when USE_RUST_XFS_BLKREL2SECTABS=1.
 ; Cut AT: get_coff_sym smoke ON when USE_RUST_GET_COFF_SYM=1.
 ; Cut AY: net_ptr_to_num4 smoke ON when USE_RUST_NET_PTR_TO_NUM4=1 (after stack_init).
+; Cut AZ: file_system_is_operation_safe smoke ON when USE_RUST_FILE_SYSTEM_IS_OPERATION_SAFE=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -283,6 +284,7 @@ high_code:
         call    anti_aliasing_rust_smoke_test
         call    test_app_header_rust_smoke_test
         call    is_region_userspace_rust_smoke_test
+        call    file_system_is_operation_safe_rust_smoke_test
         call    utf16_to_8_rust_smoke_test
         call    utf8to16_rust_smoke_test
         ; Cut R: xfs._.extent_unpack smoke (Rust trampoline when USE_RUST_XFS_EXTENT_UNPACK=1).
