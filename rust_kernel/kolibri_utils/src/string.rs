@@ -1,4 +1,50 @@
-//! String helpers matching FASM `strncmp` in `kernel/core/string.inc`.
+//! String helpers matching FASM leaves in `kernel/core/string.inc`.
+
+/// Cut BB differential PRNG seed (`'CUBB'`).
+pub const STRRCHR_PRNG_SEED: u32 = 0x4355_4242;
+
+/// Last occurrence of byte `c` in C string `s`, matching FASM `strrchr`.
+///
+/// Mirrors `string.inc`: forward scan to NUL (length including NUL), then
+/// reverse scan for `(c as u8)`; miss → `0`. Only the low 8 bits of `c`
+/// participate (`scasb` / `AL`).
+///
+/// Returns the match address as `usize` (`0` = NULL). On freestanding i686
+/// this is a dword suitable for EAX; host tests keep full pointer width.
+///
+/// # Safety
+/// `s` must be a readable NUL-terminated C string.
+#[inline(always)]
+pub unsafe fn strrchr(s: *const u8, c: u32) -> usize {
+    let needle = c as u8;
+    let mut p = s as usize;
+    // Forward find NUL; `len` counts bytes including the terminator.
+    let mut len: u32 = 0;
+    loop {
+        // SAFETY: caller guarantees readable C string through NUL.
+        let b = unsafe { *(p as *const u8) };
+        p = p.wrapping_add(1);
+        len = len.wrapping_add(1);
+        if b == 0 {
+            break;
+        }
+    }
+    // `p` is one past NUL — step back onto the terminator (FASM `dec edi`).
+    p = p.wrapping_sub(1);
+    let mut ecx = len;
+    while ecx != 0 {
+        // SAFETY: still within [s, NUL] inclusive.
+        if unsafe { *(p as *const u8) } == needle {
+            return p;
+        }
+        ecx = ecx.wrapping_sub(1);
+        if ecx == 0 {
+            break;
+        }
+        p = p.wrapping_sub(1);
+    }
+    0
+}
 
 /// Compare up to `n` bytes of two C strings, matching FASM `strncmp`.
 ///
@@ -67,12 +113,114 @@ pub fn strncmp_fasm_oracle(s1: &[u8], s2: &[u8], n: u32) -> i32 {
     }
 }
 
+/// Independent FASM-flow oracle for `strrchr` (not derived from the Rust body).
+#[cfg(test)]
+pub fn strrchr_fasm_oracle(s: &[u8], c: u32) -> Option<usize> {
+    let needle = (c & 0xff) as u8;
+    // Forward: ecx=-1; repne scasb for 0; not ecx → length including NUL.
+    let mut i = 0usize;
+    loop {
+        assert!(i < s.len(), "oracle overrun (missing NUL)");
+        let b = s[i];
+        i += 1;
+        if b == 0 {
+            break;
+        }
+    }
+    let len = i; // includes NUL
+    // Reverse from NUL index (len-1), for `len` steps.
+    let mut idx = len - 1;
+    let mut ecx = len;
+    while ecx != 0 {
+        if s[idx] == needle {
+            return Some(idx);
+        }
+        ecx -= 1;
+        if ecx == 0 {
+            break;
+        }
+        idx -= 1;
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{strncmp, strncmp_fasm_oracle};
+    use super::{strncmp, strncmp_fasm_oracle, strrchr, strrchr_fasm_oracle, STRRCHR_PRNG_SEED};
 
     fn rust_vs(s1: &[u8], s2: &[u8], n: u32) -> i32 {
         unsafe { strncmp(s1.as_ptr(), s2.as_ptr(), n) }
+    }
+
+    fn rust_strrchr_offset(s: &[u8], c: u32) -> Option<usize> {
+        let base = s.as_ptr() as usize;
+        let p = unsafe { strrchr(s.as_ptr(), c) };
+        if p == 0 {
+            None
+        } else {
+            Some(p - base)
+        }
+    }
+
+    fn check_strrchr(s: &[u8], c: u32) {
+        assert!(s.ends_with(&[0]), "fixture must be NUL-terminated");
+        let got = rust_strrchr_offset(s, c);
+        let exp = strrchr_fasm_oracle(s, c);
+        assert_eq!(got, exp, "mismatch s={s:?} c={c:#x}");
+    }
+
+    #[test]
+    fn strrchr_empty_and_nul_needle() {
+        check_strrchr(b"\0", 0);
+        check_strrchr(b"\0", b'/' as u32);
+        check_strrchr(b"\0", 0x100); // only low byte → NUL
+    }
+
+    #[test]
+    fn strrchr_path_last_slash() {
+        check_strrchr(b"/sys/app\0", b'/' as u32);
+        check_strrchr(b"app\0", b'/' as u32);
+        check_strrchr(b"/a/b/c\0", b'/' as u32);
+        check_strrchr(b"///\0", b'/' as u32);
+    }
+
+    #[test]
+    fn strrchr_first_mid_last() {
+        check_strrchr(b"abc\0", b'a' as u32);
+        check_strrchr(b"abc\0", b'b' as u32);
+        check_strrchr(b"abc\0", b'c' as u32);
+        check_strrchr(b"abca\0", b'a' as u32);
+        check_strrchr(b"xxx\0", b'y' as u32);
+    }
+
+    #[test]
+    fn strrchr_wide_c_truncates_to_byte() {
+        check_strrchr(b"x/y\0", 0x1234_002F); // '/'
+        check_strrchr(b"x/y\0", 0xFFFFFF00u32); // NUL
+    }
+
+    #[test]
+    fn strrchr_prng_50k_matches_oracle() {
+        let mut state = STRRCHR_PRNG_SEED;
+        let mut buf = [0u8; 96];
+        for _ in 0..50_000 {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            let len = (state % 64) as usize;
+            for i in 0..len {
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+                buf[i] = (state as u8).wrapping_add(1).max(1); // no early NUL
+            }
+            buf[len] = 0;
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            let c = state;
+            check_strrchr(&buf[..=len], c);
+        }
     }
 
     #[test]

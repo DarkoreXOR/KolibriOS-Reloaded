@@ -34,7 +34,7 @@ use crate::ntfs_usa::ntfs_restore_usa_ptr;
 use crate::partition::{is_partition_table_entry_ptr, is_protective_mbr_ptr};
 use crate::pci_make_config_cmd::pci_make_config_cmd;
 use crate::pid_to_slot::pid_to_slot_ptr;
-use crate::string::strncmp;
+use crate::string::{strncmp, strrchr};
 use crate::tcp::{tcp_set_persist_ptr, tcp_xmit_timer_ptr};
 use crate::time::{
     ext_unix_to_secs, fat_time_to_bdfe, fs_calculate_time_ptr, fs_time2bdfe_ptr,
@@ -411,6 +411,24 @@ pub extern "stdcall" fn rust_utf16_to_upper(ch: u32) -> u32 {
 pub unsafe extern "stdcall" fn rust_strncmp(s1: *const u8, s2: *const u8, n: u32) -> i32 {
     // SAFETY: kernel callers pass valid C-string regions for this compare.
     unsafe { strncmp(s1, s2, n) }
+}
+
+/// `stdcall` rust_strrchr(s, c) -> EAX = ptr to last byte `c` or NULL.
+///
+/// Cut BB: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). FASM trampoline preserves EDX (REG-001;
+/// FASM leaf never touched EDX) and executes `cld` (legacy DF restore).
+/// Returns the address as `u32` in EAX (`0` = NULL).
+///
+/// # Safety
+/// `s` must be a readable NUL-terminated C string.
+#[no_mangle]
+#[link_section = ".text.rust_strrchr"]
+pub unsafe extern "stdcall" fn rust_strrchr(s: *const u8, c: u32) -> u32 {
+    // SAFETY: kernel callers pass valid C-string regions for this search.
+    // Freestanding i686: usize == u32.
+    unsafe { strrchr(s, c) as u32 }
 }
 
 /// `stdcall` rust_checksum_1(seed, data, length) -> EAX = partial sum.

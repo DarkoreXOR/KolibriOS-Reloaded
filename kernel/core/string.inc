@@ -185,6 +185,29 @@ proc strchr stdcall, s:dword, c:dword
 endp
 
 
+align 4
+; strrchr migration: USE_RUST_STRRCHR=1 routes through Rust
+; rust_strrchr (see rust/strrchr.inc).
+; Set USE_RUST_STRRCHR=0 to restore the original FASM body without deleting it.
+
+USE_RUST_STRRCHR = 1
+
+if USE_RUST_STRRCHR
+
+; Compatibility trampoline: stdcall(s,c) → rust_strrchr → EAX.
+; REG-001: preserve EDX (FASM leaf never touched it; Rust stdcall clobbers EDX).
+; Legacy DF: FASM always `cld` before return — match that here.
+proc strrchr stdcall, s:dword, c:dword
+        push    edx
+        stdcall rust_strrchr, [s], [c]
+        pop     edx
+        cld
+        ret
+endp
+
+else
+
+; --- original FASM implementation (rollback) ---
 proc strrchr stdcall, s:dword, c:dword
         push    edi
         mov     edi, [s]     ; edi = string
@@ -207,5 +230,8 @@ proc strrchr stdcall, s:dword, c:dword
         pop     edi
         ret
 endp
+
+end if
+
 
 

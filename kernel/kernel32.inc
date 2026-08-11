@@ -104,6 +104,8 @@ include "rust/net_ptr_to_num4.inc"
 ; Cut AZ: file_system_is_operation_safe — Rust blob + smoke (USE_RUST_FILE_SYSTEM_IS_OPERATION_SAFE)
 include "rust/file_system_is_operation_safe.inc"
 include "rust/pci_make_config_cmd.inc"
+; Cut BB: strrchr — Rust blob + smoke (USE_RUST_STRRCHR)
+include "rust/strrchr.inc"
 ; Cut J: ntfs_restore_usa — Rust blob + smoke (see docs/migration/cut-j-plan.md)
 include "rust/ntfs_restore_usa.inc"
 ; Cut K: fat_next_short_name — Rust blob + smoke (see docs/migration/cut-k-plan.md)

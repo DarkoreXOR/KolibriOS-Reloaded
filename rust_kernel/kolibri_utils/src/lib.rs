@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
@@ -12,7 +12,8 @@
 //! symbol name→Value lookup, MBR/EBR partition-table entry validation, GPT protective-MBR
 //! recognition, process TID→slot lookup, IPv4 on-link/gateway/broadcast routing + fragment-slot
 //! lookup, AHCI free command-slot scan, kernel VA→PA page translation, socket-list membership,
-//! NIC device-list ptr→index×4, and PCI config-space address encode for KolibriOS hybrid migration.
+//! NIC device-list ptr→index×4, PCI config-space address encode, and reverse
+//! character search (`strrchr`) for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -166,7 +167,7 @@ pub use socket_check::{
     socket_check, socket_check_from_first, socket_check_ptr, OFF_NEXT_PTR as SOCKET_OFF_NEXT_PTR,
     SOCKET_CHECK_PRNG_SEED,
 };
-pub use string::strncmp;
+pub use string::{strncmp, strrchr, STRRCHR_PRNG_SEED};
 pub use tcp::{
     tcp_set_persist, tcp_set_persist_ptr, tcp_xmit_timer, TCP_MAX_RXTSHIFT, TCP_OFF_TIMER_FLAGS,
     TCP_OFF_TIMER_PERSIST, TCP_OFF_T_RTT, TCP_OFF_T_RTTVAR, TCP_OFF_T_RXTSHIFT, TCP_OFF_T_SRTT,

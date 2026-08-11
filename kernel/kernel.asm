@@ -264,6 +264,7 @@ high_code:
 ; Cut AT: get_coff_sym smoke ON when USE_RUST_GET_COFF_SYM=1.
 ; Cut AY: net_ptr_to_num4 smoke ON when USE_RUST_NET_PTR_TO_NUM4=1 (after stack_init).
 ; Cut AZ: file_system_is_operation_safe smoke ON when USE_RUST_FILE_SYSTEM_IS_OPERATION_SAFE=1.
+; Cut BB: strrchr smoke ON when USE_RUST_STRRCHR=1.
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -287,6 +288,8 @@ high_code:
         call    file_system_is_operation_safe_rust_smoke_test
         ; Cut BA: pci_make_config_cmd smoke (Rust when USE_RUST_PCI_MAKE_CONFIG_CMD=1).
         call    pci_make_config_cmd_rust_smoke_test
+        ; Cut BB: strrchr smoke (Rust when USE_RUST_STRRCHR=1).
+        call    strrchr_rust_smoke_test
         call    utf16_to_8_rust_smoke_test
         call    utf8to16_rust_smoke_test
         ; Cut R: xfs._.extent_unpack smoke (Rust trampoline when USE_RUST_XFS_EXTENT_UNPACK=1).
