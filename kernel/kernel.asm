@@ -256,6 +256,7 @@ high_code:
 ; Cut AO: fat_time_to_bdfe smoke ON when USE_RUST_FAT_TIME_TO_BDFE=1.
 ; Cut AP: xfs_hashname smoke ON when USE_RUST_XFS_HASHNAME=1.
 ; Cut AQ: get_pg_addr smoke ON when USE_RUST_GET_PG_ADDR=1.
+; Cut AR: r_f_port_area smoke ON when USE_RUST_R_F_PORT_AREA=1 (after reserve_irqs_ports).
         call    phase_c_smoke_test
         call    crc_rust_smoke_test
         call    utf16_rust_smoke_test
@@ -954,6 +955,8 @@ include "detect/vortex86.inc"                     ; Vortex86 SoC detection code
         mov     esi, boot_resirqports
         call    boot_log
         call    reserve_irqs_ports
+        ; Cut AR: r_f_port_area smoke — needs seeded RESERVED_PORTS + live IO map.
+        call    r_f_port_area_rust_smoke_test
 
         mov     [SLOT_BASE + APPDATA.window], window_data
         mov     [SLOT_BASE + sizeof.APPDATA + APPDATA.window], window_data + sizeof.WDATA
@@ -3422,6 +3425,57 @@ syscall_reserveportarea:        ; ReservePortArea and FreePortArea
 ;  * The system has reserve this ports:
 ;    0..0x2d, 0x30..0x4d, 0x50..0xdf, 0xe5..0xff (include last number of port).
 ;destroys eax,ebx, ebp
+;
+; Cut AR: USE_RUST_R_F_PORT_AREA=1 routes through Rust rust_r_f_port_area
+; (see rust/r_f_port_area.inc). Set USE_RUST_R_F_PORT_AREA=0 to restore the
+; original FASM body without deleting it. Independent of Cuts A–AQ / Cut X.
+;
+; Legacy reserve path uses cli/sti around the IO-map enable loop. Free path
+; has no cli. Trampoline preserves ECX/EDX (REG-001).
+
+USE_RUST_R_F_PORT_AREA = 1
+
+if USE_RUST_R_F_PORT_AREA
+
+; Compatibility trampoline: register ABI → Rust stdcall.
+; Injects RESERVED_PORTS + current_slot.tid + tss._io_map_0.
+; Preserves EBX/ECX/EDX/ESI/EDI/EBP (REG-001 / Cut X / Cut AQ class).
+; Reserve (EBX=0) wraps the Rust call in cli/sti to match FASM.
+align 4
+r_f_port_area:
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    edi
+        push    ebp
+
+        mov     esi, [current_slot]
+        mov     esi, [esi + APPDATA.tid]
+
+        test    ebx, ebx
+        jnz     .ar_free_no_cli
+
+        cli
+        stdcall rust_r_f_port_area, ebx, ecx, edx, RESERVED_PORTS, esi, tss._io_map_0
+        sti
+        jmp     .ar_done
+
+.ar_free_no_cli:
+        stdcall rust_r_f_port_area, ebx, ecx, edx, RESERVED_PORTS, esi, tss._io_map_0
+
+.ar_done:
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
+align 4
 r_f_port_area:
 
         test    ebx, ebx
@@ -3535,6 +3589,8 @@ r_f_port_area:
                                     ; end disable io map
         xor     eax, eax
         ret
+
+end if
 ;-----------------------------------------------------------------------------
 align 4
 drawbackground:

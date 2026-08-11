@@ -18,6 +18,7 @@ use crate::geometry::block_clip_ptr;
 use crate::get_pg_addr::get_pg_addr_ptr;
 use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_route::ipv4_route_ptr;
+use crate::port_area::r_f_port_area_ptr;
 use crate::iso9660_compare::iso9660_compare_name_ptr;
 use crate::mouse::mouse_acceleration;
 use crate::ntfs_bootsec::ntfs_test_bootsec_ptr;
@@ -190,6 +191,33 @@ pub unsafe extern "stdcall" fn rust_get_pg_addr(
 ) -> u32 {
     // SAFETY: kernel trampoline passes live page_tabs + OS_BASE.
     unsafe { get_pg_addr_ptr(linear, page_tabs, os_base) }
+}
+
+/// `stdcall` rust_r_f_port_area(op, start, end, reserved_ports, tid, io_map) -> EAX.
+///
+/// Cut AR: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 24 bytes (`ret 24`). FASM trampoline injects
+/// `RESERVED_PORTS`, `current_slot.tid`, and `tss._io_map_0`; preserves
+/// ECX+EDX (REG-001); wraps **reserve** (`op==0`) with `cli`/`sti` to match
+/// legacy interrupt window (free path has no `cli`).
+///
+/// Returns `0` success / `1` error.
+///
+/// # Safety
+/// `reserved_ports` and `io_map` must be live writable kernel buffers.
+#[no_mangle]
+#[link_section = ".text.rust_r_f_port_area"]
+pub unsafe extern "stdcall" fn rust_r_f_port_area(
+    op: u32,
+    start: u32,
+    end: u32,
+    reserved_ports: *mut u8,
+    tid: u32,
+    io_map: *mut u8,
+) -> u32 {
+    // SAFETY: kernel trampoline passes live table / tid / IO map.
+    unsafe { r_f_port_area_ptr(op, start, end, reserved_ports, tid, io_map) }
 }
 
 /// `stdcall` rust_cp866_to_upper(ch) -> uppercased CP866 byte in AL (EAX).

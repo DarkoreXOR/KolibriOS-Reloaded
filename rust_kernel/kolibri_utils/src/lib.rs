@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
@@ -7,10 +7,10 @@
 //! + persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall
 //! userspace region gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS
 //! extent unpack + dir leaf hash binary search + DA node first-match-by-hash + dir name hash,
-//! window screen-fit helpers, TSS I/O permission bitmap updates, COFF reloc application,
-//! MBR/EBR partition-table entry validation, GPT protective-MBR recognition, process TID→slot
-//! lookup, IPv4 on-link/gateway/broadcast routing, and kernel VA→PA page translation for
-//! KolibriOS hybrid migration.
+//! window screen-fit helpers, TSS I/O permission bitmap updates + port-area reserve/free,
+//! COFF reloc application, MBR/EBR partition-table entry validation, GPT protective-MBR
+//! recognition, process TID→slot lookup, IPv4 on-link/gateway/broadcast routing, and kernel
+//! VA→PA page translation for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -40,6 +40,7 @@ mod ntfs_mcb;
 mod ntfs_usa;
 mod partition;
 mod pid_to_slot;
+mod port_area;
 mod string;
 mod tcp;
 mod time;
@@ -112,6 +113,11 @@ pub use partition::{
 pub use pid_to_slot::{
     pid_to_slot, pid_to_slot_ptr, plant_slot, write_u32_le, APPDATA_SIZE, APPDATA_SIZE_SHIFT,
     OFF_TID as APPDATA_OFF_TID, OFF_STATE as APPDATA_OFF_STATE, PID_TO_SLOT_PRNG_SEED, TSTATE_FREE,
+};
+pub use port_area::{
+    r_f_port_area, r_f_port_area_ptr, ENTRY_SIZE as PORT_AREA_ENTRY_SIZE, MAX_RESERVED,
+    OFF_END as PORT_AREA_OFF_END, OFF_START as PORT_AREA_OFF_START, OFF_TID as PORT_AREA_OFF_TID,
+    R_F_PORT_AREA_PRNG_SEED,
 };
 pub use string::strncmp;
 pub use tcp::{

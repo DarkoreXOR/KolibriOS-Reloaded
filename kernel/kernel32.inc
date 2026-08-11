@@ -148,6 +148,8 @@ include "rust/fat_time_to_bdfe.inc"
 include "rust/xfs_hashname.inc"
 ; Cut AQ: get_pg_addr — Rust blob + smoke (USE_RUST_GET_PG_ADDR)
 include "rust/get_pg_addr.inc"
+; Cut AR: r_f_port_area — Rust blob + smoke (USE_RUST_R_F_PORT_AREA)
+include "rust/r_f_port_area.inc"
 ; Cut U: fat_gen_short_name — Rust blob + smoke (USE_RUST_FAT_GEN_SHORT_NAME)
 include "rust/fat_gen_short_name.inc"
 ; Cut V: tcp_set_persist — Rust blob + smoke (USE_RUST_TCP_SET_PERSIST)
