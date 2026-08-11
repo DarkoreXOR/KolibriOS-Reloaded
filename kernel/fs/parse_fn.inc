@@ -223,6 +223,33 @@ uni2ansi_char:
 
 .table  db  1, 51h, 4, 54h, 7, 57h, 0Eh, 5Eh
 
+; Cut AN: USE_RUST_ANSI2UNI_CHAR=1 routes through Rust rust_ansi2uni_char
+; (see rust/ansi2uni_char.inc). Set USE_RUST_ANSI2UNI_CHAR=0 to restore the
+; original FASM body without deleting it. Independent of Cuts A–AM.
+; Critical ABI: AL in → AX out; FAT/ISO `loop` needs ECX; REG-001 — stdcall
+; clobbers EDX, so trampoline preserves ECX+EDX.
+; Production default ON after Cut AN gates.
+
+USE_RUST_ANSI2UNI_CHAR = 1
+
+if USE_RUST_ANSI2UNI_CHAR
+
+; Compatibility trampoline: AL/EAX register ABI → Rust stdcall → AX.
+; Callers keep `call ansi2uni_char` with CP866 byte in AL.
+; Preserve ECX (FAT/ISO name loops) and EDX (REG-001 / Cut D class).
+align 4
+ansi2uni_char:
+; convert ANSI character in al to UNICODE character in ax, using cp866 encoding
+        push    ecx
+        push    edx
+        stdcall rust_ansi2uni_char, eax
+        pop     edx
+        pop     ecx
+        ret
+
+else
+
+; --- original FASM implementation (rollback) ---
 ansi2uni_char:
 ; convert ANSI character in al to UNICODE character in ax, using cp866 encoding
         movzx   eax, al
@@ -258,6 +285,8 @@ ansi2uni_char:
 .unk:
         mov     al, '_'
         ret
+
+end if
 
 cp866toUTF8_string:
 ;   in:

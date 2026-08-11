@@ -204,6 +204,64 @@ pub fn utf16_encode(cp: u32) -> u32 {
     0xFFFD
 }
 
+/// Decode one CP866 byte to Unicode (`AX`), matching FASM `ansi2uni_char`.
+///
+/// Cut AN: inlined into the FFI entry so `.text.rust_ansi2uni_char` stays
+/// self-contained (no cross-section call / `.rodata` / relocation).
+/// Special `0xF0..=0xF7` map uses immediates only (same bytes as
+/// `uni2ansi_char.table`).
+#[inline(always)]
+pub fn cp866_decode(ch: u32) -> u32 {
+    let al = ch as u8;
+    if al < 0x80 {
+        if al == 20 {
+            return 0x00B6;
+        }
+        return u32::from(al);
+    }
+    if al < 0xB0 {
+        // 0x80..=0xAF → 0x0410..=0x043F
+        return u32::from(u16::from(al).wrapping_add(0x410 - 0x80));
+    }
+    if al < 0xE0 {
+        return u32::from(b'_');
+    }
+    if al < 0xF0 {
+        // 0xE0..=0xEF → 0x0440..=0x044F
+        return u32::from(u16::from(al).wrapping_add(0x440 - 0xE0));
+    }
+    if al < 0xF8 {
+        return u32::from(special_f0_table(al - 0xF0));
+    }
+    u32::from(b'_')
+}
+
+/// FASM `uni2ansi_char.table` + `add ax, 400h` for CP866 `0xF0..=0xF7`.
+///
+/// Table is materialized on the stack with volatile stores so LLVM cannot
+/// promote it to `.rodata` / a switch jump table (which would add GOTOFF
+/// relocations and break reloc-free FASM blob extract).
+#[inline(always)]
+fn special_f0_table(idx: u8) -> u16 {
+    let mut table = [0u8; 8];
+    // SAFETY: `table` is a local array; indices 0..8 are in bounds.
+    unsafe {
+        let p = table.as_mut_ptr();
+        core::ptr::write_volatile(p.add(0), 0x01);
+        core::ptr::write_volatile(p.add(1), 0x51);
+        core::ptr::write_volatile(p.add(2), 0x04);
+        core::ptr::write_volatile(p.add(3), 0x54);
+        core::ptr::write_volatile(p.add(4), 0x07);
+        core::ptr::write_volatile(p.add(5), 0x57);
+        core::ptr::write_volatile(p.add(6), 0x0E);
+        core::ptr::write_volatile(p.add(7), 0x5E);
+    }
+    let i = (idx as usize) & 7;
+    // SAFETY: `i` is 0..8.
+    let t = unsafe { core::ptr::read_volatile(table.as_ptr().add(i)) };
+    u16::from(t).wrapping_add(0x400)
+}
+
 /// Encode Unicode to CP866 byte (low 8 bits), matching `uni2ansi_char`.
 ///
 /// Inlined into the FFI entry so `.text.rust_unicode_cp866_encode` stays
@@ -270,6 +328,9 @@ fn special_40x(ax: u16) -> u32 {
     }
     u32::from(b'_')
 }
+
+/// Cut AN differential PRNG seed (`'CUTN'`).
+pub const ANSI2UNI_CHAR_PRNG_SEED: u32 = 0x4355_544E;
 
 #[cfg(test)]
 mod tests {
@@ -787,5 +848,103 @@ mod tests {
             }
         }
         assert_eq!(out.len(), 4);
+    }
+
+    // -----------------------------------------------------------------------
+    // Cut AN — ansi2uni_char / cp866_decode
+    // -----------------------------------------------------------------------
+
+    /// Independent FASM-flow oracle for `ansi2uni_char` (parse_fn.inc).
+    ///
+    /// Second transcription of the FASM control flow — not a call into
+    /// `cp866_decode`. Uses the shared `.table` bytes only as data.
+    fn oracle_ansi2uni(ch: u32) -> u32 {
+        const TABLE: [u8; 8] = [0x01, 0x51, 0x04, 0x54, 0x07, 0x57, 0x0E, 0x5E];
+        let al = ch as u8;
+        if al < 0x80 {
+            if al == 20 {
+                return 0x00B6;
+            }
+            return u32::from(al);
+        }
+        if al < 0xB0 {
+            return u32::from(u16::from(al).wrapping_add(0x410 - 0x80));
+        }
+        if al < 0xE0 {
+            return u32::from(b'_');
+        }
+        if al < 0xF0 {
+            return u32::from(u16::from(al).wrapping_add(0x440 - 0xE0));
+        }
+        if al < 0xF8 {
+            let t = TABLE[(al - 0xF0) as usize];
+            return u32::from(u16::from(t).wrapping_add(0x400));
+        }
+        u32::from(b'_')
+    }
+
+    #[test]
+    fn ansi2uni_known_vectors() {
+        assert_eq!(cp866_decode(0x41), 0x41);
+        assert_eq!(cp866_decode(20), 0x00B6);
+        assert_eq!(cp866_decode(0x7F), 0x7F);
+        assert_eq!(cp866_decode(0x80), 0x0410);
+        assert_eq!(cp866_decode(0xAF), 0x043F);
+        assert_eq!(cp866_decode(0xB0), u32::from(b'_'));
+        assert_eq!(cp866_decode(0xDF), u32::from(b'_'));
+        assert_eq!(cp866_decode(0xE0), 0x0440);
+        assert_eq!(cp866_decode(0xEF), 0x044F);
+        assert_eq!(cp866_decode(0xF0), 0x0401);
+        assert_eq!(cp866_decode(0xF1), 0x0451);
+        assert_eq!(cp866_decode(0xF2), 0x0404);
+        assert_eq!(cp866_decode(0xF3), 0x0454);
+        assert_eq!(cp866_decode(0xF4), 0x0407);
+        assert_eq!(cp866_decode(0xF5), 0x0457);
+        assert_eq!(cp866_decode(0xF6), 0x040E);
+        assert_eq!(cp866_decode(0xF7), 0x045E);
+        assert_eq!(cp866_decode(0xF8), u32::from(b'_'));
+        assert_eq!(cp866_decode(0xFF), u32::from(b'_'));
+        // High bits ignored like FASM `movzx eax, al`.
+        assert_eq!(cp866_decode(0xFFFF_FF80), 0x0410);
+        assert_eq!(cp866_decode(0x1234_0014), 0x00B6);
+    }
+
+    #[test]
+    fn ansi2uni_exhaustive_matches_oracle() {
+        for ch in 0u32..=0xFF {
+            assert_eq!(cp866_decode(ch), oracle_ansi2uni(ch), "ch={ch:#x}");
+        }
+        for ch in [0x100u32, 0x1_0041, 0x8000_00E0, 0xffff_ffff] {
+            assert_eq!(cp866_decode(ch), oracle_ansi2uni(ch), "ch={ch:#x}");
+        }
+    }
+
+    /// Mapped CP866 bytes round-trip through encode (inverse of Cut A).
+    #[test]
+    fn ansi2uni_encode_roundtrip_mapped() {
+        for ch in 0u8..=0xFF {
+            if (0xB0..0xE0).contains(&ch) || ch >= 0xF8 {
+                continue; // decode → '_'; not invertible
+            }
+            if ch < 0x80 && ch != 20 {
+                assert_eq!(cp866_encode(cp866_decode(u32::from(ch))) as u8, ch);
+                continue;
+            }
+            let uni = cp866_decode(u32::from(ch));
+            assert_eq!(cp866_encode(uni) as u8, ch, "ch={ch:#x} uni={uni:#x}");
+        }
+    }
+
+    /// ~50k PRNG cases over the u8 domain (seed `0x4355544E` = 'CUTN').
+    #[test]
+    fn ansi2uni_prng_matches_oracle() {
+        let mut state = ANSI2UNI_CHAR_PRNG_SEED;
+        for _ in 0..50_000 {
+            state = state
+                .wrapping_mul(1664525)
+                .wrapping_add(1013904223);
+            let ch = state;
+            assert_eq!(cp866_decode(ch), oracle_ansi2uni(ch), "ch={ch:#x}");
+        }
     }
 }

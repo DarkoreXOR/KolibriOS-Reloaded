@@ -30,7 +30,7 @@ use crate::time::{
     ext_unix_to_secs, fs_calculate_time_ptr, fs_time2bdfe_ptr, ntfs_calculate_time_ptr,
     ntfs_datetime_to_bdfe_ptr, xfs_bigtime_to_secs,
 };
-use crate::unicode::{cp866_encode, utf16_encode, utf8_decode};
+use crate::unicode::{cp866_decode, cp866_encode, utf16_encode, utf8_decode};
 use crate::userspace::is_region_userspace;
 use crate::utf16_to_8::utf16_to_8_ptr;
 use crate::utf8to16::utf8to16_ptr;
@@ -127,6 +127,18 @@ pub extern "stdcall" fn rust_unicode_utf16_encode(cp: u32) -> u32 {
 #[link_section = ".text.rust_unicode_cp866_encode"]
 pub extern "stdcall" fn rust_unicode_cp866_encode(cp: u32) -> u32 {
     cp866_encode(cp)
+}
+
+/// `stdcall` rust_ansi2uni_char(ch) -> Unicode unit in AX (EAX).
+///
+/// Cut AN: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Input is truncated to 8 bits like FASM `ansi2uni_char` (`movzx eax, al`).
+/// Callee cleans 4 bytes (`ret 4`).
+#[no_mangle]
+#[link_section = ".text.rust_ansi2uni_char"]
+pub extern "stdcall" fn rust_ansi2uni_char(ch: u32) -> u32 {
+    cp866_decode(ch)
 }
 
 /// `stdcall` rust_cp866_to_upper(ch) -> uppercased CP866 byte in AL (EAX).
