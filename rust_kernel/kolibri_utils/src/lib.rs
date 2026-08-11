@@ -1,7 +1,8 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
-//! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
+//! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
+//! encoding copy, XFS v5 bigtime→BDFE,
 //! EXT Unix→BDFE, FAT packed-time→BDFE, video geometry, NTFS MCB decode+encode, NTFS USA restore,
 //! FAT 8.3 short-name collision + LFN→8.3 generator + LFN charset legality, HID mouse acceleration
 //! + hotkey field match, TCP RTT estimator + persist-timer arming + state→header flags, GUI font
@@ -44,6 +45,7 @@ mod io_access;
 mod ipv4_find_fragment_slot;
 mod ipv4_route;
 mod iso9660_compare;
+mod iso9660_copy_name;
 mod hotkey;
 mod mouse;
 mod ntfs_bootsec;
@@ -132,6 +134,9 @@ pub use ipv4_route::{
 pub use iso9660_compare::{
     iso9660_compare_name, iso9660_compare_name_ptr, Iso9660CompareNameResult,
     ISO9660_COMPARE_NAME_PRNG_SEED, ISO9660_DIR_OFF_NAME, ISO9660_DIR_OFF_NAME_LEN,
+};
+pub use iso9660_copy_name::{
+    iso9660_copy_name, iso9660_copy_name_ptr, Iso9660CopyNameResult, ISO9660_COPY_NAME_PRNG_SEED,
 };
 pub use hotkey::{hotkey_do_test, HOTKEY_DO_TEST_PRNG_SEED, HOTKEY_TESTS_NUM};
 pub use mouse::mouse_acceleration;

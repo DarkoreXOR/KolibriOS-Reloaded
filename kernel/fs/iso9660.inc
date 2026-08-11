@@ -33,6 +33,9 @@ fs_NumCdServices = ($ - fs_CdServices)/4
 ; `iso9660_compare_name` can share the Rust leaf when ON.
 ; Set USE_RUST_ISO9660_COMPARE_NAME=0 to restore FASM bodies (rollback).
 USE_RUST_ISO9660_COMPARE_NAME = 1
+; Cut BI: volume-name encoding copy. Independent of AJ.
+; Set USE_RUST_ISO9660_COPY_NAME=0 to restore the FASM body (rollback).
+USE_RUST_ISO9660_COPY_NAME = 1
 endg
 
 uglobal
@@ -1945,6 +1948,46 @@ iso9660_compare_name_rust_smoke_test:
         jmp     $
 
 
+; Cut BI: USE_RUST_ISO9660_COPY_NAME (defined near top of this file) routes
+; through Rust rust_iso9660_copy_name (see rust/iso9660_copy_name.inc).
+; Set USE_RUST_ISO9660_COPY_NAME=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–BH / AJ.
+; Critical ABI: ESI→src, EDI→dest, ECX=max bytes, EDX=nameenc, EBP→ISO9660;
+; EDI advanced to terminator; byte[edi]=0 (+ word[edi]=0 if UCS-2);
+; preserves EBP; clobbers EAX/EBX/ECX/EDX/ESI/flags. DF assumed 0.
+; Production default ON after Cut BI gates.
+
+if USE_RUST_ISO9660_COPY_NAME
+
+; Compatibility trampoline: register ABI → Rust stdcall → ESI/EDI inout.
+; REG-001: EBP preserved (untouched). EAX/EBX restored for canary hygiene;
+; ECX/EDX legacy-clobbered (restored from stack only to keep layout).
+; REG-003: smoke uses synthetic buffers only.
+align 4
+iso9660_copy_name:
+        push    eax
+        push    ebx
+        push    ecx                     ; max_len
+        push    edx                     ; nameenc
+        push    esi                     ; esi_inout storage
+        push    edi                     ; edi_inout storage
+        ; [esp]=edi, [esp+4]=esi, [esp+8]=nameenc, [esp+12]=max_len
+        lea     eax, [esp+4]            ; &esi_inout
+        mov     ebx, esp                ; &edi_inout
+        mov     ecx, [esp+12]           ; max_len
+        mov     edx, [esp+8]            ; nameenc
+        stdcall rust_iso9660_copy_name, eax, ebx, ecx, edx, \
+                dword [ebp + ISO9660.type_encoding]
+        pop     edi                     ; updated dest → terminator
+        pop     esi                     ; updated src
+        pop     edx
+        pop     ecx
+        pop     ebx
+        pop     eax
+        ret
+
+else
+
 iso9660_copy_name:
         cmp     [ebp + ISO9660.type_encoding], 0
         jnz     .ucs2
@@ -2016,3 +2059,169 @@ iso9660_copy_name:
         mov     word[edi], 0
 @@:
         ret
+
+end if
+
+
+; ---------------------------------------------------------------------------
+; Cut BI ABI smoke — synthetic VolumeName / dest only (REG-003).
+iglobal
+align 4
+iso9660_copy_smoke_src:   rb 40
+iso9660_copy_smoke_dest:  rb 128
+iso9660_copy_smoke_iso:   rb 64
+endg
+
+align 4
+iso9660_copy_name_rust_smoke_test:
+        push    ebx
+        push    esi
+        push    edi
+        push    ebp
+        push    ecx
+        push    edx
+
+        cld
+
+        ; ----- vector 1: ASCII → cp866 passthrough "KOL\0" max=3 -----
+        mov     edi, iso9660_copy_smoke_src
+        mov     ecx, 40 / 4
+        xor     eax, eax
+        rep     stosd
+        mov     dword [iso9660_copy_smoke_src], 'KOL'
+        ; already NUL at +3 from stosd
+
+        mov     edi, iso9660_copy_smoke_dest
+        mov     ecx, 128 / 4
+        mov     eax, 0xA5A5A5A5
+        rep     stosd
+
+        mov     ebp, iso9660_copy_smoke_iso
+        mov     dword [ebp + ISO9660.type_encoding], 0
+
+        mov     eax, 0xA1000001
+        mov     ebx, 0xB1000002
+        mov     ecx, 3
+        mov     edx, 1                  ; cp866
+        mov     esi, iso9660_copy_smoke_src
+        mov     edi, iso9660_copy_smoke_dest
+        call    iso9660_copy_name
+        cmp     ebp, iso9660_copy_smoke_iso
+        jne     .fail
+        cmp     eax, 0xA1000001
+        jne     .fail
+        cmp     ebx, 0xB1000002
+        jne     .fail
+        cmp     byte [iso9660_copy_smoke_dest], 'K'
+        jne     .fail
+        cmp     byte [iso9660_copy_smoke_dest+1], 'O'
+        jne     .fail
+        cmp     byte [iso9660_copy_smoke_dest+2], 'L'
+        jne     .fail
+        cmp     byte [iso9660_copy_smoke_dest+3], 0
+        jne     .fail
+        lea     eax, [iso9660_copy_smoke_dest+3]
+        cmp     edi, eax
+        jne     .fail
+
+        ; ----- vector 2: ASCII → utf16LE "AB" max=2 -----
+        mov     edi, iso9660_copy_smoke_src
+        mov     ecx, 40 / 4
+        xor     eax, eax
+        rep     stosd
+        mov     word [iso9660_copy_smoke_src], 'BA' ; little store 'A','B' via...
+        mov     byte [iso9660_copy_smoke_src], 'A'
+        mov     byte [iso9660_copy_smoke_src+1], 'B'
+
+        mov     edi, iso9660_copy_smoke_dest
+        mov     ecx, 128 / 4
+        mov     eax, 0xA5A5A5A5
+        rep     stosd
+
+        mov     ebp, iso9660_copy_smoke_iso
+        mov     dword [ebp + ISO9660.type_encoding], 0
+        mov     eax, 0xC1000003
+        mov     ebx, 0xD1000004
+        mov     ecx, 2
+        mov     edx, 2                  ; utf16
+        mov     esi, iso9660_copy_smoke_src
+        mov     edi, iso9660_copy_smoke_dest
+        call    iso9660_copy_name
+        cmp     ebp, iso9660_copy_smoke_iso
+        jne     .fail
+        cmp     word [iso9660_copy_smoke_dest], 'A'     ; 0x0041 LE
+        jne     .fail
+        cmp     word [iso9660_copy_smoke_dest+2], 'B'
+        jne     .fail
+        cmp     byte [iso9660_copy_smoke_dest+4], 0
+        jne     .fail
+        lea     eax, [iso9660_copy_smoke_dest+4]
+        cmp     edi, eax
+        jne     .fail
+
+        ; ----- vector 3: UCS-2 BE → cp866 + word NUL -----
+        mov     edi, iso9660_copy_smoke_src
+        mov     ecx, 40 / 4
+        xor     eax, eax
+        rep     stosd
+        mov     byte [iso9660_copy_smoke_src], 0x00
+        mov     byte [iso9660_copy_smoke_src+1], 'Z'
+
+        mov     edi, iso9660_copy_smoke_dest
+        mov     ecx, 128 / 4
+        mov     eax, 0xA5A5A5A5
+        rep     stosd
+
+        mov     ebp, iso9660_copy_smoke_iso
+        mov     dword [ebp + ISO9660.type_encoding], 1
+        mov     eax, 0xE1000005
+        mov     ebx, 0xF1000006
+        mov     ecx, 2                  ; 2 bytes → 1 UCS-2 char after shr
+        mov     edx, 1
+        mov     esi, iso9660_copy_smoke_src
+        mov     edi, iso9660_copy_smoke_dest
+        call    iso9660_copy_name
+        cmp     ebp, iso9660_copy_smoke_iso
+        jne     .fail
+        cmp     byte [iso9660_copy_smoke_dest], 'Z'
+        jne     .fail
+        cmp     word [iso9660_copy_smoke_dest+1], 0     ; word NUL at edi
+        jne     .fail
+        lea     eax, [iso9660_copy_smoke_dest+1]
+        cmp     edi, eax
+        jne     .fail
+
+        ; ----- vector 4: invalid nameenc → NUL only -----
+        mov     edi, iso9660_copy_smoke_dest
+        mov     ecx, 128 / 4
+        mov     eax, 0xA5A5A5A5
+        rep     stosd
+        mov     ebp, iso9660_copy_smoke_iso
+        mov     dword [ebp + ISO9660.type_encoding], 0
+        mov     ecx, 32
+        mov     edx, 99
+        mov     esi, iso9660_copy_smoke_src
+        mov     edi, iso9660_copy_smoke_dest
+        call    iso9660_copy_name
+        cmp     byte [iso9660_copy_smoke_dest], 0
+        jne     .fail
+        cmp     edi, iso9660_copy_smoke_dest
+        jne     .fail
+        cmp     ebp, iso9660_copy_smoke_iso
+        jne     .fail
+
+        mov     [rust_iso9660_copy_name_smoke_result], 0x4E504349 ; 'ICPN'
+        pop     edx
+        pop     ecx
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     ebx
+        ret
+
+.fail:
+        mov     [rust_iso9660_copy_name_smoke_result], 'DEAD'
+        mov     eax, 0xDEAD0C57        ; Cut BI fail marker
+        mov     ebx, 0x4E504349        ; 'ICPN'
+        mov     ecx, 0x4641494C        ; 'FAIL'
+        jmp     $

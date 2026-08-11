@@ -325,6 +325,8 @@ high_code:
         call    exfat_hash_calculate_rust_smoke_test
         ; Cut AJ: iso9660_compare_name smoke (Rust when USE_RUST_ISO9660_COMPARE_NAME=1).
         call    iso9660_compare_name_rust_smoke_test
+        ; Cut BI: iso9660_copy_name smoke (Rust when USE_RUST_ISO9660_COPY_NAME=1).
+        call    iso9660_copy_name_rust_smoke_test
         ; Cut AK: xfs._.conv_bigtime_to_kos_epoch smoke (Rust when USE_RUST_XFS_CONV_BIGTIME_TO_KOS_EPOCH=1).
         call    xfs_conv_bigtime_to_kos_epoch_rust_smoke_test
         ; Cut AL: ext_read_time smoke (Rust when USE_RUST_EXT_READ_TIME=1).

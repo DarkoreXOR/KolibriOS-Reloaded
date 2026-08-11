@@ -23,7 +23,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 
 - Cut A from boundaries.
 - **Risk:** low.
-- **Status (2026-08-12):** **COMPLETE** — Phase C + Cuts A–BH production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–BH re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
+- **Status (2026-08-12):** **COMPLETE** — Phase C + Cuts A–BI production-validated (desktop). Bisect log: [`black-screen-investigation.md`](black-screen-investigation.md). Diagnostic smokes D–BI re-enabled and validated (Stage 3 smoke pass); Cut M smoke expectation fixed for unsigned `ADD`+`JA`.
 - **Done:** Phase C probe + CRC32 + UTF-16 + CP866 + UTF-8. Baseline: [`cut-a-final-architecture.md`](cut-a-final-architecture.md).
 - **Cut B (pure util, not allocator):** `cp866toUpper` — **done** 2026-08-09 ([`cut-b-plan.md`](cut-b-plan.md), [`cut-b-implementation.md`](cut-b-implementation.md)).
 - **Cut C:** `utf16toUpper` — **done** ([`cut-c-implementation.md`](cut-c-implementation.md)).
@@ -83,7 +83,8 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut BE:** `hotkey_do_test` — **done** 2026-08-12 ([`cut-be-plan.md`](cut-be-plan.md), [`cut-be-implementation.md`](cut-be-implementation.md)). HID hotkey field match (`kb_state` × nibble predicates); Path B after post-BD raised-bar cluster audit (no Path A; thin P sibling / Stage-4 address math / PE leftovers ranked below); reloc-free via branchless predicate select.
 - **Cut BF:** `strncpy` — **done** 2026-08-12 ([`cut-bf-plan.md`](cut-bf-plan.md), [`cut-bf-implementation.md`](cut-bf-implementation.md)). Bounded padded string copy (shmem name + PE export); Path B after post-BE raised-bar cluster audit (no Path A; HID deepen / thin P / address-math / PE leftovers ranked below); reloc-free via `write_volatile` (avoids `memset` PLT).
 - **Cut BG:** `swap_bytes_in_words` — **done** 2026-08-12 ([`cut-bg-plan.md`](cut-bg-plan.md), [`cut-bg-implementation.md`](cut-bg-implementation.md)). Endian word-byte swap (AHCI ATA IDENTIFY model string); Path B after post-BF raised-bar cluster audit (no Path A; HID deepen / EXT-only strlen / ISO glue+ban / trivial AHCI sig CMP ranked below); reloc-free.
-- **Cut BH:** `strlen` — **done** 2026-08-12 ([`cut-bh-plan.md`](cut-bh-plan.md), [`cut-bh-implementation.md`](cut-bh-implementation.md)). C-string length / `scasb` (EXT dirent name); Path B after post-BG raised-bar cluster audit (no Path A; HID side-effects / ISO glue+ban / AHCI-trivial stack ranked below); reloc-free. Soak **NOT AVAILABLE** (no `--disk ext`). **Stop; do not start Cut BI.**
+- **Cut BH:** `strlen` — **done** 2026-08-12 ([`cut-bh-plan.md`](cut-bh-plan.md), [`cut-bh-implementation.md`](cut-bh-implementation.md)). C-string length / `scasb` (EXT dirent name); Path B after post-BG raised-bar cluster audit (no Path A; HID side-effects / ISO glue+ban / AHCI-trivial stack ranked below); reloc-free. Soak **NOT AVAILABLE** (no `--disk ext`).
+- **Cut BI:** `iso9660_copy_name` — **done** 2026-08-12 ([`cut-bi-plan.md`](cut-bi-plan.md), [`cut-bi-implementation.md`](cut-bi-implementation.md)). ISO9660 volume-name encoding dispatch + NUL terminate; Path B after post-BH raised-bar cluster audit (no Path A; thin P sibling / address-math / PE thin / AHCI-trivial ranked below); reloc-free via inlined A/AN/Q helpers. **`--disk iso9660` soak PASS.** **Stop; do not start Cut BJ.**
 
 ### Stage 3 — Compat syscall façade (selected)
 
@@ -98,7 +99,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 ### Stage 5 — FS plugin / net protocol islands
 
 - One filesystem; optional TCP path.
-- **Status:** foothold via Cuts AC/M/V/AS/AU/AY/BD (IPv4 route + TCP timers + socket_check + fragment-slot lookup + NIC device-list index + TCP outflags); AHCI cmdslot via Cut AV; endian word-swap via Cut BG; XFS AG→sector via Cut AW; NTFS MCB encode via Cut AX; PCI config address via Cut BA; FAT LFN charset via Cut BC; HID hotkey match via Cut BE; string padded copy via Cut BF; C-string length via Cut BH; broader protocol/driver islands still open.
+- **Status:** foothold via Cuts AC/M/V/AS/AU/AY/BD (IPv4 route + TCP timers + socket_check + fragment-slot lookup + NIC device-list index + TCP outflags); AHCI cmdslot via Cut AV; endian word-swap via Cut BG; XFS AG→sector via Cut AW; NTFS MCB encode via Cut AX; PCI config address via Cut BA; FAT LFN charset via Cut BC; HID hotkey match via Cut BE; string padded copy via Cut BF; C-string length via Cut BH; ISO9660 volume-name copy via Cut BI; broader protocol/driver islands still open.
 
 ### Stage 6 — Scheduler policy + process create
 

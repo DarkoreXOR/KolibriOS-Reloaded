@@ -155,6 +155,9 @@ include "rust/exfat_hash_calculate.inc"
 ; Cut AJ: iso9660_compare_name — Rust blob (USE_RUST_ISO9660_COMPARE_NAME)
 ; ABI smoke lives in fs/iso9660.inc.
 include "rust/iso9660_compare_name.inc"
+; Cut BI: iso9660_copy_name — Rust blob (USE_RUST_ISO9660_COPY_NAME)
+; ABI smoke lives in fs/iso9660.inc.
+include "rust/iso9660_copy_name.inc"
 ; Cut AK: xfs._.conv_bigtime_to_kos_epoch — Rust blob + smoke (USE_RUST_XFS_CONV_BIGTIME_TO_KOS_EPOCH)
 include "rust/xfs_conv_bigtime_to_kos_epoch.inc"
 ; Cut AL: ext_read_time — Rust blob + smoke (USE_RUST_EXT_READ_TIME)

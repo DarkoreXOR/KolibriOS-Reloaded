@@ -26,6 +26,7 @@ use crate::port_area::r_f_port_area_ptr;
 use crate::net_ptr_to_num4::net_ptr_to_num4_ptr;
 use crate::socket_check::socket_check_ptr;
 use crate::iso9660_compare::iso9660_compare_name_ptr;
+use crate::iso9660_copy_name::iso9660_copy_name_ptr;
 use crate::hotkey::hotkey_do_test;
 use crate::mouse::mouse_acceleration;
 use crate::ntfs_bootsec::ntfs_test_bootsec_ptr;
@@ -687,6 +688,26 @@ pub unsafe extern "stdcall" fn rust_iso9660_compare_name(
 ) -> u32 {
     // SAFETY: kernel trampoline passes &ESI slot + EDI record + encoding.
     unsafe { iso9660_compare_name_ptr(esi_inout, dir_record, type_encoding) }
+}
+
+/// `stdcall` rust_iso9660_copy_name(esi_inout, edi_inout, max_len, nameenc, type_encoding)
+///
+/// Cut BI: volume-name encoding dispatch. Updates `*esi_inout` / `*edi_inout`
+/// so EDI points at the written terminator. Callee cleans 20 bytes (`ret 20`).
+///
+/// # Safety
+/// Inout pointers and buffers must obey `iso9660_copy_name` contracts.
+#[no_mangle]
+#[link_section = ".text.rust_iso9660_copy_name"]
+pub unsafe extern "stdcall" fn rust_iso9660_copy_name(
+    esi_inout: *mut *mut u8,
+    edi_inout: *mut *mut u8,
+    max_len: u32,
+    nameenc: u32,
+    type_encoding: u32,
+) {
+    // SAFETY: kernel trampoline passes &ESI / &EDI slots + encoding args.
+    unsafe { iso9660_copy_name_ptr(esi_inout, edi_inout, max_len, nameenc, type_encoding) }
 }
 
 /// `stdcall` rust_block_clip(clip, rect) -> EAX = 0 draw / 1 reject.
