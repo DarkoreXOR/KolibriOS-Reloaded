@@ -5,7 +5,7 @@
 # Do not put secrets here.
 
 # ---------------------------------------------------------------------------
-# Rust freestanding components (Cuts A–AO Strategy A+C blobs)
+# Rust freestanding components (Cuts A–AP Strategy A+C blobs)
 # ---------------------------------------------------------------------------
 [rust]
 # Cargo workspace containing `kolibri_utils`.
@@ -35,9 +35,16 @@ python = "python"
 generic_script = "rust_kernel/kolibri_utils/scripts/extract_reloc_free_text.py"
 probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 
-# Blobs required by the hybrid kernel (Cuts A–AO). Newest-first extraction order;
+# Blobs required by the hybrid kernel (Cuts A–AP). Newest-first extraction order;
 # FASM embeds whichever files `kernel/rust/*.inc` reference. Blobs are always
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_xfs_hashname"
+symbol = "rust_xfs_hashname"
+expect_ret_imm = 8
+out = "rust_xfs_hashname.bin"
+
 [[rust.blobs]]
 kind = "generic"
 section = ".text.rust_fat_time_to_bdfe"
@@ -356,6 +363,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "AP"
+blob = "rust_xfs_hashname.bin"
+symbol = "rust_xfs_hashname"
+gate = "USE_RUST_XFS_HASHNAME"
+include = "kernel/rust/xfs_hashname.inc"
+gate_file = "kernel/fs/xfs.asm"
+enabled = true
+
 [[rust.migrations]]
 cut = "AO"
 blob = "rust_fat_time_to_bdfe.bin"

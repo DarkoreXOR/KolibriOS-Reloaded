@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match, XFS v5 bigtime→BDFE,
@@ -6,10 +6,10 @@
 //! FAT 8.3 short-name collision + LFN→8.3 generator, HID mouse acceleration, TCP RTT estimator
 //! + persist-timer arming, GUI font anti-aliasing, MENUET app-header validation, syscall
 //! userspace region gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS
-//! extent unpack + dir leaf hash binary search + DA node first-match-by-hash, window screen-fit
-//! helpers, TSS I/O permission bitmap updates, COFF reloc application, MBR/EBR partition-table
-//! entry validation, GPT protective-MBR recognition, process TID→slot lookup, and IPv4
-//! on-link/gateway/broadcast routing for KolibriOS hybrid migration.
+//! extent unpack + dir leaf hash binary search + DA node first-match-by-hash + dir name hash,
+//! window screen-fit helpers, TSS I/O permission bitmap updates, COFF reloc application,
+//! MBR/EBR partition-table entry validation, GPT protective-MBR recognition, process TID→slot
+//! lookup, and IPv4 on-link/gateway/broadcast routing for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -48,6 +48,7 @@ mod utf8to16;
 mod window;
 mod xfs_extent;
 mod xfs_hash_lookup;
+mod xfs_hashname;
 mod xfs_node_hash;
 
 #[cfg(target_arch = "x86")]
@@ -146,6 +147,7 @@ pub use xfs_hash_lookup::{
     xfs_get_addr_by_hash_ptr, XfsHashLookupResult, ERROR_FILE_NOT_FOUND, OFF_ADDRESS, OFF_HASHVAL,
     XFS_DIR2_LEAF_ENTRY_SIZE, XFS_GET_ADDR_BY_HASH_PRNG_SEED,
 };
+pub use xfs_hashname::{xfs_hashname, xfs_hashname_ptr, XFS_HASHNAME_PRNG_SEED};
 pub use xfs_node_hash::{
     entries_from_base, entries_from_node, xfs_get_before_by_hashval,
     xfs_get_before_by_hashval_ptr, BASE_TO_BTREE_DELTA, OFF_NODE_BEFORE, OFF_NODE_HASHVAL,

@@ -1574,6 +1574,37 @@ endp
 end if
 
 
+; Cut AP: USE_RUST_XFS_HASHNAME=1 routes through Rust rust_xfs_hashname
+; (see rust/xfs_hashname.inc). Set USE_RUST_XFS_HASHNAME=0 to restore the
+; original FASM body without deleting it. Independent of Cuts W/AM/AK.
+; Critical ABI: stdcall (_name,_len) / retn 8; EAX=hash; preserves ECX/ESI
+; (`uses`); EDX left untouched by body (REG-001 — trampoline also saves EDX).
+
+USE_RUST_XFS_HASHNAME = 1
+
+if USE_RUST_XFS_HASHNAME
+
+; Compatibility trampoline: stdcall (_name,_len) → Rust stdcall; preserve
+; ECX+EDX (REG-001; legacy left EDX untouched) and ESI (legacy `uses`).
+; No ebp frame — keep leaf-shaped like other XFS hash helpers.
+align 4
+xfs_hashname:
+        push    ecx
+        push    edx
+        push    esi
+        ; stack: esi, edx, ecx, retaddr, _name, _len
+        mov     eax, [esp+16]          ; _name
+        mov     ecx, [esp+20]          ; _len
+        push    ecx                    ; arg2 len
+        push    eax                    ; arg1 name
+        call    rust_xfs_hashname      ; ret 8; EAX=hash
+        pop     esi
+        pop     edx
+        pop     ecx
+        retn    8
+
+else
+
 proc xfs_hashname uses ecx esi, _name, _len
         xor     eax, eax
         mov     esi, [_name]
@@ -1586,6 +1617,8 @@ proc xfs_hashname uses ecx esi, _name, _len
         jnz     @b
         ret
 endp
+
+end if
 
 
 ; Cut W: USE_RUST_XFS_GET_ADDR_BY_HASH=1 routes through Rust

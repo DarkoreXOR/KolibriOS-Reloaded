@@ -37,6 +37,7 @@ use crate::utf8to16::utf8to16_ptr;
 use crate::window::check_window_position_ptr;
 use crate::xfs_extent::xfs_extent_unpack_ptr;
 use crate::xfs_hash_lookup::{pack_eax_zf, xfs_get_addr_by_hash_ptr};
+use crate::xfs_hashname::xfs_hashname_ptr;
 use crate::xfs_node_hash::xfs_get_before_by_hashval_ptr;
 use crate::PHASE_C_PROBE_MAGIC;
 
@@ -151,6 +152,22 @@ pub extern "stdcall" fn rust_ansi2uni_char(ch: u32) -> u32 {
 #[link_section = ".text.rust_fat_time_to_bdfe"]
 pub extern "stdcall" fn rust_fat_time_to_bdfe(fat_time: u32) -> u32 {
     fat_time_to_bdfe(fat_time)
+}
+
+/// `stdcall` rust_xfs_hashname(name, len) -> EAX = XFS dir name hash.
+///
+/// Cut AP: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). FASM trampoline preserves ECX+EDX
+/// (REG-001; legacy body left EDX untouched and `uses ecx esi`).
+///
+/// # Safety
+/// `name` must be readable for `len` bytes when `len > 0`.
+#[no_mangle]
+#[link_section = ".text.rust_xfs_hashname"]
+pub unsafe extern "stdcall" fn rust_xfs_hashname(name: *const u8, len: u32) -> u32 {
+    // SAFETY: kernel trampoline passes directory-name pointer + length.
+    unsafe { xfs_hashname_ptr(name, len) }
 }
 
 /// `stdcall` rust_cp866_to_upper(ch) -> uppercased CP866 byte in AL (EAX).
