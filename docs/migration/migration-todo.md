@@ -4,10 +4,10 @@
 Rust hybrid migration scope. One-time project map; update when a Cut
 completes or the scoped candidate set changes.
 
-**Last inventory baseline:** post-Cut CK (2026-08-13).
+**Last inventory baseline:** post-Cut CL (2026-08-13).
 
 **Gates source of truth:** `project/build.toml` `[[rust.migrations]]`
-(92 production entries, all `enabled = true` after CK).
+(93 production entries, all `enabled = true` after CL).
 
 ---
 
@@ -101,7 +101,7 @@ leaves. Path A rejections are recorded in cut plans, not as fake completions.
 - [x] `calculate_SetChecksum_field` — Cut AH
 - [x] `exFAT_hash_calculate` — Cut AI
 - [ ] `exFAT_find_lfn` — deferred: AI caller; FS plugin island
-- [ ] `exFAT_get_sector` — deferred/ban: AW address-math sibling
+- [x] `exFAT_get_sector` — Cut CL
 
 ## fs/NTFS
 
@@ -296,7 +296,7 @@ Documented across Cuts AO–AZ plans:
 
 - AO calendar siblings — **BY closed** (`bdfe_to_fat_time`); date/time pack-unpack quartet complete
 - AN inverse (`uni2ansi_char`) — **BZ closed** (public encode leaf; Cut A export path separate)
-- AW address-math siblings (`exFAT_get_sector`, `getInodeLocation`) — **CK closed** `fat_get_sector` (AW ban aged out; FAT boot soak)
+- AW address-math siblings (`exFAT_get_sector`, `getInodeLocation`) — **CK closed** `fat_get_sector`; **CL closed** `exFAT_get_sector` (AW ban aged out; FAT boot + `--disk exfat` soaks)
 - AS/AY socket anti-cluster (`socket_check_port`, `socket_num_to_ptr`, …)
 - PE Y mutate anti-cluster (`rebase_coff`) — **CH closed**
 - USB weak soak (`usb_td_to_virt`) — **CI closed** (ban stretched after PE Stage-8 exhaustion)
@@ -307,9 +307,9 @@ Documented across Cuts AO–AZ plans:
 
 **Functions completed / functions total**
 
-`92 / 135`
+`93 / 135`
 
-(Mechanically: `92` `[x]` + `43` `[ ]` = `135`.)
+(Mechanically: `93` `[x]` + `42` `[ ]` = `135`.)
 
 When a new Cut completes: mark its `[ ]` → `[x]`, move the note to the Cut id,
 and update this counter so it still matches the checklist.

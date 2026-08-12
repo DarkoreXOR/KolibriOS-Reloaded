@@ -2987,6 +2987,43 @@ exFAT_notroot_first:
 ;        pop     ebx
 ;        ret
 ;--------------------------------------
+; Cut CL: USE_RUST_EXFAT_GET_SECTOR=1 routes through Rust
+; rust_exfat_get_sector (see rust/exfat_get_sector.inc).
+; Set USE_RUST_EXFAT_GET_SECTOR=0 to restore the original FASM body
+; without deleting it. Independent of Cuts CC-CK.
+; Critical ABI: EAX->{cluster,ofs}, EBP->exFAT*; EAX=sector out;
+; ECX restored; EBX/EDX/ESI/EDI/EBP untouched; ret 0.
+; REG-001/011: trampoline preserves EBX/ECX/EDX/ESI/EDI/EBP.
+; REG-009: Rust ret 16 — trampoline must NOT add esp,16.
+
+USE_RUST_EXFAT_GET_SECTOR = 1
+
+if USE_RUST_EXFAT_GET_SECTOR
+
+; Compatibility trampoline: register ABI -> Rust stdcall -> EAX sector.
+; Omit-FP: EBP->exFAT must remain live (do not push ebp).
+align 4
+exFAT_get_sector:
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    edi
+        ; eax -> pair; ebp -> exFAT
+        mov     ebx, [eax]                      ; cluster
+        mov     esi, [eax+4]                    ; sector_ofs
+        stdcall rust_exfat_get_sector, ebx, esi, \
+                [ebp+exFAT.SECTORS_PER_CLUSTER], [ebp+exFAT.CLUSTER_HEAP_START]
+        ; eax = sector; rust ret 16 cleaned its args
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
 exFAT_get_sector:
 ; DEBUGF  1, "K : exFAT_get_sector\n"
         push    ecx
@@ -3001,4 +3038,7 @@ exFAT_get_sector:
         mov     eax, ecx
         pop     ecx
         ret
+
+end if
+
 ;------------------------------------------------------------------------------

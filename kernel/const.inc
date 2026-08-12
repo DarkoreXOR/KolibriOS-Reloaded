@@ -287,9 +287,10 @@ SYS_SHUTDOWN        = OS_BASE + 0x000FF00
 ; Early boot stack top (physical/low identity).
 ; Cut CE: 0x8CC00 → 0x8D000 (+1 KiB). Cut CF: → 0x8D800 (+2 KiB more).
 ; Cut CI: → 0x8DC00 (+1 KiB). Cut CJ: → 0x8DD00 (+256 B).
-; Proof: end .bss @ OS_BASE+0x8CC83; assert needs page_plus 0x8DC83 < TMP;
-; 0x8DC00 failed by 0x83. Still below sys_proc @ 0x8E000 (gap 0x300).
-TMP_STACK_TOP       = 0x008DF00
+; Cut CK: → 0x8DF00 (+512 B). Cut CL: → 0x8DF80 (+128 B).
+; Proof (CL): end .bss @ OS_BASE+0x8CF43; assert needs page_plus 0x8DF43 < TMP;
+; 0x8DF00 failed by 0x43. Still below sys_proc @ 0x8E000 (gap 0x80).
+TMP_STACK_TOP       = 0x008DF80
 
 sys_proc            = OS_BASE + 0x008E000
 

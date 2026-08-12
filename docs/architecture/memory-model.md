@@ -57,7 +57,7 @@
 
 | Stack | Location | Role |
 |-------|----------|------|
-| Early TMP | `TMP_STACK_TOP = 0x008DF00` | Pre-high_code (raised Cut CK from `0x008DD00`; Cut CJ from `0x008DC00`; Cut CI from `0x008D800`; Cut CF from `0x008D000`; Cut CE from `0x008CC00`) |
+| Early TMP | `TMP_STACK_TOP = 0x008DF80` | Pre-high_code (raised Cut CL from `0x008DF00`; Cut CK from `0x008DD00`; Cut CJ from `0x008DC00`; Cut CI from `0x008D800`; Cut CF from `0x008D000`; Cut CE from `0x008CC00`) |
 | Boot high | ~`0x8007CC00` (memmap comment) | Early after map |
 | Per-thread ring0 | `APPDATA.pl0_stack`, size `RING0_STACK_SIZE=0x2000` | Privilege transitions / IRQ |
 | User stack | From app header `stack_top` | Userspace |

@@ -32,6 +32,7 @@ use crate::get_pg_addr::get_pg_addr_ptr;
 use crate::usb_td_to_virt::usb_td_to_virt_ptr;
 use crate::memmove::memmove_ptr;
 use crate::fat_get_sector::fat_get_sector;
+use crate::exfat_get_sector::exfat_get_sector;
 use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_find_fragment_slot::ipv4_find_fragment_slot_ptr;
 use crate::ipv4_route::ipv4_route_ptr;
@@ -328,6 +329,24 @@ pub unsafe extern "stdcall" fn rust_fat_get_sector(
     data_start: u32,
 ) -> u32 {
     fat_get_sector(cluster, sector_ofs, sectors_per_cluster, data_start)
+}
+
+/// `stdcall` rust_exfat_get_sector(cluster, sector_ofs, spc, cluster_heap_start) -> EAX.
+///
+/// Cut CL: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 16 bytes (`ret 16`). FASM trampoline is register-ABI outer
+/// (EAX→pair, EBP→exFAT*), injects `SECTORS_PER_CLUSTER`/`CLUSTER_HEAP_START`,
+/// and preserves EBX/ECX/EDX/ESI/EDI/EBP (REG-001/011). EAX = absolute sector.
+#[no_mangle]
+#[link_section = ".text.rust_exfat_get_sector"]
+pub unsafe extern "stdcall" fn rust_exfat_get_sector(
+    cluster: u32,
+    sector_ofs: u32,
+    sectors_per_cluster: u32,
+    cluster_heap_start: u32,
+) -> u32 {
+    exfat_get_sector(cluster, sector_ofs, sectors_per_cluster, cluster_heap_start)
 }
 
 /// `stdcall` rust_r_f_port_area(op, start, end, reserved_ports, tid, io_map) -> EAX.
