@@ -329,6 +329,10 @@ end if
         call    strlen_rust_smoke_test
         ; Cut CJ: memmove smoke (Rust when USE_RUST_MEMMOVE=1).
         call    memmove_rust_smoke_test
+        ; Cut CK: fat_get_sector smoke (Rust when USE_RUST_FAT_GET_SECTOR=1).
+if USE_RUST_FAT_GET_SECTOR
+        call    fat_get_sector_rust_smoke_test
+end if
         ; Cut BC: fat_name_is_legal smoke (Rust when USE_RUST_FAT_NAME_IS_LEGAL=1).
         call    fat_name_is_legal_rust_smoke_test
         ; Cut BD: tcp_outflags smoke (Rust when USE_RUST_TCP_OUTFLAGS=1).

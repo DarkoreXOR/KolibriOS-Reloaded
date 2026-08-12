@@ -19,7 +19,7 @@ For each important address: contents, producers, consumers, ABI class.
 | `0x9000` | `BOOT_VARS` / `BOOT_LO` | `boot_data` (VESA, e820, disks, sys path, APM, …) | Boot path / loader | Kernel init, shutdown | **HARD_ABI** (boot protocol) |
 | `0x10000` | `KERNEL_BASE` | Kernel image load | Bootloader | CPU fetch pre-paging | **HARD_ABI** (load address) |
 | `0x100000` | `RAMDISK_BASE` | Ramdisk image (typical) | Loader / boot flags | `rd.inc` | **BEHAVIORAL** / boot-dependent |
-| `0x008DD00` | `TMP_STACK_TOP` | Early stack | `B32` | Early init | INTERNAL (raised from `0x008DC00` Cut CJ 2026-08-12; was `0x008D800` Cut CI / `0x008D000` pre-CF / `0x008CC00` pre-CE) |
+| `0x008DF00` | `TMP_STACK_TOP` | Early stack | `B32` | Early init | INTERNAL (raised from `0x008DD00` Cut CK 2026-08-13; was `0x008DC00` Cut CJ / `0x008D800` Cut CI / `0x008D000` pre-CF / `0x008CC00` pre-CE) |
 
 ## Kernel fixed VAs (`OS_BASE=0x80000000`)
 
