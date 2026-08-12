@@ -154,6 +154,18 @@ pub extern "stdcall" fn rust_unicode_cp866_encode(cp: u32) -> u32 {
     cp866_encode(cp)
 }
 
+/// `stdcall` rust_uni2ansi_char(cp) -> CP866 byte in AL (EAX).
+///
+/// Cut BZ: dedicated section for reloc-free extract + FASM `file` embed.
+/// Same algorithm as Cut A `rust_unicode_cp866_encode`; separate symbol for
+/// the public `uni2ansi_char` leaf in `parse_fn.inc`.
+/// Input is truncated to 16 bits like FASM `uni2ansi_char` (`AX`).
+#[no_mangle]
+#[link_section = ".text.rust_uni2ansi_char"]
+pub extern "stdcall" fn rust_uni2ansi_char(cp: u32) -> u32 {
+    cp866_encode(cp)
+}
+
 /// `stdcall` rust_ansi2uni_char(ch) -> Unicode unit in AX (EAX).
 ///
 /// Cut AN: dedicated section for reloc-free extract + FASM `file` embed.

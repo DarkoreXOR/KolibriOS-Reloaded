@@ -332,6 +332,9 @@ fn special_40x(ax: u16) -> u32 {
 /// Cut AN differential PRNG seed (`'CUTN'`).
 pub const ANSI2UNI_CHAR_PRNG_SEED: u32 = 0x4355_544E;
 
+/// Cut BZ differential PRNG seed (`'CUTZ'`).
+pub const UNI2ANSI_CHAR_PRNG_SEED: u32 = 0x4355_545A;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -945,6 +948,36 @@ mod tests {
                 .wrapping_add(1013904223);
             let ch = state;
             assert_eq!(cp866_decode(ch), oracle_ansi2uni(ch), "ch={ch:#x}");
+        }
+    }
+
+    // Cut BZ — uni2ansi_char / cp866_encode (public parse_fn.inc symbol)
+
+    /// ~50k PRNG cases over the u16 domain (seed `0x4355545A` = 'CUTZ').
+    #[test]
+    fn uni2ansi_prng_matches_oracle() {
+        let mut state = UNI2ANSI_CHAR_PRNG_SEED;
+        for _ in 0..50_000 {
+            state = state
+                .wrapping_mul(1664525)
+                .wrapping_add(1013904223);
+            let cp = state & 0xFFFF;
+            assert_eq!(cp866_encode(cp), oracle_cp866(cp), "cp={cp:#x}");
+        }
+    }
+
+    /// Supplementary decode→encode round-trip on mapped Unicode outputs.
+    #[test]
+    fn uni2ansi_decode_encode_roundtrip() {
+        for ch in 0u32..=255 {
+            if ch < 0x80 || (0x80..=0xAF).contains(&ch) || (0xE0..=0xEF).contains(&ch) {
+                let uni = cp866_decode(ch);
+                assert_eq!(cp866_encode(uni) as u8, ch as u8, "ch={ch:#x}");
+            }
+        }
+        for cp in [0x00B6u32, 0x0401, 0x0451, 0x0404, 0x0454, 0x0407, 0x0457, 0x040E, 0x045E] {
+            let al = cp866_encode(cp) as u8;
+            assert_eq!(cp866_decode(u32::from(al)), cp, "cp={cp:#x}");
         }
     }
 }

@@ -368,6 +368,8 @@ high_code:
         call    bdfe_to_fat_date_rust_smoke_test
         ; Cut BY: bdfe_to_fat_time smoke (Rust when USE_RUST_BDFE_TO_FAT_TIME=1).
         call    bdfe_to_fat_time_rust_smoke_test
+        ; Cut BZ: uni2ansi_char smoke (Rust when USE_RUST_UNI2ANSI_CHAR=1).
+        call    uni2ansi_char_rust_smoke_test
         ; Cut AP: xfs_hashname smoke (Rust when USE_RUST_XFS_HASHNAME=1).
         call    xfs_hashname_rust_smoke_test
         ; Cut AW: xfs._.blkrel2sectabs smoke (Rust when USE_RUST_XFS_BLKREL2SECTABS=1).

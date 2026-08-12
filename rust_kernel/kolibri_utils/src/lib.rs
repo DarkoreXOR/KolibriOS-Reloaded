@@ -235,7 +235,7 @@ pub use time::{
     XFS_BIGTIME_TO_KOS_OFFSET_NS_LO, XFS_CONV_BIGTIME_TO_KOS_EPOCH_PRNG_SEED,
     XFS_CONV_TIME_TO_KOS_EPOCH_PRNG_SEED, XFS_NANOSEC_PER_SEC,
 };
-pub use unicode::{cp866_decode, cp866_encode, utf16_encode, utf8_decode, ANSI2UNI_CHAR_PRNG_SEED};
+pub use unicode::{cp866_decode, cp866_encode, utf16_encode, utf8_decode, ANSI2UNI_CHAR_PRNG_SEED, UNI2ANSI_CHAR_PRNG_SEED};
 pub use userspace::{
     is_region_userspace, is_string_userspace, is_string_userspace_at,
     trampoline_zf_from_rust_return, IS_REGION_USERSPACE_PRNG_SEED, IS_STRING_USERSPACE_PRNG_SEED,
