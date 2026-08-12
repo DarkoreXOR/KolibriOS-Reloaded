@@ -96,6 +96,8 @@ include "rust/checksum2.inc"
 include "rust/fs_calculate_time.inc"
 ; Cut BV: fsGetTime — Rust blob + smoke (USE_RUST_FS_GET_TIME)
 include "rust/fs_get_time.inc"
+; Cut CA: fsReadCMOS — Rust blob + smoke (USE_RUST_FS_READ_CMOS)
+include "rust/fs_read_cmos.inc"
 include "rust/block_clip.inc"
 ; Cut I: ntfs_decode_mcb_entry — Rust blob + smoke (see docs/migration/cut-i-plan.md)
 include "rust/ntfs_decode_mcb_entry.inc"

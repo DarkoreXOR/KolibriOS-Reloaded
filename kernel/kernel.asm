@@ -292,6 +292,8 @@ high_code:
         call    fs_calculate_time_rust_smoke_test
         ; Cut BV: fsGetTime smoke (Rust when USE_RUST_FS_GET_TIME=1).
         call    fs_get_time_rust_smoke_test
+        ; Cut CA: fsReadCMOS smoke (Rust when USE_RUST_FS_READ_CMOS=1).
+        call    fs_read_cmos_rust_smoke_test
         call    block_clip_rust_smoke_test
         call    ntfs_decode_mcb_rust_smoke_test
         call    ntfs_restore_usa_rust_smoke_test

@@ -17,6 +17,7 @@ use crate::v86_get_lin_addr::v86_get_lin_addr_ptr;
 use crate::coff_reloc::fix_coff_relocs_ptr;
 use crate::fix_coff_symbols::{fix_coff_symbols_ptr, GetProcExFn};
 use crate::fs_get_time::{fs_get_time_ptr, FsReadCmosFn};
+use crate::fs_read_cmos::{fs_read_cmos_ptr, FsCmosRawReadFn};
 use crate::crc::crc32_update;
 use crate::exfat_checksum::{calculate_set_checksum_field_ptr, exfat_hash_calculate_ptr};
 use crate::fat_name::{fat_gen_short_name_ptr, fat_name_is_legal_ptr, fat_next_short_name_ptr};
@@ -1192,6 +1193,19 @@ pub unsafe extern "stdcall" fn rust_fix_coff_symbols(
 #[link_section = ".text.rust_fs_get_time"]
 pub unsafe extern "stdcall" fn rust_fs_get_time(read_cmos: FsReadCmosFn) -> u32 {
     unsafe { fs_get_time_ptr(read_cmos) }
+}
+
+/// `stdcall` rust_fs_read_cmos(raw_read, reg) -> EAX (AX = decoded 0–99).
+///
+/// Cut CA: dedicated section for reloc-free extract + FASM `file` embed.
+/// Callee cleans 8 bytes (`ret 8`). Injected `raw_read` performs `out 0x70`/`in 0x71`.
+///
+/// # Safety
+/// `raw_read` must match legacy `fs_cmos_raw_read_stdcall` ABI.
+#[no_mangle]
+#[link_section = ".text.rust_fs_read_cmos"]
+pub unsafe extern "stdcall" fn rust_fs_read_cmos(raw_read: FsCmosRawReadFn, reg: u32) -> u32 {
+    unsafe { fs_read_cmos_ptr(raw_read, reg) }
 }
 
 /// `stdcall` rust_is_partition_table_entry(entry, ebp_base, cap_lo, cap_hi) -> EAX.

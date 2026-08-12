@@ -57,13 +57,17 @@ Use this before enabling a migration gate and when debugging a live FS bug.
    the trampoline that claims FASM-compatible preserve — document which.
 3. ABI smoke must assert **caller-live** registers, not only the leaf’s
    documented outs.
+4. **Never use a callee-saved register as a merge temp** — e.g. `pop ebx` to
+   reconstruct upper EAX clobbers live EBX (`fat_Write` → `get_time_for_file`;
+   REG-005). Match original FASM preserve set (EBX/ESI/EDI/EBP) when the leaf
+   only touched AX.
 
 ### Blame the latest cut last
 
-4. **A/B before rewriting the new cut:** gate OFF, prior `cut-*-final.img`,
+5. **A/B before rewriting the new cut:** gate OFF, prior `cut-*-final.img`,
    disable related Rust FS/unicode gates as a group. If the bug remains, the
    new leaf is cleared (REG-001 / Cut AM).
-5. Ask whether the hot path **even calls** the new symbol (root XFS shortform
+6. Ask whether the hot path **even calls** the new symbol (root XFS shortform
    readdir never hits `get_before_by_hashval`).
 
 ### Filesystem feature parity
@@ -105,6 +109,7 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | [REG-002](#reg-002--xfs-volume-label-whitespace--garbage-2026-08-11) | 2026-08-11 | XFS volume label whitespace + garbage | Fixed |
 | [REG-003](#reg-003--no-network-after-cut-ay-smoke-2026-08-11) | 2026-08-11 | No network after Cut AY smoke | Fixed |
 | [REG-004](#reg-004--ahci-4-disk-init-screen-hang-no-desktop-2026-08-12) | 2026-08-12 | AHCI 4-disk init-screen hang (no desktop) | Fixed |
+| [REG-005](#reg-005--intermittent-desktop-hang-cut-ca-fsreadcmos-ebx-2026-08-12) | 2026-08-12 | Intermittent desktop hang (Cut CA fsReadCMOS EBX) | Fixed |
 
 ---
 
@@ -171,6 +176,22 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | Avoid next time | ABI smoke must not call any path that iterates live hardware-adjacent state (IO-map enable/disable loops, network device lists, etc.) during early init. Always use error-paths or synthetic-only state when the boot environment cannot guarantee a stable map. Non-fatal `.fail` paths prevent a smoke bug from permanently blocking desktop. |
 
 **Class:** ABI smoke destroys / hangs live early-init state (same family as REG-003).
+
+---
+
+### REG-005 — Intermittent desktop hang (Cut CA fsReadCMOS EBX) (2026-08-12)
+
+| Field | Value |
+|-------|-------|
+| Symptom | ~70% of VM restarts: desktop appears but **no app icons**, mouse clicks dead; ~30% normal. User-reported after Cut CA. |
+| Suspected | Cut CA `fsReadCMOS` Rust trampoline. |
+| Cleared by A/B | Gate OFF (`USE_RUST_FS_READ_CMOS=0`) should restore stability (user can verify). Desktop QMP smoke passed both configs because it does not exercise `fat_Write` timestamp path. |
+| Root cause | Cut CA trampoline used **`pop ebx`** to merge upper EAX after `stdcall rust_fs_read_cmos`, destroying **live EBX** on every CMOS read. Original FASM `fsReadCMOS` only touches AX. `fat_Write` (`kernel/fs/fat.inc`) sets `ebx` = write offset, then calls `get_time_for_file` / `get_date_for_file` (each 3× `fsReadCMOS`) before `cmp ecx, ebx` — corrupted offset → FS/GUI failure. Intermittent rate depends on boot-time FAT write activity. |
+| Fix | `kernel/fs/fs_common.inc`: stack-only EAX merge; push/pop **EBX/ESI/EDI/EBP** around Rust call. `kernel/rust/fs_read_cmos.inc`: smoke adds EBX canary across `fsReadCMOS` (REG-004 pattern). |
+| Verify | Rebuild ON; user soak 10+ restarts; QEMU smoke PASS. |
+| Avoid next time | When original leaf preserves all GPRs except partial EAX, trampoline must not borrow callee-saved regs for temps. Smoke must include **caller-live EBX** pattern from real call sites (e.g. `fat_Write`). |
+
+**Class:** stdcall/trampoline register drift (same family as REG-001).
 
 ---
 

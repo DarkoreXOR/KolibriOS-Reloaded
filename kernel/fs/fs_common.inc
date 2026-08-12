@@ -6,6 +6,54 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 
+; Cut CA: USE_RUST_FS_READ_CMOS=1 routes through Rust rust_fs_read_cmos
+; (see rust/fs_read_cmos.inc). Set USE_RUST_FS_READ_CMOS=0 to restore the
+; original FASM body. Port I/O stays FASM via fs_cmos_raw_read_stdcall.
+
+USE_RUST_FS_READ_CMOS = 1
+
+if USE_RUST_FS_READ_CMOS
+
+; Raw CMOS port read for Cut CA callback (reg index → raw BCD byte in EAX).
+align 4
+proc fs_cmos_raw_read_stdcall stdcall, reg:dword
+        mov     eax, [reg]
+        out     70h, al
+        in      al, 71h
+        movzx   eax, al
+        ret
+endp
+
+; Compatibility trampoline: AL reg index → AX decoded; upper EAX bits preserved.
+; Original FASM preserves EBX/ESI/EDI/EBP/ECX/EDX (REG-004: never use pop ebx
+; for EAX merge — fat_Write keeps EBX live across get_time_for_file).
+align 4
+fsReadCMOS:
+        push    ebp
+        push    edi
+        push    esi
+        push    ebx
+        push    ecx
+        push    edx
+        push    eax
+        mov     ecx, [esp]
+        and     ecx, 0xFF
+        stdcall rust_fs_read_cmos, fs_cmos_raw_read_stdcall, ecx
+        mov     ecx, [esp]
+        and     eax, 0xFFFF
+        and     ecx, 0xFFFF0000
+        or      eax, ecx
+        add     esp, 4
+        pop     edx
+        pop     ecx
+        pop     ebx
+        pop     esi
+        pop     edi
+        pop     ebp
+        ret
+
+else
+
 fsReadCMOS:
         out     70h, al
         in      al, 71h
@@ -14,6 +62,8 @@ fsReadCMOS:
         shr     al, 4
         aad
         ret
+
+end if
 
 ; Stdcall wrapper for Cut BV Rust callback (AL=reg index → decoded AX in EAX).
 align 4

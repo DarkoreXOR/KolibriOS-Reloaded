@@ -40,6 +40,13 @@ probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_fs_read_cmos"
+symbol = "rust_fs_read_cmos"
+expect_ret_imm = 8
+out = "rust_fs_read_cmos.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_uni2ansi_char"
 symbol = "rust_uni2ansi_char"
 expect_ret_imm = 4
@@ -615,6 +622,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "CA"
+blob = "rust_fs_read_cmos.bin"
+symbol = "rust_fs_read_cmos"
+gate = "USE_RUST_FS_READ_CMOS"
+include = "kernel/rust/fs_read_cmos.inc"
+gate_file = "kernel/fs/fs_common.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "BZ"
 blob = "rust_uni2ansi_char.bin"
