@@ -4,10 +4,10 @@
 Rust hybrid migration scope. One-time project map; update when a Cut
 completes or the scoped candidate set changes.
 
-**Last inventory baseline:** post-Cut CL (2026-08-13).
+**Last inventory baseline:** post-Cut CM (2026-08-13).
 
 **Gates source of truth:** `project/build.toml` `[[rust.migrations]]`
-(93 production entries, all `enabled = true` after CL).
+(94 production entries, all `enabled = true` after CM).
 
 ---
 
@@ -133,7 +133,7 @@ leaves. Path A rejections are recorded in cut plans, not as fake completions.
 - [x] `ext_read_all_times` — Cut BR
 - [x] `ext_write_time` — Cut BS
 - [ ] `ext_SetFileInfo` — deferred: FS write path
-- [ ] `getInodeLocation` — deferred/ban: AW address-math; no --disk ext
+- [x] `getInodeLocation` — Cut CM
 
 ## fs/ISO9660
 
@@ -296,7 +296,7 @@ Documented across Cuts AO–AZ plans:
 
 - AO calendar siblings — **BY closed** (`bdfe_to_fat_time`); date/time pack-unpack quartet complete
 - AN inverse (`uni2ansi_char`) — **BZ closed** (public encode leaf; Cut A export path separate)
-- AW address-math siblings (`exFAT_get_sector`, `getInodeLocation`) — **CK closed** `fat_get_sector`; **CL closed** `exFAT_get_sector` (AW ban aged out; FAT boot + `--disk exfat` soaks)
+- AW address-math siblings (`exFAT_get_sector`, `getInodeLocation`) — **CK closed** `fat_get_sector`; **CL closed** `exFAT_get_sector`; **CM closed** `getInodeLocation` (AW ban aged out; FAT / exFAT / `--disk ext` soaks)
 - AS/AY socket anti-cluster (`socket_check_port`, `socket_num_to_ptr`, …)
 - PE Y mutate anti-cluster (`rebase_coff`) — **CH closed**
 - USB weak soak (`usb_td_to_virt`) — **CI closed** (ban stretched after PE Stage-8 exhaustion)
@@ -307,9 +307,9 @@ Documented across Cuts AO–AZ plans:
 
 **Functions completed / functions total**
 
-`93 / 135`
+`94 / 135`
 
-(Mechanically: `93` `[x]` + `42` `[ ]` = `135`.)
+(Mechanically: `94` `[x]` + `41` `[ ]` = `135`.)
 
 When a new Cut completes: mark its `[ ]` → `[x]`, move the note to the Cut id,
 and update this counter so it still matches the checklist.

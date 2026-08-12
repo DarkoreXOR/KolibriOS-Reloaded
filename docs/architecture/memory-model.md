@@ -57,7 +57,7 @@
 
 | Stack | Location | Role |
 |-------|----------|------|
-| Early TMP | `TMP_STACK_TOP = 0x008DF80` | Pre-high_code (raised Cut CL from `0x008DF00`; Cut CK from `0x008DD00`; Cut CJ from `0x008DC00`; Cut CI from `0x008D800`; Cut CF from `0x008D000`; Cut CE from `0x008CC00`) |
+| Early TMP | `TMP_STACK_TOP = 0x008E000` | Pre-high_code (Cut CM / REG-012: raised from `0x008DF80` Cut CL; keep `sys_proc`/`SLOT_BASE` pack — do not move `SLOT_BASE`) |
 | Boot high | ~`0x8007CC00` (memmap comment) | Early after map |
 | Per-thread ring0 | `APPDATA.pl0_stack`, size `RING0_STACK_SIZE=0x2000` | Privilege transitions / IRQ |
 | User stack | From app header `stack_top` | Userspace |
@@ -68,9 +68,9 @@
 
 | VA | Role | ABI? |
 |----|------|------|
-| `SLOT_BASE=0x80090000` | `APPDATA` slots × 256 bytes | Internal layout; historically pokeable — see fixed-addresses |
+| `SLOT_BASE=0x80090000` | `APPDATA` slots × 256 bytes | Internal layout; must end at `VGABasePtr` (REG-012) — see fixed-addresses |
 | `window_data=0x80001000` | `WDATA` array | Same |
-| `sys_proc=0x8008E000` | Kernel `PROC` | Internal |
+| `sys_proc=0x8008E000` | Kernel `PROC` | Internal; page-aligned; packed against `SLOT_BASE` |
 | `BOOT` / `BOOT_LO` | Boot parameter block | Boot ABI |
 | `KEY_BUFF`, `BTN_BUFF` | Input rings | Legacy observable |
 | IPC temp maps | Allocated in `high_code` (`ipc_tmp`, …) | Internal helper for IPC mapping |

@@ -52,6 +52,7 @@ Use this before enabling a migration gate and when debugging a live FS bug.
    those registers across `call unicode.*` / similar.
    - Precedent: Cut D (`strncmp` → `get_service` EDX=`SRV*`).
    - Precedent: REG-001 (`copy_filename` → BDFE base in EDX).
+   - Precedent: REG-013 (`ext_ReadFolder` BDFE cursor in EDX across name encode).
    - Precedent: REG-003 (smoke wiped `net_device_list[0]` / loopback — not a leaf bug).
 2. Prefer fixing at the **wrapper that owns the live register** (`uses …`) or
    the trampoline that claims FASM-compatible preserve — document which.
@@ -81,9 +82,10 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 
 ### Soak coverage
 
-9. Desktop-only QEMU is **not** an XFS/NTFS/exFAT soak. Attach
+9. Desktop-only QEMU is **not** an XFS/NTFS/exFAT/EXT soak. Attach
    `python scripts/run_qemu.py --disk xfs` (etc.) and browse: dirs vs files,
-   sizes, volume name, nested paths.
+   sizes, volume name, nested paths. Attach smoke alone misses empty-name
+   readdir bugs (REG-013 / REG-001).
 10. Prefer a prior known-good image (`dev_build/cut-*-final.img`) as A/B
     baseline, not only gate flips on the current tree.
 11. **ABI smoke must not mutate live subsystem tables** that boot already
@@ -132,6 +134,12 @@ Use this before enabling a migration gate and when debugging a live FS bug.
     those regs intact via frame / non-use. Rust stdcall clobbers them;
     trampoline must push/pop the full set. Smoke must canary all six
     (REG-011 — frozen mouse after Cut CF).
+20. **Never move `SLOT_BASE` upward without proving `SLOT_BASE +
+    256*sizeof.APPDATA` still equals `VGABasePtr` (0xA0000).** Raising
+    `SLOT_BASE` by 4 KiB to reclaim Stage-2 headroom overlaps the VGA
+    window, boots a desktop wallpaper, and kills `@PANEL` / app launch
+    (REG-012). Prefer shrinking the new leaf (smoke/blob) or rejecting
+    the candidate over breaking the sys_proc↔SLOT↔VGA pack.
 
 ---
 
@@ -150,6 +158,9 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | [REG-009](#reg-009--bootloader-reset-loop-cut-cc-stdcall-double-cleanup-2026-08-12) | 2026-08-12 | Bootloader reset loop (Cut CC stdcall double cleanup) | Fixed |
 | [REG-010](#reg-010--black-desktop-cut-cf-trampoline-arg-offset-2026-08-12) | 2026-08-12 | Black desktop (Cut CF trampoline arg offset) | Fixed |
 | [REG-011](#reg-011--mouse-cursor-frozen-cut-cf-ebxesiediebp-2026-08-12) | 2026-08-12 | Mouse cursor frozen (Cut CF EBX/ESI/EDI/EBP) | Fixed |
+| [REG-012](#reg-012--no-taskbar--apps-wont-launch-cut-cm-slot_base-vga-overlap-2026-08-13) | 2026-08-13 | No taskbar / apps won't launch (Cut CM SLOT_BASE↔VGA overlap) | Fixed |
+| [REG-013](#reg-013--ext-eolite-empty-names--zero-sizes-2026-08-13) | 2026-08-13 | EXT Eolite empty names / zero sizes | Fixed |
+| [REG-014](#reg-014--ext-eolite-names-ok-all-file-sizes-0-2026-08-13) | 2026-08-13 | EXT Eolite names OK, all file sizes 0 | Fixed |
 
 ---
 
@@ -328,6 +339,54 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | Avoid next time | For PE exports, treat **EBX/ESI/EDI/EBP** as preserved unless the legacy body truly clobbers them. ABI smoke must canary callee-saved regs, not only `uses` list. |
 
 **Class:** PE-export register preserve / REG-001 family.
+
+---
+
+### REG-012 — No taskbar / apps won't launch (Cut CM SLOT_BASE↔VGA overlap) (2026-08-13)
+
+| Field | Value |
+|-------|-------|
+| Symptom | Desktop wallpaper / icons appear, but **no bottom taskbar (`@PANEL`)** and **apps cannot be launched**. QEMU still `running`, `resets=0`; non-black dropped **779380 → 750708**. |
+| Suspected | Cut CM `getInodeLocation` Rust math / trampoline. |
+| Cleared by A/B | Gate OFF with the same moved `SLOT_BASE` still broken → not the Rust leaf. |
+| Root cause | Cut CM raised `SLOT_BASE` `0x90000 → 0x91000` (and `sys_proc`/`TMP_STACK_TOP` to `0x8F000`) so Stage-2 could fit the 101 B blob + smoke. `APPDATA × 256 = 0x10000` must end at **`VGABasePtr = 0xA0000`**. New end `0xA1000` overlapped the VGA screen-access window → slot/process state corruption; panel and `fs_execute` paths fail while background still paints. |
+| Fix | Revert pack: `SLOT_BASE=0x90000`, `sys_proc=0x8E000`, `TMP_STACK_TOP=0x8E000`. Fit CM by compacting ABI smoke (one direct `rust_*` vector; hang marker via iglobal default `DEAD0C6D`) so end `.bss` stays `0x8CFC3` under the `data32.inc` assert (`align 16` cliff). |
+| Verify | Host `gilo_*` 11/11 + suite 745/745; QEMU OFF/ON/A/B/ON×3/`--disk ext` all **779380**, `resets=0`. Final image `dev_build/test/kernel-20260812-210330.img`. |
+| Avoid next time | Before moving `SLOT_BASE`/`sys_proc`, assert `SLOT_BASE + 0x10000 == VGABasePtr`. Treat taskbar/@PANEL launch as a required soak when touching the process slot pack — desktop non-black alone is insufficient (wallpaper can still draw). |
+
+**Class:** Stage-2 memmap / fixed-address pack (SLOT↔VGA).
+
+---
+
+### REG-013 — EXT Eolite empty names / zero sizes (2026-08-13)
+
+| Field | Value |
+|-------|-------|
+| Symptom | Eolite on `/sd3/1` (EXT): entry **count OK** (e.g. Files: 9), but **empty names**, blank types, **0 B** sizes; dirs look like empty files. Other volumes OK. |
+| Suspected | Cut CM `getInodeLocation` trampoline / out-slots (first EXT browse soak after CM tooling). |
+| Cleared by A/B | Gate OFF still broken for names → **not** the CM leaf. Mount + root inode read still worked ON (count path OK). |
+| Root cause | Same class as REG-001: Rust Cut A `unicode.utf8.decode` / `cp866.encode` / `utf16.encode` **clobber EDX**. `ext_ReadFolder` keeps the BDFE cursor in **EDX** and does `add edx, 40+264` (or `+520`) after the name loop. After `.` / `..`, EDX is garbage → later BDFEs never land in the result buffer (slots stay zeroed) while the folder **count** still increments. Latent since Cut A; first exposed when Cut CM added `--disk ext`. |
+| Fix | `kernel/fs/ext.inc` `ext_ReadFolder`: `push edx` / `pop edx` around unicode calls on the CP866 and UTF-16 name paths (UTF-8 `rep movsb` path already safe). |
+| Verify | Rebuild with CM ON (end `.bss` `0x8CFC3`); QEMU `--disk ext --bus ahci` desktop **779380**, `resets=0`. Image: `dev_build/test/kernel-20260812-213744.img`. Names restored; sizes were still 0 → [REG-014](#reg-014--ext-eolite-names-ok-all-file-sizes-0-2026-08-13). |
+| Avoid next time | When adding a new FS soak, grep that FS’s readdir/name-copy for live **EDX/ECX** across `unicode.*`. Desktop attach smoke does **not** open Eolite — name/size browse is a separate checklist item (REG-001). |
+
+**Class:** register preserve / stdcall ABI drift (REG-001 / Cut A unicode).
+
+---
+
+### REG-014 — EXT Eolite names OK, all file sizes 0 (2026-08-13)
+
+| Field | Value |
+|-------|-------|
+| Symptom | After REG-013: EXT names/dirs visible, but **every file size is 0 B** (e.g. `README.TXT`). |
+| Suspected | Follow-on from REG-013 soak; Cut BR `ext_read_all_times` vs `ext_ReadFolder` size `stosd`. |
+| Cleared by A/B | N/A (REG-013 already cleared unicode EDX); size path is independent. |
+| Root cause | Legacy `ext_read_all_times` advances **EDI by +24** (3× `fsTime2bdfe`). Cut BR Rust trampoline used `stdcall` only — callee restores EDI — so `ext_ReadFolder`’s post-call `stosd` size writes hit **BDFE+8** (timestamps) instead of **BDFE+32**. Size fields stay zero. Smoke compared `lea edi,[out+24]` to a constant (tautology) and never checked live EDI. Cut BR docs wrongly claimed callers ignore post-call EDI. |
+| Fix | `kernel/fs/ext.inc`: `add edi, 24` after `rust_ext_read_all_times`. `kernel/rust/ext_read_all_times.inc`: smoke asserts `edi == out+24` without reloading. |
+| Verify | Rebuild ON (end `.bss` `0x8CFC3`); QEMU `--disk ext --bus ahci` desktop **779380**, `resets=0`. Image: `dev_build/test/kernel-20260812-214237.img`. **User soak: EXT names + sizes OK.** |
+| Avoid next time | When replacing a leaf that advances EDI/ESI via `stos`/`fsTime2bdfe`, trampoline must restore that side effect. ABI smoke must compare **live** EDI/ESI after the public symbol — never `lea` the expected value then `cmp` it to itself. |
+
+**Class:** trampoline missing post-condition / pointer advance (related to REG-001 family).
 
 ---
 

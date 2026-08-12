@@ -175,7 +175,8 @@ harness exists (same class as Cut AL/BH).
 
 * Read-only inode fan-out — does not migrate `ext_write_time` / `fsGetTime`.
 * FASM advances `EDI` by +24 through the `ext_read_time` chain; Rust writes via
-  pointer but does not update caller `EDI` (callers do not observe `EDI` post-call).
+  pointer and stdcall restores caller `EDI`. Trampoline must `add edi, 24`
+  (REG-014 — `ext_ReadFolder` uses post-call `stosd` for file sizes at BDFE+32).
 * No `--disk ext` soak; attach-only exFAT A/B only.
 * Large blob (2822 B) due to triple inlined AL+T calendar path — acceptable for reloc-free discipline.
 

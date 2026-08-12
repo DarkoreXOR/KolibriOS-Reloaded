@@ -56,7 +56,7 @@ ext_read_all_times_rust_smoke_test:
         mov     esi, ext_rat_smoke_inode0
         lea     edi, [ext_rat_smoke_out0]
         call    ext_read_all_times
-        lea     edi, [ext_rat_smoke_out0+24]
+        ; REG-014: public trampoline must leave EDI = out+24 (ReadFolder stosd).
         cmp     edi, ext_rat_smoke_out0 + 24
         jne     .fail
         cmp     byte [ext_rat_smoke_out0], 0
@@ -94,6 +94,8 @@ ext_read_all_times_rust_smoke_test:
         mov     ebp, 0xD1000001
         lea     edi, [ext_rat_smoke_out1]
         call    ext_read_all_times
+        cmp     edi, ext_rat_smoke_out1 + 24
+        jne     .fail
         cmp     esi, ext_rat_smoke_inode1
         jne     .fail
         cmp     ebx, 0xB1000001

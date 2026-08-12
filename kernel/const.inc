@@ -285,13 +285,16 @@ SYS_SHUTDOWN        = OS_BASE + 0x000FF00
 
 
 ; Early boot stack top (physical/low identity).
-; Cut CE: 0x8CC00 → 0x8D000 (+1 KiB). Cut CF: → 0x8D800 (+2 KiB more).
-; Cut CI: → 0x8DC00 (+1 KiB). Cut CJ: → 0x8DD00 (+256 B).
-; Cut CK: → 0x8DF00 (+512 B). Cut CL: → 0x8DF80 (+128 B).
-; Proof (CL): end .bss @ OS_BASE+0x8CF43; assert needs page_plus 0x8DF43 < TMP;
-; 0x8DF00 failed by 0x43. Still below sys_proc @ 0x8E000 (gap 0x80).
-TMP_STACK_TOP       = 0x008DF80
+; Early stack top (physical offset). Must stay above end-.bss+PAGE_SIZE and
+; at or below sys_proc (page-aligned; PROC.pdt_0 requires sys_proc page-aligned).
+; Cut CE–CL history: raised stepwise to 0x8DF80 (gap 0x80 to sys_proc @ 0x8E000).
+; Cut CM / REG-012: do NOT move SLOT_BASE — APPDATA×256 must end at VGABasePtr
+; (0xA0000). Moving SLOT_BASE to 0x91000 overlapped VGA and broke @PANEL / app
+; launch. Keep sys_proc @ 0x8E000 packed against SLOT_BASE @ 0x90000; raise TMP
+; only within that gap after measured end-.bss (see cut-cm-implementation).
+TMP_STACK_TOP       = 0x008E000
 
+; Kernel PROC + PDT. Page-aligned; packed against SLOT_BASE (size 0x2000).
 sys_proc            = OS_BASE + 0x008E000
 
 SLOT_BASE           = OS_BASE + 0x0090000

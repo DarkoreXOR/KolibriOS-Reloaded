@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA/CB/CC/CD/CE/CF/CG/CH/CI/CJ/CK/CL
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA/CB/CC/CD/CE/CF/CG/CH/CI/CJ/CK/CL/CM
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
@@ -22,8 +22,9 @@
 //! reverse character search (`strrchr`), bounded padded
 //! copy (`strncpy`), C-string length (`strlen`), endian word-byte swap
 //! (`swap_bytes_in_words`), video `block_clip` + `blit_clip`, PE preferred-base
-//! DIR32 rebase, USB TD phys→virt, forward `memmove`, FAT `fat_get_sector`, and
-//! exFAT `exFAT_get_sector` for KolibriOS hybrid migration.
+//! DIR32 rebase, USB TD phys→virt, forward `memmove`, FAT `fat_get_sector`,
+//! exFAT `exFAT_get_sector`, and EXT `getInodeLocation` for KolibriOS hybrid
+//! migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -62,6 +63,7 @@ mod usb_td_to_virt;
 mod memmove;
 mod fat_get_sector;
 mod exfat_get_sector;
+mod get_inode_location;
 mod io_access;
 mod ipv4_find_fragment_slot;
 mod ipv4_route;
@@ -185,6 +187,10 @@ pub use fat_get_sector::{
 };
 pub use exfat_get_sector::{
     exfat_get_sector, exfat_get_sector_ptr, EXFAT_GET_SECTOR_PRNG_SEED,
+};
+pub use get_inode_location::{
+    get_inode_location, get_inode_location_math, get_inode_location_ptr,
+    GET_INODE_LOCATION_PRNG_SEED, BGDESCR_INODE_TABLE_HI, BGDESCR_INODE_TABLE_LO,
 };
 pub use get_pg_addr::{
     get_pg_addr, get_pg_addr_ptr, GET_PG_ADDR_PRNG_SEED, IDENTITY_WINDOW, OS_BASE as GET_PG_ADDR_OS_BASE,

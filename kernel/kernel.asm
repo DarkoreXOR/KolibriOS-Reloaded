@@ -118,7 +118,7 @@ B32:
 
 ; Clear kernel undefined globals and some more (what exactly?)
         mov     edi, endofcode - OS_BASE
-        mov     ecx, 0x90000    ; why uglobals_size isn't enough?
+        mov     ecx, SLOT_BASE - OS_BASE
         sub     ecx, edi
         shr     ecx, 2
         rep stosd
@@ -336,6 +336,10 @@ end if
         ; Cut CL: exFAT_get_sector smoke (Rust when USE_RUST_EXFAT_GET_SECTOR=1).
 if USE_RUST_EXFAT_GET_SECTOR
         call    exfat_get_sector_rust_smoke_test
+end if
+        ; Cut CM: getInodeLocation smoke (Rust when USE_RUST_GET_INODE_LOCATION=1).
+if USE_RUST_GET_INODE_LOCATION
+        call    get_inode_location_rust_smoke_test
 end if
         ; Cut BC: fat_name_is_legal smoke (Rust when USE_RUST_FAT_NAME_IS_LEGAL=1).
         call    fat_name_is_legal_rust_smoke_test

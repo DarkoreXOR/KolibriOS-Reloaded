@@ -33,6 +33,7 @@ use crate::usb_td_to_virt::usb_td_to_virt_ptr;
 use crate::memmove::memmove_ptr;
 use crate::fat_get_sector::fat_get_sector;
 use crate::exfat_get_sector::exfat_get_sector;
+use crate::get_inode_location::get_inode_location_ptr;
 use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_find_fragment_slot::ipv4_find_fragment_slot_ptr;
 use crate::ipv4_route::ipv4_route_ptr;
@@ -347,6 +348,45 @@ pub unsafe extern "stdcall" fn rust_exfat_get_sector(
     cluster_heap_start: u32,
 ) -> u32 {
     exfat_get_sector(cluster, sector_ofs, sectors_per_cluster, cluster_heap_start)
+}
+
+/// `stdcall` rust_get_inode_location(inode, ipg, table_lo, table_hi, spb,
+/// inode_size, out_hi, out_ofs) → EAX=sector_lo.
+///
+/// Cut CM: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 32 bytes (`ret 32`). FASM trampoline is register-ABI outer
+/// (EAX=inode, EBP→EXTFS*), performs `load_bgd_64`, injects scalars, writes
+/// `*out_hi` / `*out_ofs`, and preserves ESI/EDI/EBP (REG-001/011). EBX
+/// remains clobbered to match legacy. EDX:EAX = sector; ECX = in-sector ofs.
+///
+/// # Safety
+/// `out_hi` / `out_ofs` must be writable.
+#[no_mangle]
+#[link_section = ".text.rust_get_inode_location"]
+pub unsafe extern "stdcall" fn rust_get_inode_location(
+    inode: u32,
+    inodes_per_group: u32,
+    inode_table_lo: u32,
+    inode_table_hi: u32,
+    sectors_per_block: u32,
+    inode_size: u32,
+    out_hi: *mut u32,
+    out_ofs: *mut u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes out slots.
+    unsafe {
+        get_inode_location_ptr(
+            inode,
+            inodes_per_group,
+            inode_table_lo,
+            inode_table_hi,
+            sectors_per_block,
+            inode_size,
+            out_hi,
+            out_ofs,
+        )
+    }
 }
 
 /// `stdcall` rust_r_f_port_area(op, start, end, reserved_ports, tid, io_map) -> EAX.

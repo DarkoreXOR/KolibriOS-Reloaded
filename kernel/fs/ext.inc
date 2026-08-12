@@ -1146,6 +1146,59 @@ extfsGetExtent:
         clc
         ret
 
+; Cut CM: USE_RUST_GET_INODE_LOCATION=1 routes through Rust
+; rust_get_inode_location (see rust/get_inode_location.inc).
+; Set USE_RUST_GET_INODE_LOCATION=0 to restore the original FASM body
+; without deleting it. Independent of Cuts CC–CL.
+; Critical ABI: EAX=inode, EBP→EXTFS*; EDX:EAX=sector, ECX=ofs;
+; EBX clobbered; ESI/EDI/EBP preserved; DF unchanged; ret 0.
+; REG-001/011: trampoline preserves ESI/EDI/EBP.
+; REG-009: Rust ret 32 — trampoline must NOT add esp for Rust args.
+
+USE_RUST_GET_INODE_LOCATION = 1
+
+if USE_RUST_GET_INODE_LOCATION
+
+; Compatibility trampoline: register ABI → Rust stdcall → EDX:EAX/ECX.
+; Omit-FP: EBP→EXTFS must remain live (do not push ebp).
+; Performs load_bgd_64 then injects scalars (keeps Rust blob tiny).
+; No align — Stage-2 end-.bss is align-16 sensitive (REG-012).
+; REG-009: Rust ret 32 — trampoline must NOT add esp for Rust args.
+getInodeLocation:
+        push    esi
+        push    edi
+        mov     esi, eax                        ; inode
+        dec     eax
+        xor     edx, edx
+        div     dword [ebp+EXTFS.superblock.inodesPerGroup]
+        mov     cl, [ebp+EXTFS.descShift]
+        shl     eax, cl
+        add     eax, [ebp+EXTFS.descriptorTable]
+        mov     ebx, eax                        ; → BGDESCR
+        load_bgd_64 edx, edi, ebx, inodeTable   ; edx=hi, edi=lo
+        sub     esp, 8                          ; [esp]=out_hi [esp+4]=out_ofs
+        lea     eax, [esp+4]
+        push    eax                             ; out_ofs*
+        lea     eax, [esp+4]
+        push    eax                             ; out_hi*
+        movzx   eax, word [ebp+EXTFS.superblock.inodeSize]
+        push    eax
+        push    dword [ebp+EXTFS.sectorsPerBlock]
+        push    edx                             ; table_hi
+        push    edi                             ; table_lo
+        push    dword [ebp+EXTFS.superblock.inodesPerGroup]
+        push    esi                             ; inode
+        call    rust_get_inode_location         ; ret 32
+        mov     edx, [esp]                      ; sector_hi
+        mov     ecx, [esp+4]                    ; ofs
+        add     esp, 8
+        pop     edi
+        pop     esi
+        ; ebx left clobbered (matches legacy)
+        ret
+
+else
+
 getInodeLocation:
 ; in: eax = inode number
 ; out: edx:eax = inode sector, ecx = offset in sector
@@ -1170,6 +1223,8 @@ getInodeLocation:
         add     eax, ebx
         adc     edx, 0
         ret
+
+end if
 
 writeInode_no_cTime:
         push    edx
@@ -2467,15 +2522,20 @@ end if
 ; Set USE_RUST_EXT_READ_ALL_TIMES=0 to restore the original FASM body
 ; without deleting it. Independent of Cuts A–BQ.
 ; Critical ABI: register call; in ESI -> inode, EDI -> 3× BDFE out;
-; clobbers EAX/EDX/ECX/EDI (+24); composes Cut AL + T inlined in Rust.
+; clobbers EAX/EDX/ECX; EDI advanced +24 (legacy fsTime2bdfe fan-out);
+; ESI preserved. REG-014: Rust stdcall trampoline must `add edi, 24`.
 
 USE_RUST_EXT_READ_ALL_TIMES = 1
 
 if USE_RUST_EXT_READ_ALL_TIMES
 
+; Compatibility trampoline: ESI/EDI register ABI → Rust stdcall.
+; Legacy leaves EDI advanced by +24 (3× BDFE via fsTime2bdfe); stdcall
+; restores EDI, so we must add 24 here (REG-014 — ReadFolder stosd sizes).
 align 4
 ext_read_all_times:
         stdcall rust_ext_read_all_times, esi, edi
+        add     edi, 24
         ret
 
 else
@@ -2720,6 +2780,8 @@ ext_ReadFolder:
         jz      .utf8
         cmp     byte [edx+4], 2
         jz      .utf16
+        ; REG-013 / REG-001: Rust unicode stdcall clobbers EDX (BDFE cursor).
+        push    edx
 @@:
         call    unicode.utf8.decode
         call    unicode.cp866.encode
@@ -2727,8 +2789,9 @@ ext_ReadFolder:
         test    ecx, ecx
         jnz     @b
         and     byte [edi], 0
+        pop     edx
         add     edx, 40+264
-@@:
+.next_entry:
         pop     esi ecx edi ebx
         dec     ecx
 .empty_rec:
@@ -2748,9 +2811,11 @@ ext_ReadFolder:
         rep movsb
         mov     byte [edi], 0
         add     edx, 40+520
-        jmp     @b
+        jmp     .next_entry
 
 .utf16:
+        push    edx
+.utf16_loop:
         call    unicode.utf8.decode
         call    unicode.utf16.encode
         stosw
@@ -2759,10 +2824,11 @@ ext_ReadFolder:
         stosw
 .utf16_no_high:
         test    ecx, ecx
-        jnz     .utf16
+        jnz     .utf16_loop
         and     word [edi], 0
+        pop     edx
         add     edx, 40+520
-        jmp     @b
+        jmp     .next_entry
 
 .end_dir:
         mov     eax, [ebp+EXTFS.c_curino]

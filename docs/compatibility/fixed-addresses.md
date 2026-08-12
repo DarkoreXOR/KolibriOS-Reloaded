@@ -19,7 +19,7 @@ For each important address: contents, producers, consumers, ABI class.
 | `0x9000` | `BOOT_VARS` / `BOOT_LO` | `boot_data` (VESA, e820, disks, sys path, APM, …) | Boot path / loader | Kernel init, shutdown | **HARD_ABI** (boot protocol) |
 | `0x10000` | `KERNEL_BASE` | Kernel image load | Bootloader | CPU fetch pre-paging | **HARD_ABI** (load address) |
 | `0x100000` | `RAMDISK_BASE` | Ramdisk image (typical) | Loader / boot flags | `rd.inc` | **BEHAVIORAL** / boot-dependent |
-| `0x008DF80` | `TMP_STACK_TOP` | Early stack | `B32` | Early init | INTERNAL (raised from `0x008DF00` Cut CL 2026-08-13; was `0x008DD00` Cut CK / `0x008DC00` Cut CJ / `0x008D800` Cut CI / `0x008D000` pre-CF / `0x008CC00` pre-CE) |
+| `0x008E000` | `TMP_STACK_TOP` | Early stack | `B32` | Early init | INTERNAL (Cut CM / REG-012: raised from `0x008DF80` Cut CL to clear end-`.bss` with `sys_proc` packed at `0x8E000`; do **not** move `SLOT_BASE` — see REG-012) |
 
 ## Kernel fixed VAs (`OS_BASE=0x80000000`)
 
@@ -39,8 +39,8 @@ For each important address: contents, producers, consumers, ABI class.
 | `0x8000FE8C` | `MEM_AMOUNT` | Total RAM bytes | BEHAVIORAL | Also syscall-visible |
 | `0x8000FF00` | `SYS_SHUTDOWN` | Shutdown request | BEHAVIORAL | |
 | `0x80010000` | (memmap) | Kernel 32-bit code | INTERNAL | Equals `OS_BASE+KERNEL_BASE` |
-| `0x8008E000` | `sys_proc` | Kernel `PROC` + PDT | INTERNAL | |
-| `0x80090000` | `SLOT_BASE` | `APPDATA` × 256 | INTERNAL used externally | **memmap.inc wrongly documents `0x80080000`** |
+| `0x8008E000` | `sys_proc` | Kernel `PROC` + PDT | INTERNAL | Packed against `SLOT_BASE` (size `0x2000`); page-aligned for `PROC.pdt_0` |
+| `0x80090000` | `SLOT_BASE` | `APPDATA` × 256 | INTERNAL used externally | **Must end at `VGABasePtr`** (`+0x10000`); REG-012 forbids raising into VGA; **memmap.inc may still document stale VAs** |
 | `0x800A0000` | `VGABasePtr` | VGA window | MMIO-ish | |
 | `0x805FFF80` | `tss` | Shared TSS + I/O bitmaps | INTERNAL | |
 | `0x80800000` | `HEAP_BASE` | Kernel heap start | INTERNAL | |
@@ -75,4 +75,4 @@ See `PAGE_SIZE`, `PG_*`, `PDE_LARGE` in `const.inc` — ABI for drivers using `M
 
 ## Stale documentation warning
 
-**LOCAL FACT:** `memmap.inc` still describes “additional app info” at `0x80080000` with an old field layout. Live code uses `SLOT_BASE=0x80090000` and `struct APPDATA`. Prefer `const.inc`.
+**LOCAL FACT:** `memmap.inc` may still describe older “additional app info” / slot VAs. Live code uses `SLOT_BASE=0x80090000` and `struct APPDATA`. Prefer `const.inc`. `SLOT_BASE + 0x10000` must remain `VGABasePtr` (REG-012).
