@@ -140,6 +140,8 @@ include "rust/coff_get_align.inc"
 include "rust/v86_get_lin_addr.inc"
 ; Cut Q: UTF16to8 — Rust blob + smoke (USE_RUST_UTF16_TO_8=1; production ON)
 include "rust/utf16_to_8.inc"
+; Cut BP: UTF16to8_string — Rust blob + smoke (USE_RUST_UTF16_TO_8_STRING=1)
+include "rust/utf16_to_8_string.inc"
 ; Cut R: xfs._.extent_unpack — Rust blob + smoke (USE_RUST_XFS_EXTENT_UNPACK)
 include "rust/xfs_extent_unpack.inc"
 ; Cut S: window._.check_window_position — Rust blob + smoke (USE_RUST_CHECK_WINDOW_POSITION)

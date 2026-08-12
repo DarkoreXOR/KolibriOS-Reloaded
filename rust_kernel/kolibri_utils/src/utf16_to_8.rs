@@ -216,9 +216,230 @@ pub unsafe fn utf16_to_8_ptr(
     pack_sf_eax(r.sf, r.eax)
 }
 
+/// Cut BP differential PRNG seed (`'CUPB'`).
+pub const UTF16_TO_8_STRING_PRNG_SEED: u32 = 0x4355_5042;
+
+/// Observable exit state of one `UTF16to8_string` invocation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Utf16To8StringResult {
+    pub eax: u32,
+    pub esi: u32,
+    pub edi: u32,
+    pub ecx: u32,
+    pub sf: u32,
+    pub zf: u32,
+}
+
+#[inline(always)]
+pub fn pack_sf_zf_eax(sf: u32, zf: u32, eax: u32) -> u32 {
+    (sf << 31) | (zf << 30) | (eax & 0x3FFF_FFFF)
+}
+
+#[inline(always)]
+pub fn unpack_sf_zf_eax(packed: u32) -> (u32, u32, u32) {
+    ((packed >> 31) & 1, (packed >> 30) & 1, packed & 0x3FFF_FFFF)
+}
+
+#[inline(always)]
+pub fn trampoline_zf_from_packed(packed: u32) -> bool {
+    (packed & 0x3FFF_FFFF) == 0 && (packed & 0x4000_0000) != 0
+}
+
+#[inline(always)]
+fn utf16_to_8_one(ch: u16, dest: *mut u8, ecx: u32) -> Utf16To8Result {
+    unsafe { utf16_to_8(ch, dest, ecx) }
+}
+
+/// FASM-faithful `UTF16to8_string` (host tests + inlined by `rust_utf16_to_8_string`).
+#[inline(always)]
+pub unsafe fn utf16_to_8_string(
+    src: *const u8,
+    dest: *mut u8,
+    ecx_in: u32,
+) -> Utf16To8StringResult {
+    let mut esi = src as usize;
+    let mut edi = dest as usize;
+    let mut ecx = ecx_in;
+    let mut eax = 0u32;
+
+    loop {
+        let ax = unsafe { core::ptr::read_unaligned(esi as *const u16) };
+        esi += 2;
+        eax = (eax & 0xFFFF_0000) | u32::from(ax);
+
+        let r = utf16_to_8_one(ax, edi as *mut u8, ecx);
+        if r.sf != 0 {
+            return Utf16To8StringResult {
+                eax,
+                esi: esi as u32,
+                edi: if r.edi_delta != 0 {
+                    (edi + r.edi_delta as usize) as u32
+                } else {
+                    edi as u32
+                },
+                ecx: r.ecx,
+                sf: 1,
+                zf: 0,
+            };
+        }
+        ecx = r.ecx;
+        if r.edi_delta != 0 {
+            edi += r.edi_delta as usize;
+        }
+        if eax == 0 {
+            return Utf16To8StringResult {
+                eax: 0,
+                esi: esi as u32,
+                edi: edi as u32,
+                ecx,
+                sf: 0,
+                zf: 1,
+            };
+        }
+    }
+}
+
+#[inline(always)]
+pub unsafe fn utf16_to_8_string_ptr(
+    src: *const u8,
+    dest: *mut u8,
+    ecx_in: u32,
+    src_out: *mut u32,
+    dest_out: *mut u32,
+    ecx_out: *mut u32,
+) -> u32 {
+    let r = unsafe { utf16_to_8_string(src, dest, ecx_in) };
+    unsafe {
+        *src_out = r.esi;
+        *dest_out = r.edi;
+        *ecx_out = r.ecx;
+    }
+    pack_sf_zf_eax(r.sf, r.zf, r.eax)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn bp_seed_constant() {
+        assert_eq!(UTF16_TO_8_STRING_PRNG_SEED, 0x4355_5042);
+    }
+
+    #[test]
+    fn bp_direct_hello() {
+        let words: [u16; 6] = [
+            b'H' as u16,
+            b'e' as u16,
+            b'l' as u16,
+            b'l' as u16,
+            b'o' as u16,
+            0,
+        ];
+        let src: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
+        let mut buf = vec![0u8; 32];
+        let r = unsafe { utf16_to_8_string(src.as_ptr(), buf.as_mut_ptr(), 16) };
+        assert_eq!(r.zf, 1);
+        assert_eq!(&buf[..6], b"Hello\0");
+    }
+
+    fn string_oracle(words: &[u16], ecx_in: u32) -> (Utf16To8StringResult, Vec<u8>) {
+        let mut buf = vec![0xA5u8; 512];
+        let mut esi_off = 0usize;
+        let mut edi_off = 0usize;
+        let mut ecx = ecx_in;
+        let mut eax = 0u32;
+        while esi_off < words.len() {
+            let ax = words[esi_off];
+            esi_off += 1;
+            eax = (eax & 0xFFFF_0000) | u32::from(ax);
+            let r = unsafe { utf16_to_8(ax, buf.as_mut_ptr().add(edi_off), ecx) };
+            if r.sf != 0 {
+                return (
+                    Utf16To8StringResult {
+                        eax,
+                        esi: (esi_off * 2) as u32,
+                        edi: if r.edi_delta != 0 {
+                            (edi_off + r.edi_delta as usize) as u32
+                        } else {
+                            edi_off as u32
+                        },
+                        ecx: r.ecx,
+                        sf: 1,
+                        zf: 0,
+                    },
+                    buf,
+                );
+            }
+            ecx = r.ecx;
+            if r.edi_delta != 0 {
+                edi_off += r.edi_delta as usize;
+            }
+            if eax == 0 {
+                return (
+                    Utf16To8StringResult {
+                        eax: 0,
+                        esi: (esi_off * 2) as u32,
+                        edi: edi_off as u32,
+                        ecx,
+                        sf: 0,
+                        zf: 1,
+                    },
+                    buf,
+                );
+            }
+        }
+        panic!("oracle needs terminator");
+    }
+
+    fn run_string_words(words: &[u16], ecx_in: u32) {
+        let (oracle, o_buf) = string_oracle(words, ecx_in);
+        let mut buf = vec![0xA5u8; 512];
+        let src: Vec<u8> = words.iter().flat_map(|w| w.to_le_bytes()).collect();
+        let mut buf = vec![0xA5u8; 512];
+        let got = unsafe { utf16_to_8_string(src.as_ptr(), buf.as_mut_ptr(), ecx_in) };
+        assert_eq!(
+            (got.eax, got.ecx, got.sf, got.zf),
+            (oracle.eax, oracle.ecx, oracle.sf, oracle.zf),
+            "words={words:?} ecx_in={ecx_in:#x}"
+        );
+        #[cfg(target_pointer_width = "32")]
+        {
+            assert_eq!(got.esi, oracle.esi, "esi words={words:?}");
+            assert_eq!(got.edi, oracle.edi, "edi words={words:?}");
+        }
+        let o_len = oracle.edi as usize;
+        assert_eq!(&buf[..o_len], &o_buf[..o_len]);
+    }
+
+    #[test]
+    fn bp_overflow_mid_ascii() {
+        run_string_words(&[0x41, 0x41, 0], 1);
+    }
+
+    #[test]
+    fn bp_prng_50k_cupb() {
+        let mut s = UTF16_TO_8_STRING_PRNG_SEED;
+        for _ in 0..50_000 {
+            s ^= s << 13;
+            s ^= s >> 17;
+            s ^= s << 5;
+            let word_count = (s % 8) + 1;
+            s ^= s << 13;
+            s ^= s >> 17;
+            s ^= s << 5;
+            let ecx_in = s;
+            let mut words = Vec::with_capacity(word_count as usize + 1);
+            for _ in 0..word_count {
+                s ^= s << 13;
+                s ^= s >> 17;
+                s ^= s << 5;
+                words.push(s as u16);
+            }
+            words.push(0);
+            run_string_words(&words, ecx_in);
+        }
+    }
 
     /// Independent FASM instruction-sequence oracle (Step 1 truth table).
     /// Kept separate from [`utf16_to_8`] so differential tests are meaningful.

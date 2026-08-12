@@ -49,7 +49,7 @@ use crate::time::{
 };
 use crate::unicode::{cp866_decode, cp866_encode, utf16_encode, utf8_decode};
 use crate::userspace::{is_region_userspace, is_string_userspace};
-use crate::utf16_to_8::utf16_to_8_ptr;
+use crate::utf16_to_8::{utf16_to_8_ptr, pack_sf_zf_eax, utf16_to_8};
 use crate::utf8to16::utf8to16_ptr;
 use crate::window::check_window_position_ptr;
 use crate::xfs_extent::xfs_extent_unpack_ptr;
@@ -1294,6 +1294,57 @@ pub unsafe extern "stdcall" fn rust_utf16_to_8(
 ) -> u32 {
     // SAFETY: future kernel trampoline passes valid EDI/ECX slots.
     unsafe { utf16_to_8_ptr(ch, dest_inout, ecx_inout) }
+}
+
+/// `stdcall` rust_utf16_to_8_string(...) -> packed (SF<<31)|(ZF<<30)|EAX.
+#[no_mangle]
+#[link_section = ".text.rust_utf16_to_8_string"]
+pub unsafe extern "stdcall" fn rust_utf16_to_8_string(
+    src: *const u8,
+    dest: *mut u8,
+    ecx_in: u32,
+    src_out: *mut u32,
+    dest_out: *mut u32,
+    ecx_out: *mut u32,
+) -> u32 {
+    use crate::utf16_to_8::{pack_sf_zf_eax, utf16_to_8};
+
+    let mut esi = src as usize;
+    let mut edi = dest as usize;
+    let mut ecx = ecx_in;
+    let mut eax = 0u32;
+
+    loop {
+        let ax = unsafe { core::ptr::read_unaligned(esi as *const u16) };
+        esi += 2;
+        eax = (eax & 0xFFFF_0000) | u32::from(ax);
+
+        let r = unsafe { utf16_to_8(ax, edi as *mut u8, ecx) };
+        if r.sf != 0 {
+            unsafe {
+                *src_out = esi as u32;
+                *dest_out = if r.edi_delta != 0 {
+                    (edi + r.edi_delta as usize) as u32
+                } else {
+                    edi as u32
+                };
+                *ecx_out = r.ecx;
+            }
+            return pack_sf_zf_eax(1, 0, eax);
+        }
+        ecx = r.ecx;
+        if r.edi_delta != 0 {
+            edi += r.edi_delta as usize;
+        }
+        if eax == 0 {
+            unsafe {
+                *src_out = esi as u32;
+                *dest_out = edi as u32;
+                *ecx_out = ecx;
+            }
+            return pack_sf_zf_eax(0, 1, 0);
+        }
+    }
 }
 
 /// `stdcall` rust_xfs_extent_unpack(extent_data, extent_out).

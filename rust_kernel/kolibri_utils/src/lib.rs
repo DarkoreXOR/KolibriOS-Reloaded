@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
@@ -225,8 +225,10 @@ pub use userspace::{
     trampoline_zf_from_rust_return, IS_REGION_USERSPACE_PRNG_SEED, IS_STRING_USERSPACE_PRNG_SEED,
 };
 pub use utf16_to_8::{
-    pack_sf_eax, trampoline_eax_from_packed, trampoline_sf_from_packed, unpack_sf_eax, utf16_to_8,
-    utf16_to_8_ptr, Utf16To8Result, UTF16_TO_8_PRNG_SEED,
+    pack_sf_eax, pack_sf_zf_eax, trampoline_eax_from_packed, trampoline_sf_from_packed,
+    trampoline_zf_from_packed, unpack_sf_eax, unpack_sf_zf_eax, utf16_to_8, utf16_to_8_ptr,
+    utf16_to_8_string, utf16_to_8_string_ptr, Utf16To8Result, Utf16To8StringResult,
+    UTF16_TO_8_PRNG_SEED, UTF16_TO_8_STRING_PRNG_SEED,
 };
 pub use utf8to16::{utf8to16, utf8to16_ptr, Utf8To16Result, UTF8TO16_PRNG_SEED};
 pub use v86_get_lin_addr::{

@@ -307,6 +307,51 @@ cp866toUTF8_string:
 ; SF=1 -> counter
 ; ZF=1 -> zero char
 
+; Cut BP: USE_RUST_UTF16_TO_8_STRING=1 routes through Rust rust_utf16_to_8_string
+; (see rust/utf16_to_8_string.inc). Set USE_RUST_UTF16_TO_8_STRING=0 to restore
+; the original FASM body without deleting it. Independent of Cuts A–BO.
+
+USE_RUST_UTF16_TO_8_STRING = 1
+
+if USE_RUST_UTF16_TO_8_STRING
+
+align 4
+UTF16to8_string:
+;   in:
+; esi -> UTF-16 string (could be zero terminated)
+; edi -> buffer for UTF-8 string
+; ecx = buffer size (signed)
+        push    ebx
+        push    edx
+        push    ebp
+
+        mov     ebx, esi
+        mov     ebp, edi
+
+        sub     esp, 12
+        lea     eax, [esp]
+        lea     esi, [esp+4]
+        lea     edi, [esp+8]
+        stdcall rust_utf16_to_8_string, ebx, ebp, ecx, eax, esi, edi
+
+        mov     edx, eax                ; packed (SF<<31)|(ZF<<30)|code_unit
+        mov     esi, [esp]
+        mov     edi, [esp+4]
+        mov     ecx, [esp+8]
+        add     esp, 12
+
+        mov     ebx, edx                ; ebx = packed (caller EBX on stack)
+        mov     eax, edx
+        and     eax, 0x3FFFFFFF         ; EAX = code unit for test eax,eax
+        test    ebx, ebx                ; SF = bit 31 of packed
+
+        pop     ebp
+        pop     edx
+        pop     ebx
+        ret
+
+else
+
 UTF16to8_string:
 ;   in:
 ; esi -> UTF-16 string (could be zero terminated)
@@ -323,6 +368,8 @@ UTF16to8_string:
         jnz     @b
 @@:
         ret
+
+end if
 
 ; Cut Q: USE_RUST_UTF16_TO_8=1 routes through Rust rust_utf16_to_8
 ; (see rust/utf16_to_8.inc). Set USE_RUST_UTF16_TO_8=0 to restore the

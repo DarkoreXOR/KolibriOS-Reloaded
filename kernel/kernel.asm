@@ -310,6 +310,8 @@ high_code:
         ; Cut BE: hotkey_do_test smoke (Rust when USE_RUST_HOTKEY_DO_TEST=1).
         call    hotkey_do_test_rust_smoke_test
         call    utf16_to_8_rust_smoke_test
+        ; Cut BP: UTF16to8_string smoke (Rust when USE_RUST_UTF16_TO_8_STRING=1).
+        call    utf16_to_8_string_rust_smoke_test
         call    utf8to16_rust_smoke_test
         ; Cut R: xfs._.extent_unpack smoke (Rust trampoline when USE_RUST_XFS_EXTENT_UNPACK=1).
         call    xfs_extent_unpack_rust_smoke_test
