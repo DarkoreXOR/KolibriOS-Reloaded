@@ -142,6 +142,8 @@ include "rust/v86_get_lin_addr.inc"
 include "rust/utf16_to_8.inc"
 ; Cut BP: UTF16to8_string — Rust blob + smoke (USE_RUST_UTF16_TO_8_STRING=1)
 include "rust/utf16_to_8_string.inc"
+; Cut BQ: cp866toUTF8_string — Rust blob + smoke (USE_RUST_CP866_TO_UTF8_STRING=1)
+include "rust/cp866_to_utf8_string.inc"
 ; Cut R: xfs._.extent_unpack — Rust blob + smoke (USE_RUST_XFS_EXTENT_UNPACK)
 include "rust/xfs_extent_unpack.inc"
 ; Cut S: window._.check_window_position — Rust blob + smoke (USE_RUST_CHECK_WINDOW_POSITION)

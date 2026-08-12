@@ -288,6 +288,52 @@ ansi2uni_char:
 
 end if
 
+; Cut BQ: USE_RUST_CP866_TO_UTF8_STRING=1 routes through Rust rust_cp866_to_utf8_string
+; (see rust/cp866_to_utf8_string.inc). Set USE_RUST_CP866_TO_UTF8_STRING=0 to restore
+; the original FASM body without deleting it. Independent of Cuts A–BP.
+
+USE_RUST_CP866_TO_UTF8_STRING = 1
+
+if USE_RUST_CP866_TO_UTF8_STRING
+
+align 4
+cp866toUTF8_string:
+;   in:
+; esi -> cp866 string (could be zero terminated)
+; edi -> buffer for UTF-8 string
+; ecx = buffer size (signed)
+        push    ebx
+        push    edx
+        push    ebp
+
+        mov     ebx, esi
+        mov     ebp, edi
+
+        sub     esp, 12
+        lea     eax, [esp]
+        lea     esi, [esp+4]
+        lea     edi, [esp+8]
+        stdcall rust_cp866_to_utf8_string, ebx, ebp, ecx, eax, esi, edi
+
+        mov     edx, eax                ; packed (SF<<31)|(ZF<<30)|code_unit
+        mov     esi, [esp]
+        mov     edi, [esp+4]
+        mov     ecx, [esp+8]
+        add     esp, 12
+
+        mov     ebx, edx                ; ebx = packed (caller EBX on stack)
+        mov     eax, edx
+        and     eax, 0x3FFFFFFF         ; EAX = code unit for test eax,eax
+        test    ebx, ebx                ; SF = bit 31 of packed
+
+        pop     ebp
+        pop     edx
+        pop     ebx
+        ret
+
+else
+
+; --- original FASM implementation (rollback) ---
 cp866toUTF8_string:
 ;   in:
 ; esi -> cp866 string (could be zero terminated)
@@ -303,6 +349,8 @@ cp866toUTF8_string:
         jnz     cp866toUTF8_string
 @@:
         ret
+
+end if
 
 ; SF=1 -> counter
 ; ZF=1 -> zero char

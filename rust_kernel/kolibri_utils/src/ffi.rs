@@ -11,6 +11,7 @@ use crate::ahci_is_sig_known::ahci_is_sig_known;
 use crate::app_header::test_app_header_ptr;
 use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
+use crate::cp866_to_utf8_string::cp866_to_utf8_string_ptr;
 use crate::coff_get_align::coff_get_align_ptr;
 use crate::v86_get_lin_addr::v86_get_lin_addr_ptr;
 use crate::coff_reloc::fix_coff_relocs_ptr;
@@ -1294,6 +1295,21 @@ pub unsafe extern "stdcall" fn rust_utf16_to_8(
 ) -> u32 {
     // SAFETY: future kernel trampoline passes valid EDI/ECX slots.
     unsafe { utf16_to_8_ptr(ch, dest_inout, ecx_inout) }
+}
+
+/// `stdcall` rust_cp866_to_utf8_string(...) -> packed (SF<<31)|(ZF<<30)|EAX.
+#[no_mangle]
+#[link_section = ".text.rust_cp866_to_utf8_string"]
+pub unsafe extern "stdcall" fn rust_cp866_to_utf8_string(
+    src: *const u8,
+    dest: *mut u8,
+    ecx_in: u32,
+    src_out: *mut u32,
+    dest_out: *mut u32,
+    ecx_out: *mut u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes valid out-slots and readable/writable buffers.
+    unsafe { cp866_to_utf8_string_ptr(src, dest, ecx_in, src_out, dest_out, ecx_out) }
 }
 
 /// `stdcall` rust_utf16_to_8_string(...) -> packed (SF<<31)|(ZF<<30)|EAX.
