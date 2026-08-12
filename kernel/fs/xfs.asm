@@ -1457,11 +1457,40 @@ proc xfs._.get_inode_number_sf
         ret
 endp
 
+; Cut BN: USE_RUST_XFS_CONV_TIME_TO_KOS_EPOCH=1 routes through Rust
+; rust_xfs_conv_time_to_kos_epoch (see rust/xfs_conv_time_to_kos_epoch.inc).
+; Set USE_RUST_XFS_CONV_TIME_TO_KOS_EPOCH=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A-BM.
+; Critical ABI: ECX->DQ (hi_be seconds since 2001 at +0); EDI->BDFE out;
+; EDI+=8 via fsTime2bdfe; low dword ignored.
+
+USE_RUST_XFS_CONV_TIME_TO_KOS_EPOCH = 1
+
+if USE_RUST_XFS_CONV_TIME_TO_KOS_EPOCH
+
+; Compatibility trampoline: movbe hi_be seconds -> Rust BDFE writer, then
+; `add edi, 8` to match the public ABI. Low dword is intentionally ignored.
+; Callers keep `call [ebp+XFS.conv_time_to_kos_epoch]` with ECX->DQ / EDI->BDFE.
+; EAX/EBX/ECX/EDX may be clobbered (matches original FASM + fsTime2bdfe).
+; ESI/EBP preserved (stdcall callee-saved; XFS object lives in EBP).
+align 4
+xfs._.conv_time_to_kos_epoch:
+        movbe   eax, [ecx+DQ.hi_be]
+        push    edi
+        push    eax
+        call    rust_xfs_conv_time_to_kos_epoch
+        add     edi, 8
+        ret
+
+else
+
 proc xfs._.conv_time_to_kos_epoch
         movbe   eax, [ecx+DQ.hi_be]
         call    fsTime2bdfe
         ret
 endp
+
+end if
 
 ; Cut AK: USE_RUST_XFS_CONV_BIGTIME_TO_KOS_EPOCH=1 routes through Rust
 ; rust_xfs_bigtime_to_secs (see rust/xfs_conv_bigtime_to_kos_epoch.inc).

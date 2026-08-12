@@ -40,6 +40,13 @@ probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_xfs_conv_time_to_kos_epoch"
+symbol = "rust_xfs_conv_time_to_kos_epoch"
+expect_ret_imm = 8
+out = "rust_xfs_conv_time_to_kos_epoch.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_ahci_is_sig_known"
 symbol = "rust_ahci_is_sig_known"
 expect_ret_imm = 4
@@ -524,6 +531,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "BN"
+blob = "rust_xfs_conv_time_to_kos_epoch.bin"
+symbol = "rust_xfs_conv_time_to_kos_epoch"
+gate = "USE_RUST_XFS_CONV_TIME_TO_KOS_EPOCH"
+include = "kernel/rust/xfs_conv_time_to_kos_epoch.inc"
+gate_file = "kernel/fs/xfs.asm"
+enabled = true
+
 [[rust.migrations]]
 cut = "BM"
 blob = "rust_ahci_is_sig_known.bin"

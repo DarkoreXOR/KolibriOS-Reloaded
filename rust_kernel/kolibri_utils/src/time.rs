@@ -37,6 +37,9 @@ pub const XFS_BIGTIME_TO_KOS_OFFSET_NS: u64 =
 /// PRNG seed for Cut AK differential corpus (`'CUTK'`).
 pub const XFS_CONV_BIGTIME_TO_KOS_EPOCH_PRNG_SEED: u32 = 0x4355_544B;
 
+/// PRNG seed for Cut BN differential corpus (`'CUTN'`).
+pub const XFS_CONV_TIME_TO_KOS_EPOCH_PRNG_SEED: u32 = 0x4355_544E;
+
 /// Unix epoch → Kolibri 2001-01-01 seconds (`fs_lfn.inc` / `ext.inc`).
 /// FASM `(365*31+8)*24*60*60` = 978_307_200.
 pub const UNIXTIME_TO_KOS_OFFSET: u32 = 978_307_200;
@@ -479,6 +482,29 @@ pub fn fat_time_to_bdfe(fat_time: u32) -> u32 {
 #[inline(always)]
 pub unsafe fn xfs_conv_bigtime_to_kos_epoch_ptr(bigtime_lo: u32, bigtime_hi: u32, out: *mut u8) {
     let t = xfs_conv_bigtime_to_kos_epoch(bigtime_lo, bigtime_hi);
+    let b = t.to_bytes();
+    // SAFETY: caller guarantees 8 writable bytes (kernel trampoline / tests).
+    unsafe {
+        core::ptr::copy_nonoverlapping(b.as_ptr(), out, 8);
+    }
+}
+
+/// Convert classic XFS on-disk seconds (native after `movbe`) to BDFE datetime.
+///
+/// Mirrors `xfs._.conv_time_to_kos_epoch` in `xfs.asm`: `movbe eax, [ecx+DQ.hi_be]`
+/// then `call fsTime2bdfe`. The low dword of the on-disk DQ is ignored.
+#[inline(always)]
+pub fn xfs_conv_time_to_kos_epoch(secs: u32) -> BdfeTime {
+    fs_time2bdfe(secs)
+}
+
+/// Pointer form used by the FFI trampoline — writes 8 BDFE bytes at `out`.
+///
+/// # Safety
+/// `out` must point to a writable 8-byte BDFE datetime block.
+#[inline(always)]
+pub unsafe fn xfs_conv_time_to_kos_epoch_ptr(secs: u32, out: *mut u8) {
+    let t = xfs_conv_time_to_kos_epoch(secs);
     let b = t.to_bytes();
     // SAFETY: caller guarantees 8 writable bytes (kernel trampoline / tests).
     unsafe {
@@ -1379,6 +1405,93 @@ mod tests {
         }
     }
 
+    // ----- Cut BN: xfs._.conv_time_to_kos_epoch -----
+
+    #[test]
+    fn xfs_time_epoch_2001() {
+        assert_eq!(xfs_conv_time_to_kos_epoch(0), t(2001, 1, 1, 0, 0, 0));
+    }
+
+    #[test]
+    fn xfs_time_one_second() {
+        assert_eq!(xfs_conv_time_to_kos_epoch(1), t(2001, 1, 1, 0, 0, 1));
+    }
+
+    #[test]
+    fn xfs_time_leap_2004_02_29() {
+        assert_eq!(xfs_conv_time_to_kos_epoch(99_705_600), t(2004, 2, 29, 0, 0, 0));
+    }
+
+    #[test]
+    fn xfs_time_2010_07_04_noon() {
+        assert_eq!(xfs_conv_time_to_kos_epoch(299_937_600), t(2010, 7, 4, 12, 0, 0));
+    }
+
+    #[test]
+    fn xfs_time_end_of_day() {
+        assert_eq!(xfs_conv_time_to_kos_epoch(86_399), t(2001, 1, 1, 23, 59, 59));
+    }
+
+    #[test]
+    fn xfs_time_ptr_writes_layout() {
+        let mut buf = [0xAAu8; 8];
+        unsafe { xfs_conv_time_to_kos_epoch_ptr(86_399, buf.as_mut_ptr()) };
+        assert_eq!(buf[0], 59);
+        assert_eq!(buf[1], 59);
+        assert_eq!(buf[2], 23);
+        assert_eq!(buf[3], 0);
+        assert_eq!(buf[4], 1);
+        assert_eq!(buf[5], 1);
+        assert_eq!(u16::from_le_bytes([buf[6], buf[7]]), 2001);
+    }
+
+    #[test]
+    fn xfs_time_oracle_named_and_boundary() {
+        let vectors: &[u32] = &[
+            0,
+            1,
+            59,
+            60,
+            3_599,
+            3_600,
+            86_399,
+            86_400,
+            99_705_600,
+            299_937_600,
+            365 * 86_400,
+            366 * 86_400,
+            1_461 * 86_400,
+            u32::MAX,
+        ];
+        for &secs in vectors {
+            assert_eq!(
+                xfs_conv_time_to_kos_epoch(secs),
+                fasm_oracle_xfs_conv_time_to_kos_epoch(secs),
+                "secs={secs}"
+            );
+        }
+    }
+
+    #[test]
+    fn xfs_time_prng_oracle_50k() {
+        const CASES: usize = 50_000;
+        let mut state = XFS_CONV_TIME_TO_KOS_EPOCH_PRNG_SEED;
+        let mut next = || -> u32 {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            state
+        };
+        for i in 0..CASES {
+            let secs = next();
+            assert_eq!(
+                xfs_conv_time_to_kos_epoch(secs),
+                fasm_oracle_xfs_conv_time_to_kos_epoch(secs),
+                "prng#{i} secs={secs}"
+            );
+        }
+    }
+
     // ----- Cut AL: ext_read_time -----
 
     #[test]
@@ -1770,6 +1883,13 @@ pub fn fasm_oracle_xfs_bigtime_to_secs(bigtime_lo: u32, bigtime_hi: u32) -> u32 
 #[cfg(test)]
 pub fn fasm_oracle_xfs_conv_bigtime_to_kos_epoch(bigtime_lo: u32, bigtime_hi: u32) -> BdfeTime {
     fasm_oracle_fs_time2bdfe(fasm_oracle_xfs_bigtime_to_secs(bigtime_lo, bigtime_hi))
+}
+
+/// FASM-faithful host oracle for `xfs._.conv_time_to_kos_epoch` — mirrors the
+/// classic XFS `movbe eax, [ecx+DQ.hi_be]` then `call fsTime2bdfe` composition.
+#[cfg(test)]
+pub fn fasm_oracle_xfs_conv_time_to_kos_epoch(secs: u32) -> BdfeTime {
+    fasm_oracle_fs_time2bdfe(secs)
 }
 
 /// FASM-faithful EXT Unix→secs oracle (`ext.inc` epoch-bits / sign / clamp).

@@ -45,6 +45,7 @@ use crate::tcp::{tcp_outflags_ptr, tcp_set_persist_ptr, tcp_xmit_timer_ptr};
 use crate::time::{
     ext_unix_to_secs, fat_time_to_bdfe, fs_calculate_time_ptr, fs_time2bdfe_ptr,
     ntfs_calculate_time_ptr, ntfs_datetime_to_bdfe_ptr, xfs_bigtime_to_secs,
+    xfs_conv_time_to_kos_epoch_ptr,
 };
 use crate::unicode::{cp866_decode, cp866_encode, utf16_encode, utf8_decode};
 use crate::userspace::{is_region_userspace, is_string_userspace};
@@ -633,6 +634,24 @@ pub unsafe extern "stdcall" fn rust_ntfs_datetime_to_bdfe(
 #[link_section = ".text.rust_xfs_bigtime_to_secs"]
 pub extern "stdcall" fn rust_xfs_bigtime_to_secs(bigtime_lo: u32, bigtime_hi: u32) -> u32 {
     xfs_bigtime_to_secs(bigtime_lo, bigtime_hi)
+}
+
+/// `stdcall` rust_xfs_conv_time_to_kos_epoch(secs, out) — writes 8-byte BDFE at `out`.
+///
+/// Cut BN: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). FASM trampoline `movbe`-loads the high
+/// dword from the XFS on-disk DQ, passes `EDI` as `out`, then performs
+/// `add edi, 8` to match the public ABI. The low dword is intentionally ignored,
+/// just like legacy FASM.
+///
+/// # Safety
+/// `out` must point to a writable 8-byte BDFE datetime block.
+#[no_mangle]
+#[link_section = ".text.rust_xfs_conv_time_to_kos_epoch"]
+pub unsafe extern "stdcall" fn rust_xfs_conv_time_to_kos_epoch(secs: u32, out: *mut u8) {
+    // SAFETY: kernel trampoline passes EDI → valid BDFE out block.
+    unsafe { xfs_conv_time_to_kos_epoch_ptr(secs, out) }
 }
 
 /// `stdcall` rust_ext_unix_to_secs(i_time, extra) -> EAX seconds since 2001-01-01.

@@ -1,8 +1,8 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
-//! encoding copy, XFS v5 bigtime→BDFE,
+//! encoding copy, XFS v5 bigtime→BDFE + classic seconds→BDFE,
 //! EXT Unix→BDFE, FAT packed-time→BDFE, video geometry, NTFS MCB decode+encode, NTFS USA restore,
 //! FAT 8.3 short-name collision + LFN→8.3 generator + LFN charset legality, HID mouse acceleration
 //! + hotkey field match, TCP RTT estimator + persist-timer arming + state→header flags, GUI font
@@ -210,11 +210,13 @@ pub use time::{
     filetime_from_secs_2001, fs_calculate_time, fs_time2bdfe, fs_time2bdfe_ptr, ntfs_calculate_time,
     ntfs_calculate_time_ptr, ntfs_datetime_to_bdfe, ntfs_datetime_to_bdfe_ptr, ntfs_filetime_to_secs,
     pack_bigtime_be, pack_filetime, xfs_bigtime_to_secs, xfs_conv_bigtime_to_kos_epoch,
-    xfs_conv_bigtime_to_kos_epoch_ptr, BdfeTime, EXT_READ_TIME_PRNG_SEED, FAT_TIME_TO_BDFE_PRNG_SEED,
-    NTFS_CALCULATE_TIME_PRNG_SEED, NTFS_DATETIME_TO_BDFE_PRNG_SEED, NTFS_FILETIME_BIAS_HI,
-    NTFS_FILETIME_BIAS_LO, NTFS_FILETIME_PER_SEC, UNIXTIME_TO_KOS_OFFSET,
-    XFS_BIGTIME_TO_KOS_OFFSET_NS, XFS_BIGTIME_TO_KOS_OFFSET_NS_HI, XFS_BIGTIME_TO_KOS_OFFSET_NS_LO,
-    XFS_CONV_BIGTIME_TO_KOS_EPOCH_PRNG_SEED, XFS_NANOSEC_PER_SEC,
+    xfs_conv_bigtime_to_kos_epoch_ptr, xfs_conv_time_to_kos_epoch, xfs_conv_time_to_kos_epoch_ptr,
+    BdfeTime, EXT_READ_TIME_PRNG_SEED, FAT_TIME_TO_BDFE_PRNG_SEED, NTFS_CALCULATE_TIME_PRNG_SEED,
+    NTFS_DATETIME_TO_BDFE_PRNG_SEED, NTFS_FILETIME_BIAS_HI, NTFS_FILETIME_BIAS_LO,
+    NTFS_FILETIME_PER_SEC, UNIXTIME_TO_KOS_OFFSET, XFS_BIGTIME_TO_KOS_OFFSET_NS,
+    XFS_BIGTIME_TO_KOS_OFFSET_NS_HI, XFS_BIGTIME_TO_KOS_OFFSET_NS_LO,
+    XFS_CONV_BIGTIME_TO_KOS_EPOCH_PRNG_SEED, XFS_CONV_TIME_TO_KOS_EPOCH_PRNG_SEED,
+    XFS_NANOSEC_PER_SEC,
 };
 pub use unicode::{cp866_decode, cp866_encode, utf16_encode, utf8_decode, ANSI2UNI_CHAR_PRNG_SEED};
 pub use userspace::{

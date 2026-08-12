@@ -333,6 +333,8 @@ high_code:
         call    iso9660_copy_name_rust_smoke_test
         ; Cut AK: xfs._.conv_bigtime_to_kos_epoch smoke (Rust when USE_RUST_XFS_CONV_BIGTIME_TO_KOS_EPOCH=1).
         call    xfs_conv_bigtime_to_kos_epoch_rust_smoke_test
+        ; Cut BN: xfs._.conv_time_to_kos_epoch smoke (Rust when USE_RUST_XFS_CONV_TIME_TO_KOS_EPOCH=1).
+        call    xfs_conv_time_to_kos_epoch_rust_smoke_test
         ; Cut AL: ext_read_time smoke (Rust when USE_RUST_EXT_READ_TIME=1).
         call    ext_read_time_rust_smoke_test
         ; Cut AM: xfs._.get_before_by_hashval smoke (Rust when USE_RUST_XFS_GET_BEFORE_BY_HASHVAL=1).
