@@ -56,6 +56,7 @@ mod geometry;
 mod get_coff_sym;
 mod get_proc_ex;
 mod get_pg_addr;
+mod rebase_coff;
 mod io_access;
 mod ipv4_find_fragment_slot;
 mod ipv4_route;
@@ -165,6 +166,10 @@ pub use get_proc_ex::{
     get_proc_ex, get_proc_ex_ptr, get_proc_ex_with_base, GET_PROC_EX_PRNG_SEED, NAME_CMP_LEN,
     OFF_ADDRESS_OF_FUNCTIONS, OFF_ADDRESS_OF_NAMES, OFF_NUMBER_OF_NAMES,
     OS_BASE as GET_PROC_EX_OS_BASE,
+};
+pub use rebase_coff::{
+    rebase_coff, rebase_coff_buffered, rebase_coff_ptr, REBASE_COFF_PRNG_SEED,
+    RELOC_TYPE_DIR32 as REBASE_RELOC_TYPE_DIR32,
 };
 pub use get_pg_addr::{
     get_pg_addr, get_pg_addr_ptr, GET_PG_ADDR_PRNG_SEED, IDENTITY_WINDOW, OS_BASE as GET_PG_ADDR_OS_BASE,

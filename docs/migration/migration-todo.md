@@ -4,10 +4,10 @@
 Rust hybrid migration scope. One-time project map; update when a Cut
 completes or the scoped candidate set changes.
 
-**Last inventory baseline:** post-Cut CG (2026-08-12).
+**Last inventory baseline:** post-Cut CH (2026-08-12).
 
 **Gates source of truth:** `project/build.toml` `[[rust.migrations]]`
-(88 production entries, all `enabled = true` after CG).
+(89 production entries, all `enabled = true` after CH).
 
 ---
 
@@ -190,7 +190,7 @@ leaves. Path A rejections are recorded in cut plans, not as fake completions.
 - [x] `coff_get_align` — Cut BK
 - [x] `fix_coff_symbols` — Cut BU
 - [x] `get_proc_ex` — Cut CG
-- [ ] `rebase_coff` — deferred: Y mutate anti-cluster
+- [x] `rebase_coff` — Cut CH
 
 ## core/memory
 
@@ -298,7 +298,7 @@ Documented across Cuts AO–AZ plans:
 - AN inverse (`uni2ansi_char`) — **BZ closed** (public encode leaf; Cut A export path separate)
 - AW address-math siblings (`exFAT_get_sector`, `fat_get_sector`, `getInodeLocation`)
 - AS/AY socket anti-cluster (`socket_check_port`, `socket_num_to_ptr`, …)
-- PE Y mutate anti-cluster (`rebase_coff`)
+- PE Y mutate anti-cluster (`rebase_coff`) — **CH closed**
 - USB weak soak (`usb_td_to_virt`)
 
 ---
@@ -307,9 +307,9 @@ Documented across Cuts AO–AZ plans:
 
 **Functions completed / functions total**
 
-`88 / 135`
+`89 / 135`
 
-(Mechanically: `88` `[x]` + `47` `[ ]` = `135`.)
+(Mechanically: `89` `[x]` + `46` `[ ]` = `135`.)
 
 When a new Cut completes: mark its `[ ]` → `[x]`, move the note to the Cut id,
 and update this counter so it still matches the checklist.

@@ -27,6 +27,7 @@ use crate::fs_operation_safe::file_system_is_operation_safe_ptr;
 use crate::geometry::{block_clip_ptr, blit_clip_ptr};
 use crate::get_coff_sym::get_coff_sym_ptr;
 use crate::get_proc_ex::get_proc_ex_ptr;
+use crate::rebase_coff::rebase_coff_ptr;
 use crate::get_pg_addr::get_pg_addr_ptr;
 use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_find_fragment_slot::ipv4_find_fragment_slot_ptr;
@@ -378,6 +379,24 @@ pub unsafe extern "stdcall" fn rust_get_coff_sym(
 pub unsafe extern "stdcall" fn rust_get_proc_ex(proc_name: *const u8, imports: u32) -> u32 {
     // SAFETY: kernel trampoline / fix_coff_symbols callback passes live args.
     unsafe { get_proc_ex_ptr(proc_name, imports) }
+}
+
+/// `stdcall` rust_rebase_coff(coff, sym, delta) -> void.
+///
+/// Cut CH: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). Matches legacy
+/// `proc rebase_coff stdcall uses ebx esi`. `sym` is unused (ABI parity).
+/// FASM trampoline preserves EBX/ECX/EDX/ESI/EDI/EBP (REG-001/011).
+///
+/// # Safety
+/// `coff` must describe a valid COFF image; every patch address
+/// `reloc.VA + sec.VA + delta` must be a writable dword.
+#[no_mangle]
+#[link_section = ".text.rust_rebase_coff"]
+pub unsafe extern "stdcall" fn rust_rebase_coff(coff: *mut u8, sym: *const u8, delta: u32) {
+    // SAFETY: kernel trampoline / load_library passes live COFF pointers.
+    unsafe { rebase_coff_ptr(coff, sym, delta) }
 }
 
 /// `stdcall` rust_ipv4_find_fragment_slot(packet, fragments, count) -> EAX.

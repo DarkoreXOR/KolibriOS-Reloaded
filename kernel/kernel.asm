@@ -310,6 +310,9 @@ end if
 if USE_RUST_GET_PROC_EX
         call    get_proc_ex_rust_smoke_test
 end if
+if USE_RUST_REBASE_COFF
+        call    rebase_coff_rust_smoke_test
+end if
         call    tcp_xmit_timer_rust_smoke_test
         call    anti_aliasing_rust_smoke_test
         call    test_app_header_rust_smoke_test

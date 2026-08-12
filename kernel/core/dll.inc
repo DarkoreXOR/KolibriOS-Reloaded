@@ -872,6 +872,29 @@ endp
 
 end if
 
+; Cut CH: USE_RUST_REBASE_COFF=1 routes through Rust
+; rust_rebase_coff (see rust/rebase_coff.inc).
+; Set USE_RUST_REBASE_COFF=0 to restore the original FASM body
+; without deleting it. Independent of Cuts Y/AT/BK/BU/CG.
+; REG-001/011: trampoline preserves EBX/ECX/EDX/ESI/EDI/EBP.
+; REG-009: rust_rebase_coff ends `ret 12`; outer proc `ret` cleans caller —
+; never `add esp,12`.
+
+USE_RUST_REBASE_COFF = 1
+
+if USE_RUST_REBASE_COFF
+
+; Compatibility trampoline: same stdcall(coff, sym, delta) as legacy.
+; `sym` is unused by both FASM and Rust (ABI parity with load_library).
+align 4
+proc rebase_coff stdcall uses ebx ecx edx esi edi ebp, coff:dword, sym:dword, \
+        delta:dword
+        stdcall rust_rebase_coff, [coff], [sym], [delta]
+        ret
+endp
+
+else
+
 align 4
 proc rebase_coff stdcall uses ebx esi, coff:dword, sym:dword, \
         delta:dword
@@ -909,6 +932,8 @@ proc rebase_coff stdcall uses ebx esi, coff:dword, sym:dword, \
 .exit:
         ret
 endp
+
+end if
 
 ; in: edx -> COFF_SECTION struct
 ; out: eax = alignment as mask for bits to drop
