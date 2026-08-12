@@ -4,10 +4,10 @@
 Rust hybrid migration scope. One-time project map; update when a Cut
 completes or the scoped candidate set changes.
 
-**Last inventory baseline:** post-Cut BS (2026-08-12).
+**Last inventory baseline:** post-Cut BT (2026-08-12).
 
 **Gates source of truth:** `project/build.toml` `[[rust.migrations]]`
-(74 production entries, all `enabled = true` after BS).
+(75 production entries, all `enabled = true` after BT).
 
 ---
 
@@ -111,10 +111,10 @@ leaves. Path A rejections are recorded in cut plans, not as fake completions.
 - [x] `ntfs_restore_usa` — Cut J
 - [x] `ntfs_test_bootsec` — Cut AG
 - [x] `ntfsCalculateTime` — Cut AF
+- [x] `ntfsGetTime` — Cut BT
 - [ ] `ntfs_create_partition` — deferred: mount orchestration
 - [ ] `ntfs_restore_usa_frs` — deferred: J sibling
 - [ ] `ntfs_SetFileInfo` — deferred: FS write path
-- [ ] `ntfsGetTime` — deferred: NTFS time deepen
 
 ## fs/XFS
 
@@ -307,9 +307,9 @@ Documented across Cuts AO–AZ plans:
 
 **Functions completed / functions total**
 
-`74 / 135`
+`75 / 135`
 
-(Mechanically: `74` `[x]` + `61` `[ ]` = `135`.)
+(Mechanically: `75` `[x]` + `60` `[ ]` = `135`.)
 
 When a new Cut completes: mark its `[ ]` → `[x]`, move the note to the Cut id,
 and update this counter so it still matches the checklist.

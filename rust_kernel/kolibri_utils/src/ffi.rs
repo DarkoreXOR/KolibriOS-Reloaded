@@ -731,6 +731,21 @@ pub unsafe extern "stdcall" fn rust_ext_write_time_pack(
     }
 }
 
+/// `stdcall` rust_ntfs_get_time_pack(kos_secs) -> EDX:EAX FILETIME.
+///
+/// Cut BT: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 4 bytes (`ret 4`). FASM trampoline passes EAX after `fsGetTime`.
+///
+/// Returns `u64` in `EDX:EAX` = `(hi << 32) | lo` matching FASM `ntfsGetTime`
+/// FILETIME output (×10⁷ + bias add/adc after KOS seconds).
+#[no_mangle]
+#[link_section = ".text.rust_ntfs_get_time_pack"]
+pub extern "stdcall" fn rust_ntfs_get_time_pack(kos_secs: u32) -> u64 {
+    let (lo, hi) = crate::ntfs_get_time::ntfs_get_time_pack(kos_secs);
+    ((hi as u64) << 32) | (lo as u64)
+}
+
 /// `stdcall` rust_ntfs_calculate_time(block) -> EDX:EAX FILETIME.
 ///
 /// Cut AF: dedicated section for reloc-free extract + FASM `file` embed.

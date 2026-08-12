@@ -245,6 +245,7 @@ high_code:
 ; Cut AD: is_protective_mbr smoke ON when USE_RUST_IS_PROTECTIVE_MBR=1.
 ; Cut AE: ntfs_datetime_to_bdfe smoke ON when USE_RUST_NTFS_DATETIME_TO_BDFE=1.
 ; Cut AF: ntfsCalculateTime smoke ON when USE_RUST_NTFS_CALCULATE_TIME=1.
+; Cut BT: ntfsGetTime smoke ON when USE_RUST_NTFS_GET_TIME=1.
 ; Cut AG: ntfs_test_bootsec smoke ON when USE_RUST_NTFS_TEST_BOOTSEC=1.
 ; Cut AH: calculate_SetChecksum_field smoke ON when USE_RUST_CALCULATE_SET_CHECKSUM_FIELD=1.
 ; Cut AI: exFAT_hash_calculate (NameHash) smoke ON when USE_RUST_EXFAT_HASH_CALCULATE=1.
@@ -326,6 +327,8 @@ high_code:
         call    ntfs_datetime_to_bdfe_rust_smoke_test
         ; Cut AF: ntfsCalculateTime smoke (Rust when USE_RUST_NTFS_CALCULATE_TIME=1).
         call    ntfs_calculate_time_rust_smoke_test
+        ; Cut BT: ntfsGetTime smoke (Rust when USE_RUST_NTFS_GET_TIME=1).
+        call    ntfs_get_time_rust_smoke_test
         ; Cut AG: ntfs_test_bootsec smoke (Rust when USE_RUST_NTFS_TEST_BOOTSEC=1).
         call    ntfs_test_bootsec_rust_smoke_test
         ; Cut AH: calculate_SetChecksum_field smoke (Rust when USE_RUST_CALCULATE_SET_CHECKSUM_FIELD=1).

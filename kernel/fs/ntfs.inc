@@ -4229,18 +4229,23 @@ ntfs_SetFileEnd:
 
 ; Cut AF: USE_RUST_NTFS_CALCULATE_TIME=1 routes through Rust
 ; rust_ntfs_calculate_time (see rust/ntfs_calculate_time.inc).
-; Set USE_RUST_NTFS_CALCULATE_TIME=0 to restore the original FASM body
-; without deleting it. Independent of Cuts A–AE.
+; Cut BT: USE_RUST_NTFS_GET_TIME=1 routes ntfsGetTime through Rust
+; rust_ntfs_get_time_pack (see rust/ntfs_get_time.inc).
+; Set either gate to 0 to restore the original FASM body without deleting it.
 ; Critical ABI: ESI → BDFE in; EDX:EAX FILETIME out; composes fsCalculateTime
-; + ×10⁷ + bias add/adc. ntfsGetTime keeps FASM scale/bias after fsGetTime
-; (CMOS path; shared fall-through split when Rust ON). Production default ON
-; after Cut AF gates.
+; + ×10⁷ + bias add/adc. ntfsGetTime: fsGetTime (CMOS) then pack leaf.
 
 USE_RUST_NTFS_CALCULATE_TIME = 1
+USE_RUST_NTFS_GET_TIME = 1
 
 if USE_RUST_NTFS_CALCULATE_TIME
 
-; CMOS → secs → FASM scale/bias (GetTime does not use the Rust CalculateTime entry).
+if USE_RUST_NTFS_GET_TIME
+ntfsGetTime:
+        call    fsGetTime
+        stdcall rust_ntfs_get_time_pack, eax
+        ret
+else
 ntfsGetTime:
         call    fsGetTime
         mov     edx, 10000000
@@ -4248,6 +4253,7 @@ ntfsGetTime:
         add     eax, 3365781504
         adc     edx, 29389701
         ret
+end if
 
 ; Compatibility trampoline: register ABI → Rust stdcall → EDX:EAX FILETIME.
 ; Callers keep `call ntfsCalculateTime` with ESI → BDFE / EDX:EAX out.
@@ -4260,9 +4266,16 @@ ntfsCalculateTime:
 
 else
 
+if USE_RUST_NTFS_GET_TIME
+ntfsGetTime:
+        call    fsGetTime
+        stdcall rust_ntfs_get_time_pack, eax
+        ret
+else
 ntfsGetTime:
         call    fsGetTime
         jmp     @f
+end if
 
 ntfsCalculateTime:
 ; in: esi -> data block

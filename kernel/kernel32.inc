@@ -154,6 +154,8 @@ include "rust/fs_time2bdfe.inc"
 include "rust/ntfs_datetime_to_bdfe.inc"
 ; Cut AF: ntfsCalculateTime — Rust blob + smoke (USE_RUST_NTFS_CALCULATE_TIME)
 include "rust/ntfs_calculate_time.inc"
+; Cut BT: ntfsGetTime — Rust blob + smoke (USE_RUST_NTFS_GET_TIME)
+include "rust/ntfs_get_time.inc"
 ; Cut AG: ntfs_test_bootsec — Rust blob + smoke (USE_RUST_NTFS_TEST_BOOTSEC)
 include "rust/ntfs_test_bootsec.inc"
 ; Cut AH: calculate_SetChecksum_field — Rust blob (USE_RUST_CALCULATE_SET_CHECKSUM_FIELD)
