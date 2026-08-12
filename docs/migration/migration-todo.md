@@ -4,10 +4,10 @@
 Rust hybrid migration scope. One-time project map; update when a Cut
 completes or the scoped candidate set changes.
 
-**Last inventory baseline:** post-Cut BQ (2026-08-12).
+**Last inventory baseline:** post-Cut BR (2026-08-12).
 
 **Gates source of truth:** `project/build.toml` `[[rust.migrations]]`
-(72 production entries, all `enabled = true` after BQ).
+(73 production entries, all `enabled = true` after BR).
 
 ---
 
@@ -130,7 +130,7 @@ leaves. Path A rejections are recorded in cut plans, not as fake completions.
 ## fs/EXT
 
 - [x] `ext_read_time` — Cut AL
-- [ ] `ext_read_all_times` — candidate: AL compose
+- [x] `ext_read_all_times` — Cut BR
 - [ ] `ext_SetFileInfo` — deferred: FS write path
 - [ ] `ext_write_time` — candidate: AL write twin
 - [ ] `getInodeLocation` — deferred/ban: AW address-math; no --disk ext
@@ -307,9 +307,9 @@ Documented across Cuts AO–AZ plans:
 
 **Functions completed / functions total**
 
-`72 / 135`
+`73 / 135`
 
-(Mechanically: `72` `[x]` + `63` `[ ]` = `135`.)
+(Mechanically: `73` `[x]` + `62` `[ ]` = `135`.)
 
 When a new Cut completes: mark its `[ ]` → `[x]`, move the note to the Cut id,
 and update this counter so it still matches the checklist.

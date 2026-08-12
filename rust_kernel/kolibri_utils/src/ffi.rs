@@ -43,6 +43,7 @@ use crate::pid_to_slot::pid_to_slot_ptr;
 use crate::string::{strlen, strncmp, strncpy, strrchr};
 use crate::swap_bytes_in_words::swap_bytes_in_words;
 use crate::tcp::{tcp_outflags_ptr, tcp_set_persist_ptr, tcp_xmit_timer_ptr};
+use crate::ext_read_all_times::ext_read_all_times_ptr;
 use crate::time::{
     ext_unix_to_secs, fat_time_to_bdfe, fs_calculate_time_ptr, fs_time2bdfe_ptr,
     ntfs_calculate_time_ptr, ntfs_datetime_to_bdfe_ptr, xfs_bigtime_to_secs,
@@ -691,6 +692,21 @@ pub unsafe extern "stdcall" fn rust_xfs_conv_time_to_kos_epoch(secs: u32, out: *
 #[link_section = ".text.rust_ext_unix_to_secs"]
 pub extern "stdcall" fn rust_ext_unix_to_secs(i_time: u32, extra: u32) -> u32 {
     ext_unix_to_secs(i_time, extra)
+}
+
+/// `stdcall` rust_ext_read_all_times(inode, out) — writes 3× BDFE blocks at `out`.
+///
+/// Cut BR: dedicated section for reloc-free extract + FASM `file` embed.
+/// Callee cleans 8 bytes (`ret 8`). Register-call trampoline passes ESI/EDI.
+/// Inlines Cut AL + T (`ext_unix_to_secs` + `fs_time2bdfe_ptr`) — no cross-blob calls.
+///
+/// # Safety
+/// `inode` must point to a readable EXT inode buffer; `out` writable for 24 bytes.
+#[no_mangle]
+#[link_section = ".text.rust_ext_read_all_times"]
+pub unsafe extern "stdcall" fn rust_ext_read_all_times(inode: *const u8, out: *mut u8) {
+    // SAFETY: kernel trampoline passes ESI/EDI from live inode + caller-owned out buffer.
+    unsafe { ext_read_all_times_ptr(inode, out) }
 }
 
 /// `stdcall` rust_ntfs_calculate_time(block) -> EDX:EAX FILETIME.

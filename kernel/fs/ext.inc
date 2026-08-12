@@ -2462,6 +2462,24 @@ ext_read_time:
 end if
 
 ;----------------------------------------------------------------
+; Cut BR: USE_RUST_EXT_READ_ALL_TIMES=1 routes through Rust
+; rust_ext_read_all_times (see rust/ext_read_all_times.inc).
+; Set USE_RUST_EXT_READ_ALL_TIMES=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–BQ.
+; Critical ABI: register call; in ESI -> inode, EDI -> 3× BDFE out;
+; clobbers EAX/EDX/ECX/EDI (+24); composes Cut AL + T inlined in Rust.
+
+USE_RUST_EXT_READ_ALL_TIMES = 1
+
+if USE_RUST_EXT_READ_ALL_TIMES
+
+align 4
+ext_read_all_times:
+        stdcall rust_ext_read_all_times, esi, edi
+        ret
+
+else
+
 ext_read_all_times:
         movzx   ecx, [esi+INODE.extraISize]
         cmp     ecx, 24         ; 4 (base extra) + 5*4 bytes covers crTimeExtra
@@ -2512,6 +2530,8 @@ ext_read_all_times:
         mov     eax, [esi+INODE.mTime]
         mov     edx, [esi+INODE.mTimeExtra]
         jmp     ext_read_time
+
+end if
 
 ;----------------------------------------------------------------
 ; in:
