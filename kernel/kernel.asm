@@ -267,6 +267,7 @@ high_code:
 ; Cut AW: xfs._.blkrel2sectabs smoke ON when USE_RUST_XFS_BLKREL2SECTABS=1.
 ; Cut AT: get_coff_sym smoke ON when USE_RUST_GET_COFF_SYM=1.
 ; Cut BU: fix_coff_symbols smoke ON when USE_RUST_FIX_COFF_SYMBOLS=1.
+; Cut BV: fsGetTime smoke ON when USE_RUST_FS_GET_TIME=1.
 ; Cut BK: coff_get_align smoke ON when USE_RUST_COFF_GET_ALIGN=1.
 ; Cut BL: v86_get_lin_addr smoke ON when USE_RUST_V86_GET_LIN_ADDR=1.
 ; Cut AY: net_ptr_to_num4 smoke ON when USE_RUST_NET_PTR_TO_NUM4=1 (after stack_init).
@@ -287,6 +288,8 @@ high_code:
         call    checksum1_rust_smoke_test
         call    checksum2_rust_smoke_test
         call    fs_calculate_time_rust_smoke_test
+        ; Cut BV: fsGetTime smoke (Rust when USE_RUST_FS_GET_TIME=1).
+        call    fs_get_time_rust_smoke_test
         call    block_clip_rust_smoke_test
         call    ntfs_decode_mcb_rust_smoke_test
         call    ntfs_restore_usa_rust_smoke_test

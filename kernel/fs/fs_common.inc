@@ -15,6 +15,32 @@ fsReadCMOS:
         aad
         ret
 
+; Stdcall wrapper for Cut BV Rust callback (AL=reg index → decoded AX in EAX).
+align 4
+proc fs_read_cmos_stdcall stdcall, reg:dword
+        mov     eax, [reg]
+        mov     al, al
+        call    fsReadCMOS
+        movzx   eax, ax
+        ret
+endp
+
+; Cut BV: USE_RUST_FS_GET_TIME=1 routes through Rust rust_fs_get_time
+; (see rust/fs_get_time.inc). Set USE_RUST_FS_GET_TIME=0 to restore the
+; original FASM body (CMOS read + fallthrough to fsCalculateTime).
+; fsReadCMOS port I/O stays FASM via injected fs_read_cmos_stdcall.
+
+USE_RUST_FS_GET_TIME = 1
+
+if USE_RUST_FS_GET_TIME
+
+align 4
+fsGetTime:
+        stdcall rust_fs_get_time, fs_read_cmos_stdcall
+        ret
+
+else
+
 fsGetTime:
         mov     al, 7
         call    fsReadCMOS
@@ -39,10 +65,14 @@ fsGetTime:
         push    eax
         mov     esi, esp
         add     esp, 8
+; fallthrough to fsCalculateTime when gate OFF
+
+end if
+
 ; Cut G: USE_RUST_FS_CALCULATE_TIME=1 routes through Rust rust_fs_calculate_time
 ; (see rust/fs_calculate_time.inc). Set USE_RUST_FS_CALCULATE_TIME=0 to restore
 ; the original FASM body without deleting it. Independent of Cuts A–F.
-; Note: fsGetTime falls through into this label after CMOS read + stack BDFE.
+; Note: when USE_RUST_FS_GET_TIME=0, fsGetTime falls through into fsCalculateTime.
 
 USE_RUST_FS_CALCULATE_TIME = 1
 

@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
@@ -39,6 +39,7 @@ mod checksum;
 mod coff_get_align;
 mod coff_reloc;
 mod fix_coff_symbols;
+mod fs_get_time;
 mod cp866_to_utf8_string;
 mod crc;
 mod ext_read_all_times;
@@ -116,6 +117,10 @@ pub use ext_write_time::{
     ext_write_time_pack_ptr, EXT_WRITE_TIME_NO_EXTRA, EXT_WRITE_TIME_PRNG_SEED,
 };
 pub use ntfs_get_time::{ntfs_get_time_pack, NTFS_GET_TIME_PRNG_SEED};
+pub use fs_get_time::{
+    bdfe_from_cmos_fields, bdfe_from_cmos_reader, fasm_oracle_fs_get_time_from_fields,
+    fs_get_time, fs_get_time_ptr, fs_read_cmos_bcd, FS_GET_TIME_PRNG_SEED, FsReadCmosFn,
+};
 pub use exfat_checksum::{
     calculate_set_checksum_field, calculate_set_checksum_field_ptr, exfat_hash_calculate,
     exfat_hash_calculate_ptr, exfat_rolling_checksum, CALCULATE_SET_CHECKSUM_FIELD_PRNG_SEED,
