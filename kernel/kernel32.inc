@@ -230,6 +230,8 @@ include "rust/get_coff_sym.inc"
 include "rust/get_proc_ex.inc"
 ; Cut CH: rebase_coff — Rust blob + smoke (USE_RUST_REBASE_COFF)
 include "rust/rebase_coff.inc"
+; Cut CI: usb_td_to_virt — Rust blob + smoke (USE_RUST_USB_TD_TO_VIRT)
+include "rust/usb_td_to_virt.inc"
 ; Cut U: fat_gen_short_name — Rust blob + smoke (USE_RUST_FAT_GEN_SHORT_NAME)
 include "rust/fat_gen_short_name.inc"
 ; Cut V: tcp_set_persist — Rust blob + smoke (USE_RUST_TCP_SET_PERSIST)

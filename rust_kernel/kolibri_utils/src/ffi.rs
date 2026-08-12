@@ -29,6 +29,7 @@ use crate::get_coff_sym::get_coff_sym_ptr;
 use crate::get_proc_ex::get_proc_ex_ptr;
 use crate::rebase_coff::rebase_coff_ptr;
 use crate::get_pg_addr::get_pg_addr_ptr;
+use crate::usb_td_to_virt::usb_td_to_virt_ptr;
 use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_find_fragment_slot::ipv4_find_fragment_slot_ptr;
 use crate::ipv4_route::ipv4_route_ptr;
@@ -268,6 +269,28 @@ pub unsafe extern "stdcall" fn rust_get_pg_addr(
 ) -> u32 {
     // SAFETY: kernel trampoline passes live page_tabs + OS_BASE.
     unsafe { get_pg_addr_ptr(linear, page_tabs, os_base) }
+}
+
+/// `stdcall` rust_usb_td_to_virt(first, td_phys, page_tabs, os_base) -> EAX.
+///
+/// Cut CI: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 16 bytes (`ret 16`). Inlines Cut AQ `get_pg_addr`.
+/// FASM trampoline injects `page_tabs` + `OS_BASE`, reconstructs ECX on hit
+/// (`td_phys & 0xFFF`), and preserves EBX/EDX/ESI/EDI/EBP (REG-001/011).
+///
+/// # Safety
+/// `first` must be 0 or a readable TD page list; `page_tabs` as for AQ.
+#[no_mangle]
+#[link_section = ".text.rust_usb_td_to_virt"]
+pub unsafe extern "stdcall" fn rust_usb_td_to_virt(
+    first: u32,
+    td_phys: u32,
+    page_tabs: *const u32,
+    os_base: u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes live page list + page_tabs + OS_BASE.
+    unsafe { usb_td_to_virt_ptr(first, td_phys, page_tabs, os_base) }
 }
 
 /// `stdcall` rust_r_f_port_area(op, start, end, reserved_ports, tid, io_map) -> EAX.

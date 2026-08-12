@@ -40,6 +40,13 @@ probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_usb_td_to_virt"
+symbol = "rust_usb_td_to_virt"
+expect_ret_imm = 16
+out = "rust_usb_td_to_virt.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_rebase_coff"
 symbol = "rust_rebase_coff"
 expect_ret_imm = 12
@@ -671,6 +678,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "CI"
+blob = "rust_usb_td_to_virt.bin"
+symbol = "rust_usb_td_to_virt"
+gate = "USE_RUST_USB_TD_TO_VIRT"
+include = "kernel/rust/usb_td_to_virt.inc"
+gate_file = "kernel/bus/usb/memory.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "CH"
 blob = "rust_rebase_coff.bin"

@@ -597,6 +597,10 @@ end if
         call    is_protective_mbr_rust_smoke_test
         ; Cut CC: process_partition_table_entry smoke — synthetic entry + mock add.
         call    process_partition_table_entry_rust_smoke_test
+        ; Cut CI: usb_td_to_virt smoke — needs kernel_alloc (heap live).
+if USE_RUST_USB_TD_TO_VIRT
+        call    usb_td_to_virt_rust_smoke_test
+end if
 
         mov     eax, sys_proc
         list_init eax
