@@ -6,6 +6,7 @@
 //! Cut AL: `ext_read_time` — EXT/ext4 Unix (+extra epoch bits) → BDFE (EDI+=8).
 //! Cut AO: `fat_time_to_bdfe` — DOS FAT packed time → BDFE time dword.
 //! Cut BW: `fat_date_to_bdfe` — DOS FAT packed date → BDFE date dword.
+//! Cut BX: `bdfe_to_fat_date` — BDFE date dword → DOS FAT packed date (BW inverse).
 //!
 //! Matches `kernel/fs/fs_common.inc` / `ntfs.inc` / `xfs.asm` / `ext.inc` /
 //! `fat.inc` FASM leaf semantics for the production domain (year &lt; 3025 so
@@ -53,6 +54,9 @@ pub const FAT_TIME_TO_BDFE_PRNG_SEED: u32 = 0x4355_544F;
 
 /// PRNG seed for Cut BW differential corpus (`'CUBW'`).
 pub const FAT_DATE_TO_BDFE_PRNG_SEED: u32 = 0x4355_4257;
+
+/// PRNG seed for Cut BX differential corpus (`'CUBX'`).
+pub const BDFE_TO_FAT_DATE_PRNG_SEED: u32 = 0x4355_4258;
 
 /// BDFE-style datetime block layout (same offsets as FASM / `fsTime2bdfe`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -494,6 +498,26 @@ pub fn fat_date_to_bdfe(fat_date: u32) -> u32 {
     eax = (eax & 0xFFFF_FF00) | u32::from(day);
     let month = ((ecx >> 5) & 0xF) as u8;
     eax = (eax & 0xFFFF_00FF) | (u32::from(month) << 8);
+    eax
+}
+
+/// Convert BDFE date dword to DOS FAT packed date (`bdfe_to_fat_date` in `fat.inc`).
+///
+/// Cut BX: mirrors FASM register flow (`edx` temp, `sub ax,1980`, nibble pack).
+/// Callers store only `AX`; high `EAX` bits follow FASM (year field dominates).
+#[inline(always)]
+pub fn bdfe_to_fat_date(bdfe_date: u32) -> u32 {
+    let mut eax = bdfe_date;
+    let edx = bdfe_date;
+    eax >>= 16;
+    let ax = (eax as u16).wrapping_sub(1980);
+    eax = u32::from(ax);
+    let dh = ((edx >> 8) & 0xFF) as u8 & 0xF;
+    eax <<= 4;
+    eax |= u32::from(dh);
+    let dl = (edx & 0xFF) as u8 & 0x1F;
+    eax <<= 5;
+    eax |= u32::from(dl);
     eax
 }
 
@@ -1783,6 +1807,46 @@ mod tests {
             );
         }
     }
+
+    // Cut BX — bdfe_to_fat_date
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn bdfe_to_fat_date_known_vectors() {
+        assert_eq!(bdfe_to_fat_date(0x07BC_0000), 0);
+        assert_eq!(bdfe_to_fat_date(0x07BC_0101), 0x21);
+        assert_eq!(bdfe_to_fat_date(0x07E8_060F), 0x58CF);
+        assert_eq!(bdfe_to_fat_date(0x083B_0F1F), 0xFFFF);
+    }
+
+    #[test]
+    fn bdfe_to_fat_date_roundtrip_via_bw() {
+        for d in 0u32..=0xFFFF {
+            let bdfe = fat_date_to_bdfe(d);
+            assert_eq!(
+                bdfe_to_fat_date(bdfe),
+                d,
+                "roundtrip fat_date={d:#x} bdfe={bdfe:#x}"
+            );
+        }
+    }
+
+    #[test]
+    fn bdfe_to_fat_date_prng_oracle_50k() {
+        const CASES: usize = 50_000;
+        let mut state = BDFE_TO_FAT_DATE_PRNG_SEED;
+        for i in 0..CASES {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            let bdfe = state;
+            assert_eq!(
+                bdfe_to_fat_date(bdfe),
+                fasm_oracle_bdfe_to_fat_date(bdfe),
+                "prng#{i} bdfe={bdfe:#x}"
+            );
+        }
+    }
 }
 
 /// FASM-faithful host oracle for `fsTime2bdfe` — separate control-flow mirror
@@ -2019,6 +2083,25 @@ pub fn fasm_oracle_fat_date_to_bdfe(fat_date: u32) -> u32 {
     eax = (eax & 0xFFFF_FF00) | u32::from(dl);
     let cl = ((ecx >> 5) & 0xF) as u8;
     eax = (eax & 0xFFFF_00FF) | (u32::from(cl) << 8);
+    eax
+}
+
+/// FASM-faithful host oracle for `bdfe_to_fat_date` — mirrors `fat.inc`
+/// register flow (`push/pop edx`, `sub ax,1980`, nibble pack), not a call
+/// through [`bdfe_to_fat_date`].
+#[cfg(test)]
+pub fn fasm_oracle_bdfe_to_fat_date(bdfe_date: u32) -> u32 {
+    let mut eax = bdfe_date;
+    let edx = bdfe_date;
+    eax >>= 16;
+    let ax = (eax as u16).wrapping_sub(1980);
+    eax = u32::from(ax);
+    let dh = ((edx >> 8) & 0xFF) as u8 & 0xF;
+    eax <<= 4;
+    eax |= u32::from(dh);
+    let dl = (edx & 0xFF) as u8 & 0x1F;
+    eax <<= 5;
+    eax |= u32::from(dl);
     eax
 }
 

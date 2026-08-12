@@ -1251,6 +1251,29 @@ bdfe_to_fat_time:
         pop     edx
         ret
 
+; Cut BX: USE_RUST_BDFE_TO_FAT_DATE=1 routes through Rust
+; rust_bdfe_to_fat_date (see rust/bdfe_to_fat_date.inc).
+; Set USE_RUST_BDFE_TO_FAT_DATE=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–BW / FAT short-name gates.
+; REG-001: trampoline preserves ECX+EDX (legacy body push/pop edx only;
+; bdfe_to_fat_entry callers keep EDX→BDFE live across the call).
+
+USE_RUST_BDFE_TO_FAT_DATE = 1
+
+if USE_RUST_BDFE_TO_FAT_DATE
+
+; Compatibility trampoline: EAX BDFE date → EAX FAT packed date; ECX/EDX preserved.
+align 4
+bdfe_to_fat_date:
+        push    ecx
+        push    edx
+        stdcall rust_bdfe_to_fat_date, eax
+        pop     edx
+        pop     ecx
+        ret
+
+else
+
 bdfe_to_fat_date:
         push    edx
         mov     edx, eax
@@ -1264,6 +1287,8 @@ bdfe_to_fat_date:
         or      al, dl
         pop     edx
         ret
+
+end if
 
 fat_entry_to_bdfe:
 ; convert FAT entry at edi to BDFE (block of data of folder entry) at esi, advance esi
