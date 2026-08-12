@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA/CB
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
@@ -17,7 +17,8 @@
 //! IPv4 on-link/gateway/broadcast routing + fragment-slot lookup, AHCI free command-slot scan,
 //! kernel VA→PA page translation, socket-list membership, NIC device-list ptr→index×4, PCI
 //! config-space address encode, AHCI free command-slot scan + PxSIG known-device
-//! recognition, reverse character search (`strrchr`), bounded padded
+//! recognition, AHCI port TFD busy/DRQ poll with timer deadline,
+//! reverse character search (`strrchr`), bounded padded
 //! copy (`strncpy`), C-string length (`strlen`), and endian word-byte swap
 //! (`swap_bytes_in_words`) for KolibriOS hybrid
 //! migration.
@@ -33,6 +34,7 @@
 
 mod ahci_find_cmdslot;
 mod ahci_is_sig_known;
+mod ahci_port_wait;
 mod app_header;
 mod casefold;
 mod checksum;
@@ -96,6 +98,11 @@ pub use ahci_find_cmdslot::{
 pub use ahci_is_sig_known::{
     ahci_is_sig_known, ahci_is_sig_known_from_reg, AHCI_IS_SIG_KNOWN_PRNG_SEED,
     SATA_SIG_ATA, SATA_SIG_ATAPI, SATA_SIG_PM, SATA_SIG_SEMB,
+};
+pub use ahci_port_wait::{
+    ahci_port_wait, ahci_port_wait_ptr, fasm_oracle_ahci_port_wait, AhciReadTfdFn,
+    AhciReadTicksFn, AHCI_PORT_WAIT_PRNG_SEED, ATA_DEV_BUSY, ATA_DEV_BUSY_DRQ_MASK,
+    ATA_DEV_DRQ,
 };
 pub use app_header::{
     test_app_header, OS_BASE, TEST_APP_HEADER_PRNG_SEED, APP_OFF_CMDLINE, APP_OFF_EDATA,

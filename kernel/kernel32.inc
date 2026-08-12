@@ -214,6 +214,8 @@ include "rust/ipv4_find_fragment_slot.inc"
 include "rust/ahci_find_cmdslot.inc"
 ; Cut BM: ahci_is_sig_known — Rust blob + smoke (USE_RUST_AHCI_IS_SIG_KNOWN)
 include "rust/ahci_is_sig_known.inc"
+; Cut CB: ahci_port_wait — Rust blob + smoke (USE_RUST_AHCI_PORT_WAIT)
+include "rust/ahci_port_wait.inc"
 ; Cut AW: xfs._.blkrel2sectabs — Rust blob + smoke (USE_RUST_XFS_BLKREL2SECTABS)
 include "rust/xfs_blkrel2sectabs.inc"
 ; Cut AT: get_coff_sym — Rust blob + smoke (USE_RUST_GET_COFF_SYM)

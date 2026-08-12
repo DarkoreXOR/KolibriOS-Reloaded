@@ -8,6 +8,7 @@
 
 use crate::ahci_find_cmdslot::ahci_find_cmdslot;
 use crate::ahci_is_sig_known::ahci_is_sig_known;
+use crate::ahci_port_wait::{ahci_port_wait_ptr, AhciReadTfdFn, AhciReadTicksFn};
 use crate::app_header::test_app_header_ptr;
 use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
@@ -404,6 +405,26 @@ pub extern "stdcall" fn rust_ahci_find_cmdslot(slots: u32, ncs: u32) -> u32 {
 #[link_section = ".text.rust_ahci_is_sig_known"]
 pub extern "stdcall" fn rust_ahci_is_sig_known(sig: u32) -> u32 {
     ahci_is_sig_known(sig)
+}
+
+/// `stdcall` rust_ahci_port_wait(read_tfd, read_ticks, port, timeout) -> EAX.
+///
+/// Cut CB: dedicated section for reloc-free extract + FASM `file` embed.
+/// Callee cleans 16 bytes (`ret 16`). Returns `0` success / `1` timeout.
+/// Injected readers perform MMIO TFD load and `timer_ticks` read.
+///
+/// # Safety
+/// Callbacks must match legacy `ahci_port_wait_read_tfd` /
+/// `ahci_port_wait_read_ticks` ABIs.
+#[no_mangle]
+#[link_section = ".text.rust_ahci_port_wait"]
+pub unsafe extern "stdcall" fn rust_ahci_port_wait(
+    read_tfd: AhciReadTfdFn,
+    read_ticks: AhciReadTicksFn,
+    port: u32,
+    timeout: u32,
+) -> u32 {
+    unsafe { ahci_port_wait_ptr(read_tfd, read_ticks, port, timeout) }
 }
 
 /// `stdcall` rust_swap_bytes_in_words(base, len).

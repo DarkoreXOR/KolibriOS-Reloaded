@@ -98,6 +98,14 @@ Use this before enabling a migration gate and when debugging a live FS bug.
     **non-fatal** (return to caller; don't `jmp @b`). Desktop-only QEMU will
     not catch AHCI-init-stage hangs — test with `--bus ahci --disk …`
     (REG-004).
+13. **Injected stdcall callbacks in smoke must use `ret` / `ret 4`** — mock
+    readers called from Rust must match `fs_read_cmos` smoke (`ret 4` for one
+    arg). Plain `ret` corrupts the stack each poll iteration (REG-006).
+14. **Do not busy-wait on live `timer_ticks` before multitasking** — during
+    early `high_code`, `timer_ticks` is frozen until `timer_ticks_enable` +
+    `sti` (near end of boot log). Smoke or tests that call `ahci_port_wait`
+    with `timeout > 0` and a busy synthetic TFD spin forever (REG-006).
+    Use mock tick callbacks or `timeout = 0` for immediate timeout vectors.
 
 ---
 
@@ -110,6 +118,7 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | [REG-003](#reg-003--no-network-after-cut-ay-smoke-2026-08-11) | 2026-08-11 | No network after Cut AY smoke | Fixed |
 | [REG-004](#reg-004--ahci-4-disk-init-screen-hang-no-desktop-2026-08-12) | 2026-08-12 | AHCI 4-disk init-screen hang (no desktop) | Fixed |
 | [REG-005](#reg-005--intermittent-desktop-hang-cut-ca-fsreadcmos-ebx-2026-08-12) | 2026-08-12 | Intermittent desktop hang (Cut CA fsReadCMOS EBX) | Fixed |
+| [REG-006](#reg-006--init-screen-hang-cut-cb-ahci-port-wait-smoke-2026-08-12) | 2026-08-12 | Init-screen hang (Cut CB ahci_port_wait smoke) | Fixed |
 
 ---
 
@@ -192,6 +201,22 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | Avoid next time | When original leaf preserves all GPRs except partial EAX, trampoline must not borrow callee-saved regs for temps. Smoke must include **caller-live EBX** pattern from real call sites (e.g. `fat_Write`). |
 
 **Class:** stdcall/trampoline register drift (same family as REG-001).
+
+---
+
+### REG-006 — Init-screen hang (Cut CB ahci_port_wait smoke) (2026-08-12)
+
+| Field | Value |
+|-------|-------|
+| Symptom | Boot stops at the **kernel initialization logging screen** (after bootloader, before desktop). QEMU may appear hung for minutes or indefinitely. |
+| Suspected | Cut CB `ahci_port_wait` Rust leaf or live AHCI poll. |
+| Cleared by A/B | Live `ahci_port_wait` algorithm matches FASM; failure was **smoke-only** at `ahci_port_wait_rust_smoke_test` (runs after `ahci_init`, before APIC/memory boot_log lines complete). |
+| Root cause | Two smoke bugs: (1) mock `cb_smoke_read_tfd*` callbacks used plain **`ret`** instead of **`ret 4`** for stdcall — stack corruption on every poll iteration. (2) public-trampoline timeout vector used **`timeout=1`** with synthetic busy TFD but **live `ahci_port_wait_read_ticks`** while **`timer_ticks` is frozen** until `timer_ticks_enable`/`sti` at end of boot — infinite spin in the poll loop. |
+| Fix | `kernel/rust/ahci_port_wait.inc`: proper `proc … stdcall` mocks; timeout vector changed to **`timeout=0`** (immediate timeout without timer advance). |
+| Verify | Rebuild ON; QEMU reaches desktop in normal time; user init screen progresses. |
+| Avoid next time | Match `fs_read_cmos` mock pattern (`ret 4`). Never busy-wait on live `timer_ticks` in pre-multitasking smoke. Prefer mock tick callbacks for all `rust_*` direct tests. |
+
+**Class:** ABI smoke / early-init timer assumption (REG-004 family).
 
 ---
 

@@ -959,6 +959,7 @@ ahci_code_end:
         call    ahci_init
         call    ahci_find_cmdslot_rust_smoke_test
         call    ahci_is_sig_known_rust_smoke_test
+        call    ahci_port_wait_rust_smoke_test
         ; Cut BG: swap_bytes_in_words smoke (Rust when USE_RUST_SWAP_BYTES_IN_WORDS=1).
         call    swap_bytes_in_words_rust_smoke_test
 ;-----------------------------------------------------------------------------

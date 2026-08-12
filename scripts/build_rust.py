@@ -102,6 +102,9 @@ def build_rust(
 
     run_host, force = _mode_overlay(cfg, rust, mode)
     archive = target_dir / ARCHIVE_REL
+    # Host `cargo test` uses a separate target dir so a stuck/hung test binary
+    # under `target/debug/deps/` cannot block later builds (LNK1104 file lock).
+    host_target_dir = target_dir / "host-test"
 
     log.info("Building Rust components")
 
@@ -111,7 +114,7 @@ def build_rust(
         run_cmd(
             [cargo, "test", "-p", pkg],
             cwd=workspace,
-            env=env,
+            env={**env, "CARGO_TARGET_DIR": str(host_target_dir)},
             what="cargo test",
         )
     elif skip_tests:

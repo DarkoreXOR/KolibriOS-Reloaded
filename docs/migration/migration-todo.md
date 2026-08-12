@@ -4,10 +4,10 @@
 Rust hybrid migration scope. One-time project map; update when a Cut
 completes or the scoped candidate set changes.
 
-**Last inventory baseline:** post-Cut CA (2026-08-12).
+**Last inventory baseline:** post-Cut CB (2026-08-12).
 
 **Gates source of truth:** `project/build.toml` `[[rust.migrations]]`
-(82 production entries, all `enabled = true` after CA).
+(83 production entries, all `enabled = true` after CB).
 
 ---
 
@@ -157,7 +157,7 @@ leaves. Path A rejections are recorded in cut plans, not as fake completions.
 
 - [x] `ahci_find_cmdslot` — Cut AV
 - [x] `ahci_is_sig_known` — Cut BM
-- [ ] `ahci_port_wait` — deferred: AV Path A reject — controller wait
+- [x] `ahci_port_wait` — Cut CB
 
 ## network
 
@@ -307,9 +307,9 @@ Documented across Cuts AO–AZ plans:
 
 **Functions completed / functions total**
 
-`82 / 135`
+`83 / 135`
 
-(Mechanically: `82` `[x]` + `53` `[ ]` = `135`.)
+(Mechanically: `83` `[x]` + `52` `[ ]` = `135`.)
 
 When a new Cut completes: mark its `[ ]` → `[x]`, move the note to the Cut id,
 and update this counter so it still matches the checklist.

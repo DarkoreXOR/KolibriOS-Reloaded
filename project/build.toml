@@ -40,6 +40,13 @@ probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_ahci_port_wait"
+symbol = "rust_ahci_port_wait"
+expect_ret_imm = 16
+out = "rust_ahci_port_wait.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_fs_read_cmos"
 symbol = "rust_fs_read_cmos"
 expect_ret_imm = 8
@@ -622,6 +629,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "CB"
+blob = "rust_ahci_port_wait.bin"
+symbol = "rust_ahci_port_wait"
+gate = "USE_RUST_AHCI_PORT_WAIT"
+include = "kernel/rust/ahci_port_wait.inc"
+gate_file = "kernel/blkdev/ahci.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "CA"
 blob = "rust_fs_read_cmos.bin"

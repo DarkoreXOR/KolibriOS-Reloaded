@@ -1339,6 +1339,39 @@ ahci_stop_cmd:
 ; in: [port] - address of HBA_PORT structure
 ; [timeout] - timeout in timer ticks
 ; out: eax = 0 if success, 1 if timeout expired
+
+; Cut CB: USE_RUST_AHCI_PORT_WAIT=1 routes through Rust rust_ahci_port_wait
+; (see rust/ahci_port_wait.inc). Set USE_RUST_AHCI_PORT_WAIT=0 to restore the
+; original FASM body. MMIO TFD + timer_ticks reads stay FASM via callbacks.
+; Critical ABI: preserves EBX/ECX (legacy push/pop); REG-001 canaries on others.
+
+USE_RUST_AHCI_PORT_WAIT = 1
+
+if USE_RUST_AHCI_PORT_WAIT
+
+; Stdcall callbacks for Cut CB injected readers.
+align 4
+proc ahci_port_wait_read_tfd stdcall, port: dword
+        mov     eax, [port]
+        mov     eax, [eax + HBA_PORT.task_file_data]
+        ret
+endp
+
+align 4
+proc ahci_port_wait_read_ticks stdcall
+        mov     eax, [timer_ticks]
+        ret
+endp
+
+proc ahci_port_wait stdcall, port: dword, timeout: dword
+        push    ebx ecx edx esi edi ebp
+        stdcall rust_ahci_port_wait, ahci_port_wait_read_tfd, ahci_port_wait_read_ticks, [port], [timeout]
+        pop     ebp edi esi edx ecx ebx
+        ret
+endp
+
+else
+
 proc ahci_port_wait stdcall, port: dword, timeout: dword
         push    ebx ecx
         mov     ebx, [port]
@@ -1359,6 +1392,8 @@ proc ahci_port_wait stdcall, port: dword, timeout: dword
         pop     ecx ebx
         ret
 endp
+
+end if
 
 
 ; Wait for command completion.
