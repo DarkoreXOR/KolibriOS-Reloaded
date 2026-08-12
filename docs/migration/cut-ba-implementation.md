@@ -133,8 +133,8 @@ Trampoline: `movzx` AH/BH/BL → stdcall; restore EBX/ECX/EDX.
 
 | Config | Gate | Result | Notes |
 |--------|------|--------|-------|
-| OFF | `USE_RUST_PCI_MAKE_CONFIG_CMD=0` | **OK** (QMP `running` + screendump, 7358 non-black) | FASM body; `--bus ahci` |
-| ON | `USE_RUST_PCI_MAKE_CONFIG_CMD=1` | **OK** (QMP `running` + screendump, 7358 non-black) | Final production gate; `--bus ahci` |
+| OFF | `USE_RUST_PCI_MAKE_CONFIG_CMD=0` | **OK** (QMP `running` + screendump, 7358 non-black) | FASM body; `--bus ahci` — see REG-004 |
+| ON | `USE_RUST_PCI_MAKE_CONFIG_CMD=1` | **OK** (QMP `running` + screendump, 7358 non-black) | Final production gate; `--bus ahci` — see REG-004 |
 
 ---
 
@@ -142,8 +142,8 @@ Trampoline: `movzx` AH/BH/BL → stdcall; restore EBX/ECX/EDX.
 
 | Check | Result |
 |-------|--------|
-| OFF vs ON screendump | **Identical** (byte-for-byte PPM match; 7358 non-black) |
-| `--bus ahci` | **PASS** both OFF and ON (PCI + AHCI path) |
+| OFF vs ON screendump | **Identical** (byte-for-byte PPM match; 7358 non-black — see REG-004) |
+| `--bus ahci` | **PASS** both OFF and ON (A/B equality valid; desktop interpretation corrected by REG-004) |
 
 Desktop A/B alone would not prove mech-1 CF8 encode; AHCI boot forces PCI
 config reads through `pci_read_reg` → `pci_make_config_cmd`.
@@ -154,7 +154,7 @@ config reads through `pci_read_reg` → `pci_make_config_cmd`.
 
 | Path | Result |
 |------|--------|
-| Boot PCI config via `pci_read_reg` / `pci_write_reg` (mech-1) on AHCI QEMU | **PASS** (desktop reached; AHCI bus) |
+| Boot PCI config via `pci_read_reg` / `pci_write_reg` (mech-1) on AHCI QEMU | **PASS** (init stage reached; AHCI bus) — desktop interpretation corrected by REG-004 |
 | Full hardware PCI matrix / mechanism-2 | **NOT AVAILABLE** (mech-2 path does not call this leaf) |
 
 ---
@@ -163,8 +163,8 @@ config reads through `pci_read_reg` → `pci_make_config_cmd`.
 
 | Item | Result |
 |------|--------|
-| Regressions discovered | **none** |
-| Regression log entry | N/A (no live regression) |
+| Regressions discovered | **none** in this cut |
+| Regression log entry | [REG-004](regression-log.md#reg-004) — AHCI init-screen hang root-caused to Cut AR smoke (not this cut); `7358` pixel counts re-interpreted as init-screen, not desktop |
 
 ---
 

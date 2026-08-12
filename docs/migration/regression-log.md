@@ -86,6 +86,14 @@ Use this before enabling a migration gate and when debugging a live FS bug.
     initialized (e.g. `net_device_list` after `loop_init`). Save/restore or
     query existing entries; never plant-then-zero a live slot. Desktop smoke
     alone will not catch a destroyed loopback (REG-003).
+12. **ABI smoke must not iterate live hardware-adjacent maps** (e.g. TSS IO-map
+    enable/disable range loops) during early init. With AHCI or other PCI
+    devices attached, the map state may be in a condition that causes a tight
+    loop to never terminate. Use error-path-only calls (`start > end`, empty
+    table) or fully synthetic state. Always ensure `.fail` paths are
+    **non-fatal** (return to caller; don't `jmp @b`). Desktop-only QEMU will
+    not catch AHCI-init-stage hangs — test with `--bus ahci --disk …`
+    (REG-004).
 
 ---
 
@@ -96,6 +104,7 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | [REG-001](#reg-001--xfs-directories-as-files-zero-sizes-2026-08-11) | 2026-08-11 | XFS directories as files / zero sizes | Fixed |
 | [REG-002](#reg-002--xfs-volume-label-whitespace--garbage-2026-08-11) | 2026-08-11 | XFS volume label whitespace + garbage | Fixed |
 | [REG-003](#reg-003--no-network-after-cut-ay-smoke-2026-08-11) | 2026-08-11 | No network after Cut AY smoke | Fixed |
+| [REG-004](#reg-004--ahci-4-disk-init-screen-hang-no-desktop-2026-08-12) | 2026-08-12 | AHCI 4-disk init-screen hang (no desktop) | Fixed |
 
 ---
 
@@ -146,6 +155,22 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | Avoid next time | Post-`stack_init` network smokes must save/restore or only read live `net_device_list` / similar tables. Never plant-then-zero boot-initialized slots. |
 
 **Class:** ABI smoke destroys live boot state (not stdcall register drift).
+
+---
+
+### REG-004 — AHCI 4-disk init-screen hang (no desktop) (2026-08-12)
+
+| Field | Value |
+|-------|-------|
+| Symptom | `python scripts/run.py --disk exfat --disk ntfs --disk iso9660 --disk xfs --bus ahci` stopped at the **kernel initialization screen** (black screen with white log lines, last line "Reserving IRQs & ports") — desktop stage never reached. Reference `scripts/reference_qemu.py` with same args booted normally. |
+| Suspected | AHCI-related migration cuts (AV, BG, BM, AQ, BA). |
+| Cleared by A/B | Individually disabling all AHCI-related gates left the hang unchanged. Root shortform AHCI path never caused it. |
+| Root cause | The **Cut AR ABI smoke** (`r_f_port_area_rust_smoke_test`) runs right after `reserve_irqs_ports`. Its **successful Rust reserve** path calls `enable_range` on ports `0xF100..0xF107`, iterating the TSS IO-map. With AHCI disks attached, the hardware/map state left by AHCI probing caused this loop to never return. The smoke also had a **fatal `jmp @b` hang marker** on failure, so any mismatch in that environment guaranteed a frozen init stage. Additionally, the original implementation used a stack-allocated synthetic reserved table whose memory was corrupted by `stdcall` argument pushes, and a `rep stosd` that wrote backwards if DF was set. Desktop-only smoke (no AHCI) never exposed this because those conditions were not triggered. |
+| Fix | `kernel/rust/r_f_port_area.inc`: (1) moved synthetic reserved table to a global `iglobal` buffer (`r_f_port_area_smoke_reserved_ports`); (2) replaced the successful reserve/free smoke path with **error-path-only** calls (`start > end` → immediate return 1, no IO-map loop); (3) made the `.fail` path **return non-fatally** (sets `rust_r_f_port_area_smoke_result = 'FAIL'` and returns) instead of looping forever. Public trampoline canary retained via the same `start > end` error path to keep REG-001 (ECX/EDX) coverage. `docs/migration/cut-ar-implementation.md` updated accordingly. |
+| Verify | QEMU 4-disk AHCI run reaches desktop (non-black ~779380 pixels); confirmed via `qmp_desktop_smoke.py --bus ahci --disk exfat --disk ntfs --disk iso9660 --disk xfs`. |
+| Avoid next time | ABI smoke must not call any path that iterates live hardware-adjacent state (IO-map enable/disable loops, network device lists, etc.) during early init. Always use error-paths or synthetic-only state when the boot environment cannot guarantee a stable map. Non-fatal `.fail` paths prevent a smoke bug from permanently blocking desktop. |
+
+**Class:** ABI smoke destroys / hangs live early-init state (same family as REG-003).
 
 ---
 

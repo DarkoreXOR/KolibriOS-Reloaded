@@ -127,8 +127,8 @@ forward compact copy.
 | Item | Result |
 |------|--------|
 | `r_f_port_area_rust_smoke_test` | **PASS** (boot reached desktop; no `0xDEAD0C52` hang) |
-| Vectors | direct rust reserve/free 0xF100..0xF107; public overlap/inverted errors; public reserve+free 0xF110..0xF113 |
-| Canaries | ECX/EDX on error + reserve paths (REG-001); free success does not assert ECX (legacy `rep movsb`) |
+| Vectors | direct Rust **error-path** only: reserve with `start > end` (0xF107 > 0xF100) + free on empty synthetic table; public canary uses `start > end` to validate ECX/EDX preservation (REG-001) |
+| Canaries | ECX/EDX on the **public** error path; direct Rust internal calls avoid the successful reserve IO-map enable loop that could hang during AHCI init-stage |
 | Marker | `rust_r_f_port_area_smoke_result = 'FPAR'` on success |
 
 ---
@@ -139,6 +139,12 @@ forward compact copy.
 |------|---------|---------|-------------|
 | OFF | `USE_RUST_R_F_PORT_AREA=0` | **OK** (QMP `running` + screendump, 779380 non-black) | Not attached in current `qemu.args` |
 | ON | `USE_RUST_R_F_PORT_AREA=1` | **OK** (779380 non-black) | Not attached |
+
+### AHCI init-stage hang (what changed)
+
+Earlier AHCI regression investigation showed that the **successful** Rust reserve path inside the AR ABI smoke could stop the kernel on the initialization screen (no desktop stage; non-black ~7358), specifically after “`Reserving IRQs & ports`”.
+
+Fix: the ABI smoke was updated to avoid the successful reserve path and use only the fast `start > end` error-path + the public trampoline canary.
 
 ### A/B validation
 
@@ -162,7 +168,9 @@ e1000: **N/A**
 
 ## Regressions discovered
 
-**NONE** during Cut AR validation.
+**NONE** during Cut AR validation after the smoke change.
+
+During AHCI regression investigation, the original smoke’s **successful Rust reserve** path could hang during the kernel initialization stage when AHCI disks were attached (desktop stage not reached). This was fixed by switching the smoke to use only the fast `start > end` error-path + the public trampoline canary.
 
 (Smoke canary over-assert on FASM free ESI/EDI/EBP/ECX was a test bug, not a
 production regression — fixed before enabling the gate.)

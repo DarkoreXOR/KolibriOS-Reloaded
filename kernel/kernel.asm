@@ -260,6 +260,7 @@ high_code:
 ; Cut AS: socket_check smoke ON when USE_RUST_SOCKET_CHECK=1 (after stack_init).
 ; Cut AU: ipv4_find_fragment_slot smoke ON when USE_RUST_IPV4_FIND_FRAGMENT_SLOT=1 (after stack_init).
 ; Cut AV: ahci_find_cmdslot smoke ON when USE_RUST_AHCI_FIND_CMDSLOT=1 (after ahci_init).
+; Cut BM: ahci_is_sig_known smoke ON when USE_RUST_AHCI_IS_SIG_KNOWN=1 (after ahci_init).
 ; Cut BG: swap_bytes_in_words smoke ON when USE_RUST_SWAP_BYTES_IN_WORDS=1 (after ahci_init).
 ; Cut AW: xfs._.blkrel2sectabs smoke ON when USE_RUST_XFS_BLKREL2SECTABS=1.
 ; Cut AT: get_coff_sym smoke ON when USE_RUST_GET_COFF_SYM=1.
@@ -924,6 +925,7 @@ include 'blkdev/ahci.inc'
 ahci_code_end:
         call    ahci_init
         call    ahci_find_cmdslot_rust_smoke_test
+        call    ahci_is_sig_known_rust_smoke_test
         ; Cut BG: swap_bytes_in_words smoke (Rust when USE_RUST_SWAP_BYTES_IN_WORDS=1).
         call    swap_bytes_in_words_rust_smoke_test
 ;-----------------------------------------------------------------------------

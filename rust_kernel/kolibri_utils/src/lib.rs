@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
@@ -16,7 +16,8 @@
 //! partition-table entry validation, GPT protective-MBR recognition, process TID→slot lookup,
 //! IPv4 on-link/gateway/broadcast routing + fragment-slot lookup, AHCI free command-slot scan,
 //! kernel VA→PA page translation, socket-list membership, NIC device-list ptr→index×4, PCI
-//! config-space address encode, reverse character search (`strrchr`), bounded padded
+//! config-space address encode, AHCI free command-slot scan + PxSIG known-device
+//! recognition, reverse character search (`strrchr`), bounded padded
 //! copy (`strncpy`), C-string length (`strlen`), and endian word-byte swap
 //! (`swap_bytes_in_words`) for KolibriOS hybrid
 //! migration.
@@ -31,6 +32,7 @@
 #![cfg_attr(target_os = "none", no_std)]
 
 mod ahci_find_cmdslot;
+mod ahci_is_sig_known;
 mod app_header;
 mod casefold;
 mod checksum;
@@ -82,6 +84,10 @@ mod ffi;
 
 pub use ahci_find_cmdslot::{
     ahci_find_cmdslot, ahci_find_cmdslot_from_regs, AHCI_FIND_CMDSLOT_PRNG_SEED,
+};
+pub use ahci_is_sig_known::{
+    ahci_is_sig_known, ahci_is_sig_known_from_reg, AHCI_IS_SIG_KNOWN_PRNG_SEED,
+    SATA_SIG_ATA, SATA_SIG_ATAPI, SATA_SIG_PM, SATA_SIG_SEMB,
 };
 pub use app_header::{
     test_app_header, OS_BASE, TEST_APP_HEADER_PRNG_SEED, APP_OFF_CMDLINE, APP_OFF_EDATA,

@@ -1,4 +1,4 @@
-"""Build → package → QEMU (default developer pipeline)."""
+"""Build -> package -> QEMU (default developer pipeline)."""
 
 from __future__ import annotations
 
@@ -22,6 +22,12 @@ def main(argv: list[str] | None = None) -> None:
         metavar="TYPE",
         help="Attach images/TYPE-image.img|.iso (repeatable)",
     )
+    parser.add_argument(
+        "--bus",
+        choices=("ide", "ahci"),
+        default="ide",
+        help="HD bus: ide -> /hdN/1 (default); ahci -> /sdN/1",
+    )
     parser.add_argument("--memory", default=None)
     parser.add_argument("--serial", action="store_true")
     parser.add_argument("--debug", action="store_true")
@@ -39,6 +45,7 @@ def main(argv: list[str] | None = None) -> None:
         serial=args.serial,
         debug=args.debug,
         headless=args.headless,
+        bus=args.bus,
     )
 
 

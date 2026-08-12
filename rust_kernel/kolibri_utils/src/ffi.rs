@@ -7,6 +7,7 @@
 //! argument because a Rust prologue must not rely on live `EAX` from FASM.
 
 use crate::ahci_find_cmdslot::ahci_find_cmdslot;
+use crate::ahci_is_sig_known::ahci_is_sig_known;
 use crate::app_header::test_app_header_ptr;
 use crate::casefold::{cp866_to_upper, utf16_to_upper};
 use crate::checksum::{checksum_1, checksum_2};
@@ -334,6 +335,19 @@ pub unsafe extern "stdcall" fn rust_ipv4_find_fragment_slot(
 #[link_section = ".text.rust_ahci_find_cmdslot"]
 pub extern "stdcall" fn rust_ahci_find_cmdslot(slots: u32, ncs: u32) -> u32 {
     ahci_find_cmdslot(slots, ncs)
+}
+
+/// `stdcall` rust_ahci_is_sig_known(sig) -> EAX.
+///
+/// Cut BM: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 4 bytes (`ret 4`). Returns `1` when `sig` is a known SATA
+/// PxSIG, else `0`. FASM trampoline maps to legacy ZF via `cmp eax, 1`.
+/// Preserves EBX/ECX/EDX/ESI/EDI/EBP (legacy destroys flags only; REG-001).
+#[no_mangle]
+#[link_section = ".text.rust_ahci_is_sig_known"]
+pub extern "stdcall" fn rust_ahci_is_sig_known(sig: u32) -> u32 {
+    ahci_is_sig_known(sig)
 }
 
 /// `stdcall` rust_swap_bytes_in_words(base, len).

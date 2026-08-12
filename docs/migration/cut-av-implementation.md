@@ -136,7 +136,7 @@ Trampoline: reads `SACT|CI` and `(CAP>>8)&0xf` from the `PORT_DATA` →
 | Workload | OFF | ON | Verdict |
 |----------|-----|----|---------|
 | Desktop (IDE) | 779380 | 779380 | **match** |
-| `--disk xfs --bus ahci` | 7358 | 7358 | **match** (AHCI env; see soak) |
+| `--disk xfs --bus ahci` | 7358 | 7358 | **match** (A/B valid — but see REG-004 correction below) |
 
 ---
 
@@ -148,10 +148,17 @@ Real subsystem soak: PASS (AHCI identify/rw path live)
 
 `python scripts/run_qemu.py` equivalent via `scripts/qmp_desktop_smoke.py`
 `--disk xfs --bus ahci`: QMP `running` both OFF and ON with identical non-black
-counts (7358). Attaching an AHCI controller exercises `ahci_init` →
-`ahci_port_identify` → `ahci_find_cmdslot` (and subsequent rw when `/sdN/1` is
-browsed). Desktop pixel count is lower than IDE floppy-only boots in this QEMU
-configuration for **both** gates — environmental, not Cut AV.
+counts (7358). A/B match is valid — both gates produced the same result.
+
+**REG-004 correction (2026-08-12):** `7358` non-black pixels corresponds to the
+**kernel initialization screen** (init-stage; black background with white log
+lines), *not* the desktop. At the time of Cut AV validation, the Cut AR ABI
+smoke (`r_f_port_area_rust_smoke_test`) was hanging the init stage under AHCI
+disks, so the `qmp_desktop_smoke.py` screenshot captured the init log screen.
+The 7358-vs-7358 A/B **equality is still a valid negative regression test** for
+this cut (same behaviour both sides), but the "desktop reached" interpretation
+was incorrect. After REG-004 fix, `--bus ahci` boots now reach desktop (~779380
+non-black). See [`regression-log.md`](regression-log.md#reg-004).
 
 Synthetic ABI smoke after `ahci_init` also exercises the public trampoline on a
 fake `PORT_DATA` chain (marker `SLOT`).
@@ -160,11 +167,9 @@ fake `PORT_DATA` chain (marker `SLOT`).
 
 ## Regressions
 
-```text
-NONE
-```
+**NONE** in this cut.
 
-(No live REG-NNN append for this cut.)
+[REG-004](regression-log.md#reg-004) — AHCI init-screen hang root-caused to Cut AR smoke (not Cut AV); `7358` pixel counts re-interpreted as init-screen, not desktop. A/B equality of this cut remains valid.
 
 ---
 

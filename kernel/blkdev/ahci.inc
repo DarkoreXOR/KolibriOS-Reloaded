@@ -1868,6 +1868,39 @@ endp
 ; Check whether the port signature belongs to a known device type
 ; in: eax - PxSIG value
 ; out: ZF set if the signature is a known one
+;
+; Cut BM: USE_RUST_AHCI_IS_SIG_KNOWN=1 routes through Rust
+; rust_ahci_is_sig_known (see rust/ahci_is_sig_known.inc).
+; Set USE_RUST_AHCI_IS_SIG_KNOWN=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–BL.
+; Critical ABI: EAX in; ZF out (known=ZF1); legacy destroys flags only.
+; Trampoline preserves EBX/ECX/EDX/ESI/EDI/EBP (REG-001).
+
+USE_RUST_AHCI_IS_SIG_KNOWN = 1
+
+if USE_RUST_AHCI_IS_SIG_KNOWN
+
+; Compatibility trampoline: EAX=sig → Rust stdcall → cmp eax,1 → ZF legacy.
+align 4
+ahci_is_sig_known:
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    edi
+        push    ebp
+        stdcall rust_ahci_is_sig_known, eax
+        cmp     eax, 1
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
 ahci_is_sig_known:
         cmp     eax, SATA_SIG_ATA
         je      .known
@@ -1878,6 +1911,8 @@ ahci_is_sig_known:
         cmp     eax, SATA_SIG_PM
 .known:
         ret
+
+end if
 
 ; ; The commands may not take effect until the command
 ; ; register is read again by software, because reasons.
