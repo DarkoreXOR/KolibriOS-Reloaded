@@ -40,6 +40,13 @@ probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_get_proc_ex"
+symbol = "rust_get_proc_ex"
+expect_ret_imm = 8
+out = "rust_get_proc_ex.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_set_mouse_data"
 symbol = "rust_set_mouse_data"
 expect_ret_imm = 24
@@ -657,6 +664,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "CG"
+blob = "rust_get_proc_ex.bin"
+symbol = "rust_get_proc_ex"
+gate = "USE_RUST_GET_PROC_EX"
+include = "kernel/rust/get_proc_ex.inc"
+gate_file = "kernel/core/dll.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "CF"
 blob = "rust_set_mouse_data.bin"

@@ -26,6 +26,7 @@ use crate::font::anti_aliasing;
 use crate::fs_operation_safe::file_system_is_operation_safe_ptr;
 use crate::geometry::{block_clip_ptr, blit_clip_ptr};
 use crate::get_coff_sym::get_coff_sym_ptr;
+use crate::get_proc_ex::get_proc_ex_ptr;
 use crate::get_pg_addr::get_pg_addr_ptr;
 use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_find_fragment_slot::ipv4_find_fragment_slot_ptr;
@@ -359,6 +360,24 @@ pub unsafe extern "stdcall" fn rust_get_coff_sym(
 ) -> u32 {
     // SAFETY: kernel trampoline / load_library passes live symbol table + name.
     unsafe { get_coff_sym_ptr(p_sym, count, sz_sym) }
+}
+
+/// `stdcall` rust_get_proc_ex(proc_name, imports) -> EAX.
+///
+/// Cut CG: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). Returns `OS_BASE+func_rva` or `0`.
+/// FASM trampoline preserves EBX/ECX/EDX/ESI/EDI/EBP (REG-001/011).
+///
+/// # Safety
+/// When `imports != 0`, it must address a readable PE export directory and the
+/// Name/Function RVA tables + name strings must be readable under `OS_BASE`.
+/// `proc_name` must be readable for up to 256 bytes or until NUL.
+#[no_mangle]
+#[link_section = ".text.rust_get_proc_ex"]
+pub unsafe extern "stdcall" fn rust_get_proc_ex(proc_name: *const u8, imports: u32) -> u32 {
+    // SAFETY: kernel trampoline / fix_coff_symbols callback passes live args.
+    unsafe { get_proc_ex_ptr(proc_name, imports) }
 }
 
 /// `stdcall` rust_ipv4_find_fragment_slot(packet, fragments, count) -> EAX.

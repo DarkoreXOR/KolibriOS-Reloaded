@@ -656,6 +656,28 @@ align 4
 unpack_mutex MUTEX
 endg
 
+; Cut CG: USE_RUST_GET_PROC_EX=1 routes through Rust
+; rust_get_proc_ex (see rust/get_proc_ex.inc).
+; Set USE_RUST_GET_PROC_EX=0 to restore the original FASM body
+; without deleting it. Independent of Cuts AT/BU / USE_RUST_GET_COFF_SYM
+; / USE_RUST_FIX_COFF_SYMBOLS. Completes PE resolve foothold after BU.
+;
+; Legacy `uses ebx esi` only; body leaves EDI/EBP untouched. Trampoline
+; preserves EBX/ECX/EDX/ESI/EDI/EBP (REG-001/011). Rust stdcall ret 8;
+; outer proc ret cleans caller args — never add esp (REG-009).
+
+USE_RUST_GET_PROC_EX = 1
+
+if USE_RUST_GET_PROC_EX
+
+align 4
+proc get_proc_ex stdcall uses ebx ecx edx esi edi ebp, proc_name:dword, imports:dword
+        stdcall rust_get_proc_ex, [proc_name], [imports]
+        ret
+endp
+
+else
+
 align 4
 proc get_proc_ex stdcall uses ebx esi, proc_name:dword, imports:dword
         mov     ebx, [imports]
@@ -683,6 +705,8 @@ proc get_proc_ex stdcall uses ebx esi, proc_name:dword, imports:dword
         add     eax, OS_BASE
         ret
 endp
+
+end if
 
 ; Cut BU: USE_RUST_FIX_COFF_SYMBOLS=1 routes through Rust
 ; rust_fix_coff_symbols (see rust/fix_coff_symbols.inc).

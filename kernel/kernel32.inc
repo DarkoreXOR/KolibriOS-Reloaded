@@ -226,6 +226,8 @@ include "rust/ahci_port_wait.inc"
 include "rust/xfs_blkrel2sectabs.inc"
 ; Cut AT: get_coff_sym — Rust blob + smoke (USE_RUST_GET_COFF_SYM)
 include "rust/get_coff_sym.inc"
+; Cut CG: get_proc_ex — Rust blob + smoke (USE_RUST_GET_PROC_EX)
+include "rust/get_proc_ex.inc"
 ; Cut U: fat_gen_short_name — Rust blob + smoke (USE_RUST_FAT_GEN_SHORT_NAME)
 include "rust/fat_gen_short_name.inc"
 ; Cut V: tcp_set_persist — Rust blob + smoke (USE_RUST_TCP_SET_PERSIST)
