@@ -327,6 +327,8 @@ end if
         call    strncpy_rust_smoke_test
         ; Cut BH: strlen smoke (Rust when USE_RUST_STRLEN=1).
         call    strlen_rust_smoke_test
+        ; Cut CJ: memmove smoke (Rust when USE_RUST_MEMMOVE=1).
+        call    memmove_rust_smoke_test
         ; Cut BC: fat_name_is_legal smoke (Rust when USE_RUST_FAT_NAME_IS_LEGAL=1).
         call    fat_name_is_legal_rust_smoke_test
         ; Cut BD: tcp_outflags smoke (Rust when USE_RUST_TCP_OUTFLAGS=1).
@@ -3420,6 +3422,41 @@ end if
 
 ;-----------------------------------------------------------------------------
 align 16        ;very often call this subrutine
+; Cut CJ: USE_RUST_MEMMOVE=1 routes through Rust
+; rust_memmove (see rust/memmove.inc).
+; Set USE_RUST_MEMMOVE=0 to restore the original FASM body
+; without deleting it. Independent of Cuts CC–CI.
+
+USE_RUST_MEMMOVE = 1
+
+if USE_RUST_MEMMOVE
+
+; Compatibility trampoline: register ABI → Rust stdcall.
+; EAX=from, EBX=to, ECX=nbytes. Restores EAX/EBX/ECX and preserves
+; EDX/ESI/EDI/EBP (REG-001/011). Rust cleans its own 12-byte stdcall frame
+; (REG-009 — never add esp here).
+align 16
+memmove:
+        push    edx
+        push    esi
+        push    edi
+        push    ebp
+        push    eax                             ; save from (REG-010 accounted)
+        push    ebx                             ; save to
+        push    ecx                             ; save nbytes
+        stdcall rust_memmove, eax, ebx, ecx     ; ret 12
+        pop     ecx
+        pop     ebx
+        pop     eax
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     edx
+        ret
+
+else
+
+align 16
 memmove:       ; memory move in bytes
 ; eax = from
 ; ebx = to
@@ -3453,6 +3490,8 @@ align 4
 align 4
 .ret:
         ret
+
+end if
 ;-----------------------------------------------------------------------------
 
 ; in: eax = port

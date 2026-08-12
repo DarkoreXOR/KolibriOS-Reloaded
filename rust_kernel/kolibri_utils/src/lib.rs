@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA/CB/CC/CD/CE/CF/CG/CH/CI
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA/CB/CC/CD/CE/CF/CG/CH/CI/CJ
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
@@ -22,7 +22,7 @@
 //! reverse character search (`strrchr`), bounded padded
 //! copy (`strncpy`), C-string length (`strlen`), endian word-byte swap
 //! (`swap_bytes_in_words`), video `block_clip` + `blit_clip`, PE preferred-base
-//! DIR32 rebase, and USB TD phys→virt for KolibriOS hybrid migration.
+//! DIR32 rebase, USB TD phys→virt, and forward `memmove` for KolibriOS hybrid migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
 //! Host `cargo test` uses the normal Windows/Linux target with `std`.
@@ -58,6 +58,7 @@ mod get_proc_ex;
 mod get_pg_addr;
 mod rebase_coff;
 mod usb_td_to_virt;
+mod memmove;
 mod io_access;
 mod ipv4_find_fragment_slot;
 mod ipv4_route;
@@ -175,6 +176,7 @@ pub use rebase_coff::{
 pub use usb_td_to_virt::{
     usb_td_to_virt, usb_td_to_virt_ptr, TD_PAGE_NEXT_OFF, USB_TD_TO_VIRT_PRNG_SEED,
 };
+pub use memmove::{memmove, memmove_ptr, MEMMOVE_PRNG_SEED};
 pub use get_pg_addr::{
     get_pg_addr, get_pg_addr_ptr, GET_PG_ADDR_PRNG_SEED, IDENTITY_WINDOW, OS_BASE as GET_PG_ADDR_OS_BASE,
     PAGE_SIZE as GET_PG_ADDR_PAGE_SIZE, PAGE_TABS,

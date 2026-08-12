@@ -232,6 +232,8 @@ include "rust/get_proc_ex.inc"
 include "rust/rebase_coff.inc"
 ; Cut CI: usb_td_to_virt — Rust blob + smoke (USE_RUST_USB_TD_TO_VIRT)
 include "rust/usb_td_to_virt.inc"
+; Cut CJ: memmove — Rust blob + smoke (USE_RUST_MEMMOVE)
+include "rust/memmove.inc"
 ; Cut U: fat_gen_short_name — Rust blob + smoke (USE_RUST_FAT_GEN_SHORT_NAME)
 include "rust/fat_gen_short_name.inc"
 ; Cut V: tcp_set_persist — Rust blob + smoke (USE_RUST_TCP_SET_PERSIST)

@@ -30,6 +30,7 @@ use crate::get_proc_ex::get_proc_ex_ptr;
 use crate::rebase_coff::rebase_coff_ptr;
 use crate::get_pg_addr::get_pg_addr_ptr;
 use crate::usb_td_to_virt::usb_td_to_virt_ptr;
+use crate::memmove::memmove_ptr;
 use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_find_fragment_slot::ipv4_find_fragment_slot_ptr;
 use crate::ipv4_route::ipv4_route_ptr;
@@ -291,6 +292,23 @@ pub unsafe extern "stdcall" fn rust_usb_td_to_virt(
 ) -> u32 {
     // SAFETY: kernel trampoline passes live page list + page_tabs + OS_BASE.
     unsafe { usb_td_to_virt_ptr(first, td_phys, page_tabs, os_base) }
+}
+
+/// `stdcall` rust_memmove(from, to, nbytes).
+///
+/// Cut CJ: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`). Forward-only Kolibri `memmove`
+/// (signed `nbytes<=0` no-op). FASM trampoline is register-ABI outer and
+/// preserves EAX/EBX/ECX/EDX/ESI/EDI/EBP (REG-001/011).
+///
+/// # Safety
+/// `from`/`to` must satisfy the legacy forward-copy contract for `nbytes`.
+#[no_mangle]
+#[link_section = ".text.rust_memmove"]
+pub unsafe extern "stdcall" fn rust_memmove(from: u32, to: u32, nbytes: u32) {
+    // SAFETY: kernel trampoline passes live buffer addresses + count.
+    unsafe { memmove_ptr(from, to, nbytes) }
 }
 
 /// `stdcall` rust_r_f_port_area(op, start, end, reserved_ports, tid, io_map) -> EAX.
