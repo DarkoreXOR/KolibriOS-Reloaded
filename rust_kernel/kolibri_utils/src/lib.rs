@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
@@ -10,7 +10,7 @@
 //! string userspace gate + sysfn70/80
 //! operation-safe size→gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS
 //! extent unpack + dir leaf hash binary search + DA node first-match-by-hash + dir name hash +
-//! AG-relative block→absolute sector, window screen-fit helpers, TSS I/O permission bitmap
+//! AG-relative block→absolute sector + last data dirblock selection, window screen-fit helpers, TSS I/O permission bitmap
 //! updates + port-area reserve/free, COFF reloc application + symbol name→Value lookup + section
 //! alignment mask decode, MBR/EBR
 //! partition-table entry validation, GPT protective-MBR recognition, process TID→slot lookup,
@@ -75,6 +75,7 @@ mod v86_get_lin_addr;
 mod window;
 mod xfs_blkrel2sectabs;
 mod xfs_extent;
+mod xfs_get_last_dirblock;
 mod xfs_hash_lookup;
 mod xfs_hashname;
 mod xfs_node_hash;
@@ -243,6 +244,10 @@ pub use xfs_extent::{
     read_xfs_bmbt_irec, write_xfs_bmbt_irec, xfs_extent_unpack, xfs_extent_unpack_into,
     xfs_extent_unpack_ptr, XfsBmbtIrec, OFF_BLOCKCOUNT, OFF_STARTBLOCK_HI, OFF_STARTBLOCK_LO,
     OFF_STARTOFF_HI, OFF_STARTOFF_LO, OFF_STATE, XFS_BMBT_IREC_SIZE, XFS_EXTENT_UNPACK_PRNG_SEED,
+};
+pub use xfs_get_last_dirblock::{
+    xfs_get_last_dirblock, xfs_get_last_dirblock_from_extent, xfs_get_last_dirblock_ptr,
+    XFS_GET_LAST_DIRBLOCK_PRNG_SEED,
 };
 pub use xfs_hash_lookup::{
     pack_eax_zf, trampoline_zf_from_flag, unpack_eax_zf, xfs_get_addr_by_hash,

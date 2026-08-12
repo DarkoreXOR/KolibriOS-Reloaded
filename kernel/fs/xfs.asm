@@ -2497,6 +2497,44 @@ proc xfs._.walk_extent_list uses ebx esi edi, _count, _ptr, _callback_extent, _c
 endp
 
 
+; Cut BO: USE_RUST_XFS_GET_LAST_DIRBLOCK=1 routes through Rust
+; rust_xfs_get_last_dirblock (see rust/xfs_get_last_dirblock.inc).
+; Set USE_RUST_XFS_GET_LAST_DIRBLOCK=0 to restore the original FASM body
+; without deleting it. Independent of Cuts R/W/AM/AP/AW/AK/BN.
+; Critical ABI: register call; in EBX -> inode buffer, EBP -> XFS;
+; out EDX:EAX = last data dirblock; preserves EBX + ECX; ret 0.
+; REG-001: trampoline must not let Rust stdcall clobber live EBX/ECX from XFS
+; readdir / lookup callers. EDX:EAX remains the public result.
+
+USE_RUST_XFS_GET_LAST_DIRBLOCK = 1
+
+if USE_RUST_XFS_GET_LAST_DIRBLOCK
+
+align 4
+xfs._.get_last_dirblock:
+        push    ebx
+        push    ecx
+        push    esi
+        push    edi
+        mov     esi, ebx
+        sub     esp, 4
+        mov     edi, esp
+        push    edi
+        push    dword [ebp+XFS.dirblklog]
+        push    dword [ebp+XFS.inode_core_size]
+        push    dword [ebp+XFS.nextents_offset]
+        push    esi
+        call    rust_xfs_get_last_dirblock
+        mov     edx, [edi]
+        add     esp, 4
+        pop     edi
+        pop     esi
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
 proc xfs._.get_last_dirblock uses ecx
         mov     eax, [ebp+XFS.nextents_offset]
         movbe   eax, [ebx+eax]
@@ -2514,6 +2552,8 @@ assert (sizeof.xfs_bmbt_rec AND (sizeof.xfs_bmbt_rec - 1)) = 0
         adc     edx, [ebp+XFS.extent.br_startoff.hi]
         ret
 endp
+
+end if
 
 
 restore prologue@proc,epilogue@proc

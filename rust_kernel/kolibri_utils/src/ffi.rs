@@ -53,6 +53,7 @@ use crate::utf16_to_8::utf16_to_8_ptr;
 use crate::utf8to16::utf8to16_ptr;
 use crate::window::check_window_position_ptr;
 use crate::xfs_extent::xfs_extent_unpack_ptr;
+use crate::xfs_get_last_dirblock::xfs_get_last_dirblock_ptr;
 use crate::xfs_hash_lookup::{pack_eax_zf, xfs_get_addr_by_hash_ptr};
 use crate::xfs_blkrel2sectabs::xfs_blkrel2sectabs_ptr;
 use crate::xfs_hashname::xfs_hashname_ptr;
@@ -447,6 +448,30 @@ pub unsafe extern "stdcall" fn rust_xfs_blkrel2sectabs(
             out_hi,
         )
     }
+}
+
+/// `stdcall` rust_xfs_get_last_dirblock(inode, nextents_offset, inode_core_size,
+/// dirblklog, out_hi) -> EAX = last_dirblock_lo.
+///
+/// Cut BO: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 20 bytes (`ret 20`). FASM trampoline passes `EBX` as the inode
+/// base plus the live XFS offsets, then restores `EBX` and `ECX` to match the
+/// legacy register-call ABI. Writes `last_dirblock_hi` to `*out_hi`.
+///
+/// # Safety
+/// `inode` must point to a readable XFS inode buffer; `out_hi` must be writable.
+#[no_mangle]
+#[link_section = ".text.rust_xfs_get_last_dirblock"]
+pub unsafe extern "stdcall" fn rust_xfs_get_last_dirblock(
+    inode: *const u8,
+    nextents_offset: u32,
+    inode_core_size: u32,
+    dirblklog: u32,
+    out_hi: *mut u32,
+) -> u32 {
+    // SAFETY: kernel trampoline passes a live inode buffer and writable stack slot.
+    unsafe { xfs_get_last_dirblock_ptr(inode, nextents_offset, inode_core_size, dirblklog, out_hi) }
 }
 
 /// `stdcall` rust_cp866_to_upper(ch) -> uppercased CP866 byte in AL (EAX).

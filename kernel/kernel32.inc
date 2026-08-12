@@ -168,6 +168,8 @@ include "rust/iso9660_copy_name.inc"
 include "rust/xfs_conv_bigtime_to_kos_epoch.inc"
 ; Cut BN: xfs._.conv_time_to_kos_epoch — Rust blob + smoke (USE_RUST_XFS_CONV_TIME_TO_KOS_EPOCH)
 include "rust/xfs_conv_time_to_kos_epoch.inc"
+; Cut BO: xfs._.get_last_dirblock — Rust blob + smoke (USE_RUST_XFS_GET_LAST_DIRBLOCK)
+include "rust/xfs_get_last_dirblock.inc"
 ; Cut AL: ext_read_time — Rust blob + smoke (USE_RUST_EXT_READ_TIME)
 include "rust/ext_read_time.inc"
 ; Cut AM: xfs._.get_before_by_hashval — Rust blob + smoke (USE_RUST_XFS_GET_BEFORE_BY_HASHVAL)
