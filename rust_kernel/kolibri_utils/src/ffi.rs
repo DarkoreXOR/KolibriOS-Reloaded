@@ -44,6 +44,7 @@ use crate::string::{strlen, strncmp, strncpy, strrchr};
 use crate::swap_bytes_in_words::swap_bytes_in_words;
 use crate::tcp::{tcp_outflags_ptr, tcp_set_persist_ptr, tcp_xmit_timer_ptr};
 use crate::ext_read_all_times::ext_read_all_times_ptr;
+use crate::ext_write_time::ext_write_time_pack_ptr;
 use crate::time::{
     ext_unix_to_secs, fat_time_to_bdfe, fs_calculate_time_ptr, fs_time2bdfe_ptr,
     ntfs_calculate_time_ptr, ntfs_datetime_to_bdfe_ptr, xfs_bigtime_to_secs,
@@ -707,6 +708,27 @@ pub extern "stdcall" fn rust_ext_unix_to_secs(i_time: u32, extra: u32) -> u32 {
 pub unsafe extern "stdcall" fn rust_ext_read_all_times(inode: *const u8, out: *mut u8) {
     // SAFETY: kernel trampoline passes ESI/EDI from live inode + caller-owned out buffer.
     unsafe { ext_read_all_times_ptr(inode, out) }
+}
+
+/// `stdcall` rust_ext_write_time_pack(kos_secs, time_ptr, extra_time_ptr).
+///
+/// Cut BS: dedicated section for reloc-free extract + FASM `file` embed.
+/// Callee cleans 12 bytes (`ret 12`). FASM trampoline calls `fsGetTime` first.
+/// `extra_time_ptr == 0xFFFFFFFF` skips extra write (FASM `-1` sentinel).
+///
+/// # Safety
+/// `time_ptr` writable; when `extra_time_ptr != 0xFFFFFFFF`, it must address a writable `u32`.
+#[no_mangle]
+#[link_section = ".text.rust_ext_write_time_pack"]
+pub unsafe extern "stdcall" fn rust_ext_write_time_pack(
+    kos_secs: u32,
+    time_ptr: *mut u32,
+    extra_time_ptr: u32,
+) {
+    // SAFETY: kernel trampoline passes caller-owned inode field pointers.
+    unsafe {
+        ext_write_time_pack_ptr(kos_secs, time_ptr, extra_time_ptr as *mut u32)
+    }
 }
 
 /// `stdcall` rust_ntfs_calculate_time(block) -> EDX:EAX FILETIME.

@@ -2999,6 +2999,24 @@ ext_GetFileInfo:
         mov     [edi], ax
         ret
 
+; Cut BS: USE_RUST_EXT_WRITE_TIME=1 routes through Rust
+; rust_ext_write_time_pack (see rust/ext_write_time.inc).
+; Set USE_RUST_EXT_WRITE_TIME=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–BR.
+; CMOS read stays FASM (`call fsGetTime`); Rust packs i_time + optional extra.
+
+USE_RUST_EXT_WRITE_TIME = 1
+
+if USE_RUST_EXT_WRITE_TIME
+
+proc ext_write_time uses ebx esi edi, time_ptr, extra_time_ptr
+        call    fsGetTime
+        stdcall rust_ext_write_time_pack, eax, [time_ptr], [extra_time_ptr]
+        ret
+endp
+
+else
+
 proc ext_write_time uses ebx esi edi, time_ptr, extra_time_ptr
         call    fsGetTime
         xor     edx, edx
@@ -3020,6 +3038,8 @@ proc ext_write_time uses ebx esi edi, time_ptr, extra_time_ptr
 .done:
         ret
 endp
+
+end if
 
 ;----------------------------------------------------------------
 ext_SetFileInfo:

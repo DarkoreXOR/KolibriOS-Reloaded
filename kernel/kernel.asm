@@ -250,7 +250,8 @@ high_code:
 ; Cut AI: exFAT_hash_calculate (NameHash) smoke ON when USE_RUST_EXFAT_HASH_CALCULATE=1.
 ; Cut AJ: iso9660_compare_name smoke ON when USE_RUST_ISO9660_COMPARE_NAME=1.
 ; Cut AK: xfs._.conv_bigtime_to_kos_epoch smoke ON when USE_RUST_XFS_CONV_BIGTIME_TO_KOS_EPOCH=1.
-; Cut AL: ext_read_time smoke ON when USE_RUST_EXT_READ_TIME=1.
+; Cut BR: ext_read_all_times smoke ON when USE_RUST_EXT_READ_ALL_TIMES=1.
+; Cut BS: ext_write_time smoke ON when USE_RUST_EXT_WRITE_TIME=1.
 ; Cut AM: xfs._.get_before_by_hashval smoke ON when USE_RUST_XFS_GET_BEFORE_BY_HASHVAL=1.
 ; Cut AN: ansi2uni_char smoke ON when USE_RUST_ANSI2UNI_CHAR=1.
 ; Cut AO: fat_time_to_bdfe smoke ON when USE_RUST_FAT_TIME_TO_BDFE=1.
@@ -344,6 +345,8 @@ high_code:
         ; Cut AL: ext_read_time smoke (Rust when USE_RUST_EXT_READ_TIME=1).
         call    ext_read_time_rust_smoke_test
         call    ext_read_all_times_rust_smoke_test
+        ; Cut BS: ext_write_time smoke (Rust when USE_RUST_EXT_WRITE_TIME=1).
+        call    ext_write_time_rust_smoke_test
         ; Cut AM: xfs._.get_before_by_hashval smoke (Rust when USE_RUST_XFS_GET_BEFORE_BY_HASHVAL=1).
         call    xfs_get_before_by_hashval_rust_smoke_test
         ; Cut AN: ansi2uni_char smoke (Rust when USE_RUST_ANSI2UNI_CHAR=1).

@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
@@ -41,6 +41,7 @@ mod coff_reloc;
 mod cp866_to_utf8_string;
 mod crc;
 mod ext_read_all_times;
+mod ext_write_time;
 mod exfat_checksum;
 mod fat_name;
 mod font;
@@ -109,6 +110,9 @@ pub use coff_reloc::{
 };
 pub use crc::crc32_update;
 pub use ext_read_all_times::{ext_read_all_times_ptr, EXT_READ_ALL_TIMES_PRNG_SEED};
+pub use ext_write_time::{
+    ext_write_time_pack_ptr, EXT_WRITE_TIME_NO_EXTRA, EXT_WRITE_TIME_PRNG_SEED,
+};
 pub use exfat_checksum::{
     calculate_set_checksum_field, calculate_set_checksum_field_ptr, exfat_hash_calculate,
     exfat_hash_calculate_ptr, exfat_rolling_checksum, CALCULATE_SET_CHECKSUM_FIELD_PRNG_SEED,
