@@ -1,7 +1,22 @@
 //! Cut H: `block_clip` — clip a mutable RECT against a clip RECT.
+//! Cut CD: `blit_clip` — dual `block_clip` compose + src/dst remap on `BLITTER`.
 //!
 //! Matches `kernel/video/blitter.inc` FASM leaf semantics (signed compares,
 //! in-place mutate, reject via CF). No tables / `.rodata` — reloc-free friendly.
+
+/// Cut CD PRNG seed (`'BLIT'`).
+pub const BLIT_CLIP_PRNG_SEED: u32 = 0x424C_4954;
+
+/// `BLITTER` layout offsets (`kernel/video/blitter.inc`).
+pub const BLITTER_OFF_DC: usize = 0;
+pub const BLITTER_OFF_SC: usize = 16;
+pub const BLITTER_OFF_DST_X: usize = 32;
+pub const BLITTER_OFF_DST_Y: usize = 36;
+pub const BLITTER_OFF_SRC_X: usize = 40;
+pub const BLITTER_OFF_SRC_Y: usize = 44;
+pub const BLITTER_OFF_W: usize = 48;
+pub const BLITTER_OFF_H: usize = 52;
+pub const BLITTER_SIZE: usize = 64;
 
 /// Axis-aligned rectangle: `{left, top, right, bottom}` as signed dwords
 /// (KolibriOS `RECT` / `const.inc`).
@@ -187,12 +202,278 @@ pub fn fasm_oracle_block_clip(clip: Rect, mut rect: Rect) -> BlockClipResult {
     BlockClipResult { draw: true, rect }
 }
 
+/// Geometry fields of a KolibriOS `BLITTER` (dc/sc + src/dst/w/h).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BlitterGeom {
+    pub dc: Rect,
+    pub sc: Rect,
+    pub dst_x: i32,
+    pub dst_y: i32,
+    pub src_x: i32,
+    pub src_y: i32,
+    pub w: i32,
+    pub h: i32,
+}
+
+impl BlitterGeom {
+    #[inline(always)]
+    pub const fn new(
+        dc: Rect,
+        sc: Rect,
+        dst_x: i32,
+        dst_y: i32,
+        src_x: i32,
+        src_y: i32,
+        w: i32,
+        h: i32,
+    ) -> Self {
+        Self {
+            dc,
+            sc,
+            dst_x,
+            dst_y,
+            src_x,
+            src_y,
+            w,
+            h,
+        }
+    }
+
+    /// Pack geometry into the first 56 bytes of a `BLITTER` (bitmap/stride left 0).
+    #[inline(always)]
+    pub fn to_bytes(self) -> [u8; BLITTER_SIZE] {
+        let mut b = [0u8; BLITTER_SIZE];
+        b[BLITTER_OFF_DC..BLITTER_OFF_DC + 16].copy_from_slice(&self.dc.to_bytes());
+        b[BLITTER_OFF_SC..BLITTER_OFF_SC + 16].copy_from_slice(&self.sc.to_bytes());
+        b[BLITTER_OFF_DST_X..BLITTER_OFF_DST_X + 4].copy_from_slice(&self.dst_x.to_le_bytes());
+        b[BLITTER_OFF_DST_Y..BLITTER_OFF_DST_Y + 4].copy_from_slice(&self.dst_y.to_le_bytes());
+        b[BLITTER_OFF_SRC_X..BLITTER_OFF_SRC_X + 4].copy_from_slice(&self.src_x.to_le_bytes());
+        b[BLITTER_OFF_SRC_Y..BLITTER_OFF_SRC_Y + 4].copy_from_slice(&self.src_y.to_le_bytes());
+        b[BLITTER_OFF_W..BLITTER_OFF_W + 4].copy_from_slice(&self.w.to_le_bytes());
+        b[BLITTER_OFF_H..BLITTER_OFF_H + 4].copy_from_slice(&self.h.to_le_bytes());
+        b
+    }
+
+    #[inline(always)]
+    pub fn from_bytes(b: &[u8; BLITTER_SIZE]) -> Self {
+        let mut dc_b = [0u8; 16];
+        let mut sc_b = [0u8; 16];
+        dc_b.copy_from_slice(&b[BLITTER_OFF_DC..BLITTER_OFF_DC + 16]);
+        sc_b.copy_from_slice(&b[BLITTER_OFF_SC..BLITTER_OFF_SC + 16]);
+        Self {
+            dc: Rect::from_bytes(&dc_b),
+            sc: Rect::from_bytes(&sc_b),
+            dst_x: i32::from_le_bytes([
+                b[BLITTER_OFF_DST_X],
+                b[BLITTER_OFF_DST_X + 1],
+                b[BLITTER_OFF_DST_X + 2],
+                b[BLITTER_OFF_DST_X + 3],
+            ]),
+            dst_y: i32::from_le_bytes([
+                b[BLITTER_OFF_DST_Y],
+                b[BLITTER_OFF_DST_Y + 1],
+                b[BLITTER_OFF_DST_Y + 2],
+                b[BLITTER_OFF_DST_Y + 3],
+            ]),
+            src_x: i32::from_le_bytes([
+                b[BLITTER_OFF_SRC_X],
+                b[BLITTER_OFF_SRC_X + 1],
+                b[BLITTER_OFF_SRC_X + 2],
+                b[BLITTER_OFF_SRC_X + 3],
+            ]),
+            src_y: i32::from_le_bytes([
+                b[BLITTER_OFF_SRC_Y],
+                b[BLITTER_OFF_SRC_Y + 1],
+                b[BLITTER_OFF_SRC_Y + 2],
+                b[BLITTER_OFF_SRC_Y + 3],
+            ]),
+            w: i32::from_le_bytes([
+                b[BLITTER_OFF_W],
+                b[BLITTER_OFF_W + 1],
+                b[BLITTER_OFF_W + 2],
+                b[BLITTER_OFF_W + 3],
+            ]),
+            h: i32::from_le_bytes([
+                b[BLITTER_OFF_H],
+                b[BLITTER_OFF_H + 1],
+                b[BLITTER_OFF_H + 2],
+                b[BLITTER_OFF_H + 3],
+            ]),
+        }
+    }
+}
+
+/// Result of [`blit_clip`]: draw/reject plus (possibly mutated) geometry.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct BlitClipResult {
+    /// `true` = draw (FASM CF=0); `false` = reject (FASM CF=1).
+    pub draw: bool,
+    pub geom: BlitterGeom,
+}
+
+/// Compose source/dest clips for a `BLITTER` (FASM `blit_clip`).
+///
+/// On reject, returns the input geometry unchanged (temps discarded). On draw,
+/// updates `w`, `h`, `src_x`, `src_y`, `dst_x`, `dst_y` to the clipped region.
+#[inline(always)]
+pub fn blit_clip(mut b: BlitterGeom) -> BlitClipResult {
+    let src0 = b.src_x;
+    let sy0 = b.src_y;
+    let src_rect = Rect::new(src0, sy0, src0.wrapping_add(b.w), sy0.wrapping_add(b.h));
+    let src_clipped = block_clip(b.sc, src_rect);
+    if !src_clipped.draw {
+        return BlitClipResult { draw: false, geom: b };
+    }
+    let sx0 = src_clipped.rect.left;
+    let sy0c = src_clipped.rect.top;
+    let sx1 = src_clipped.rect.right;
+    let sy1 = src_clipped.rect.bottom;
+
+    // dx0 = dst_x + sx0 - src_x; dy0 = dst_y + sy0 - src_y
+    let dx0 = b.dst_x.wrapping_add(sx0).wrapping_sub(src0);
+    let dy0 = b.dst_y.wrapping_add(sy0c).wrapping_sub(sy0);
+    // dx1 = (dst_x - src_x) + sx1 = dx0 - sx0 + sx1
+    let dx1 = dx0.wrapping_sub(sx0).wrapping_add(sx1);
+    let dy1 = dy0.wrapping_sub(sy0c).wrapping_add(sy1);
+
+    let dst_rect = Rect::new(dx0, dy0, dx1, dy1);
+    let dst_clipped = block_clip(b.dc, dst_rect);
+    if !dst_clipped.draw {
+        return BlitClipResult { draw: false, geom: b };
+    }
+    let dx0 = dst_clipped.rect.left;
+    let dy0 = dst_clipped.rect.top;
+    let dx1 = dst_clipped.rect.right;
+    let dy1 = dst_clipped.rect.bottom;
+
+    b.w = dx1.wrapping_sub(dx0);
+    b.h = dy1.wrapping_sub(dy0);
+    // src_x = src_x + dx0 - dst_x; src_y = src_y + dy0 - dst_y
+    b.src_x = src0.wrapping_add(dx0).wrapping_sub(b.dst_x);
+    b.src_y = sy0.wrapping_add(dy0).wrapping_sub(b.dst_y);
+    b.dst_x = dx0;
+    b.dst_y = dy0;
+
+    BlitClipResult { draw: true, geom: b }
+}
+
+/// In-place `blit_clip` via raw `BLITTER*` (kernel `ECX` layout).
+///
+/// Returns `0` = draw, `1` = reject. Mutates only `dst_x/y`, `src_x/y`, `w`, `h`
+/// on draw (matches FASM writeback); leaves `dc`/`sc`/bitmap/stride untouched.
+///
+/// # Safety
+/// `blitter` must be readable/writable for [`BLITTER_SIZE`] bytes.
+#[inline(always)]
+pub unsafe fn blit_clip_ptr(blitter: *mut u8) -> u32 {
+    let mut bytes = [0u8; BLITTER_SIZE];
+    unsafe {
+        core::ptr::copy_nonoverlapping(blitter, bytes.as_mut_ptr(), BLITTER_SIZE);
+    }
+    let r = blit_clip(BlitterGeom::from_bytes(&bytes));
+    if r.draw {
+        let g = r.geom;
+        unsafe {
+            core::ptr::copy_nonoverlapping(
+                g.dst_x.to_le_bytes().as_ptr(),
+                blitter.add(BLITTER_OFF_DST_X),
+                4,
+            );
+            core::ptr::copy_nonoverlapping(
+                g.dst_y.to_le_bytes().as_ptr(),
+                blitter.add(BLITTER_OFF_DST_Y),
+                4,
+            );
+            core::ptr::copy_nonoverlapping(
+                g.src_x.to_le_bytes().as_ptr(),
+                blitter.add(BLITTER_OFF_SRC_X),
+                4,
+            );
+            core::ptr::copy_nonoverlapping(
+                g.src_y.to_le_bytes().as_ptr(),
+                blitter.add(BLITTER_OFF_SRC_Y),
+                4,
+            );
+            core::ptr::copy_nonoverlapping(
+                g.w.to_le_bytes().as_ptr(),
+                blitter.add(BLITTER_OFF_W),
+                4,
+            );
+            core::ptr::copy_nonoverlapping(
+                g.h.to_le_bytes().as_ptr(),
+                blitter.add(BLITTER_OFF_H),
+                4,
+            );
+        }
+        0
+    } else {
+        1
+    }
+}
+
+/// Separately coded FASM-faithful host oracle for [`blit_clip`] (not via [`blit_clip`]).
+#[cfg(test)]
+pub fn fasm_oracle_blit_clip(mut b: BlitterGeom) -> BlitClipResult {
+    let src_x = b.src_x;
+    let src_y = b.src_y;
+    let mut sx0 = src_x;
+    let mut sy0 = src_y;
+    let mut sx1 = src_x.wrapping_add(b.w);
+    let mut sy1 = src_y.wrapping_add(b.h);
+
+    // First block_clip against sc (mutate sx temps)
+    let src_r = fasm_oracle_block_clip(b.sc, Rect::new(sx0, sy0, sx1, sy1));
+    if !src_r.draw {
+        return BlitClipResult { draw: false, geom: b };
+    }
+    sx0 = src_r.rect.left;
+    sy0 = src_r.rect.top;
+    sx1 = src_r.rect.right;
+    sy1 = src_r.rect.bottom;
+
+    let mut dx0 = b.dst_x.wrapping_add(sx0).wrapping_sub(src_x);
+    let mut dy0 = b.dst_y.wrapping_add(sy0).wrapping_sub(src_y);
+    let mut dx1 = dx0.wrapping_sub(sx0).wrapping_add(sx1);
+    let mut dy1 = dy0.wrapping_sub(sy0).wrapping_add(sy1);
+
+    let dst_r = fasm_oracle_block_clip(b.dc, Rect::new(dx0, dy0, dx1, dy1));
+    if !dst_r.draw {
+        return BlitClipResult { draw: false, geom: b };
+    }
+    dx0 = dst_r.rect.left;
+    dy0 = dst_r.rect.top;
+    dx1 = dst_r.rect.right;
+    dy1 = dst_r.rect.bottom;
+
+    b.w = dx1.wrapping_sub(dx0);
+    b.h = dy1.wrapping_sub(dy0);
+    b.src_x = src_x.wrapping_add(dx0).wrapping_sub(b.dst_x);
+    b.src_y = src_y.wrapping_add(dy0).wrapping_sub(b.dst_y);
+    b.dst_x = dx0;
+    b.dst_y = dy0;
+
+    BlitClipResult { draw: true, geom: b }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     fn r(l: i32, t: i32, ri: i32, b: i32) -> Rect {
         Rect::new(l, t, ri, b)
+    }
+
+    fn bg(
+        dc: Rect,
+        sc: Rect,
+        dst_x: i32,
+        dst_y: i32,
+        src_x: i32,
+        src_y: i32,
+        w: i32,
+        h: i32,
+    ) -> BlitterGeom {
+        BlitterGeom::new(dc, sc, dst_x, dst_y, src_x, src_y, w, h)
     }
 
     #[test]
@@ -409,6 +690,142 @@ mod tests {
                 block_clip(clip, rect),
                 fasm_oracle_block_clip(clip, rect),
                 "prng clip={clip:?} rect={rect:?}"
+            );
+        }
+    }
+
+    // ----- Cut CD: blit_clip -----
+
+    #[test]
+    fn blit_fully_inside_unchanged() {
+        let b = bg(
+            r(0, 0, 100, 100),
+            r(0, 0, 100, 100),
+            10,
+            20,
+            0,
+            0,
+            30,
+            40,
+        );
+        let out = blit_clip(b);
+        assert!(out.draw);
+        assert_eq!(out.geom, b);
+    }
+
+    #[test]
+    fn blit_src_clamp_remaps_dst() {
+        // sc clips left 10px of src; dst should shift accordingly.
+        let b = bg(r(0, 0, 200, 200), r(10, 0, 100, 100), 50, 60, 0, 0, 50, 40);
+        let out = blit_clip(b);
+        assert!(out.draw);
+        assert_eq!(out.geom.src_x, 10);
+        assert_eq!(out.geom.w, 40);
+        assert_eq!(out.geom.dst_x, 60); // 50 + (10-0)
+        assert_eq!(out.geom.dst_y, 60);
+        assert_eq!(out.geom.h, 40);
+    }
+
+    #[test]
+    fn blit_reject_src_outside_unchanged() {
+        let b = bg(r(0, 0, 100, 100), r(50, 0, 100, 100), 0, 0, 0, 0, 40, 20);
+        let out = blit_clip(b);
+        assert!(!out.draw);
+        assert_eq!(out.geom, b);
+    }
+
+    #[test]
+    fn blit_reject_dst_outside_unchanged() {
+        // src ok in sc; remapped dst fully outside dc.
+        let b = bg(r(0, 0, 50, 50), r(0, 0, 100, 100), 100, 100, 0, 0, 20, 20);
+        let out = blit_clip(b);
+        assert!(!out.draw);
+        assert_eq!(out.geom, b);
+    }
+
+    #[test]
+    fn blit_clip_ptr_draw_and_reject() {
+        let mut bytes = bg(
+            r(0, 0, 100, 100),
+            r(0, 0, 100, 100),
+            10,
+            10,
+            0,
+            0,
+            20,
+            20,
+        )
+        .to_bytes();
+        // Plant non-zero bitmap/stride — must survive.
+        bytes[56..60].copy_from_slice(&0xAABBCCDDu32.to_le_bytes());
+        bytes[60..64].copy_from_slice(&0x11223344u32.to_le_bytes());
+        let code = unsafe { blit_clip_ptr(bytes.as_mut_ptr()) };
+        assert_eq!(code, 0);
+        assert_eq!(&bytes[56..60], &0xAABBCCDDu32.to_le_bytes());
+        assert_eq!(&bytes[60..64], &0x11223344u32.to_le_bytes());
+
+        let mut rej = bg(r(0, 0, 10, 10), r(50, 50, 100, 100), 0, 0, 0, 0, 20, 20).to_bytes();
+        let before = rej;
+        let code = unsafe { blit_clip_ptr(rej.as_mut_ptr()) };
+        assert_eq!(code, 1);
+        assert_eq!(rej, before);
+    }
+
+    #[test]
+    fn blit_clip_differential_oracle() {
+        let named = [
+            bg(r(0, 0, 100, 100), r(0, 0, 100, 100), 10, 20, 0, 0, 30, 40),
+            bg(r(0, 0, 200, 200), r(10, 0, 100, 100), 50, 60, 0, 0, 50, 40),
+            bg(r(0, 0, 100, 100), r(50, 0, 100, 100), 0, 0, 0, 0, 40, 20),
+            bg(r(0, 0, 50, 50), r(0, 0, 100, 100), 100, 100, 0, 0, 20, 20),
+            bg(r(10, 10, 90, 90), r(0, 0, 100, 100), 0, 0, 0, 0, 100, 100),
+            bg(r(-50, -50, 50, 50), r(-100, -100, 100, 100), -20, -10, -30, -40, 80, 90),
+        ];
+        for b in named {
+            assert_eq!(
+                blit_clip(b),
+                fasm_oracle_blit_clip(b),
+                "named {b:?}"
+            );
+        }
+
+        let mut state = BLIT_CLIP_PRNG_SEED;
+        let mut next = || -> u32 {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            state
+        };
+        const CASES: u32 = 50_000;
+        for i in 0..CASES {
+            let scale = (next() & 3) as i32;
+            let map = |v: i32, s: i32| -> i32 {
+                if s == 0 {
+                    (v % 201) - 100
+                } else if s == 1 {
+                    (v % 2001) - 1000
+                } else if s == 2 {
+                    v >> 16
+                } else {
+                    v
+                }
+            };
+            let vals: [i32; 12] = core::array::from_fn(|_| map(next() as i32, scale));
+            // Ensure sc/dc have some extent variety; still allow degenerate.
+            let b = bg(
+                r(vals[0], vals[1], vals[2], vals[3]),
+                r(vals[4], vals[5], vals[6], vals[7]),
+                vals[8],
+                vals[9],
+                vals[10],
+                vals[11],
+                map(next() as i32, scale),
+                map(next() as i32, scale),
+            );
+            assert_eq!(
+                blit_clip(b),
+                fasm_oracle_blit_clip(b),
+                "prng case {i} {b:?}"
             );
         }
     }

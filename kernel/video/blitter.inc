@@ -33,8 +33,13 @@ ends
 ; Cut H: USE_RUST_BLOCK_CLIP=1 routes through Rust rust_block_clip
 ; (see rust/block_clip.inc). Set USE_RUST_BLOCK_CLIP=0 to restore
 ; the original FASM body without deleting it. Independent of Cuts A–G.
+;
+; Cut CD: USE_RUST_BLIT_CLIP=1 routes blit_clip through rust_blit_clip
+; (see rust/blit_clip.inc). Independent of USE_RUST_BLOCK_CLIP — the Rust
+; blit_clip blob inlines block_clip (no cross-blob call).
 
 USE_RUST_BLOCK_CLIP = 1
+USE_RUST_BLIT_CLIP = 1
 
 if USE_RUST_BLOCK_CLIP
 
@@ -116,6 +121,31 @@ block_clip:
 
 end if
 
+
+if USE_RUST_BLIT_CLIP
+
+; Compatibility trampoline: ECX→BLITTER* → Rust stdcall → EAX → CF.
+; Preserves EBX/ESI/EDI (legacy push/pop). Stack: FASM `stdcall` only —
+; rust_blit_clip ends with `ret 4`; do NOT add esp (REG-009).
+; Documents CF draw/reject after pops (legacy FASM `add esp,40` clobbered CF).
+align 4
+blit_clip:
+        push    edi
+        push    esi
+        push    ebx
+        stdcall rust_blit_clip, ecx
+        test    eax, eax
+        pop     ebx
+        pop     esi
+        pop     edi
+        jnz     .rust_fail
+        clc
+        ret
+.rust_fail:
+        stc
+        ret
+
+else
 
 align 4
 blit_clip:
@@ -220,6 +250,8 @@ purge .dx1
 purge .dy1
 
         ret
+
+end if
 
 align 4
 blit_32:

@@ -99,6 +99,8 @@ include "rust/fs_get_time.inc"
 ; Cut CA: fsReadCMOS — Rust blob + smoke (USE_RUST_FS_READ_CMOS)
 include "rust/fs_read_cmos.inc"
 include "rust/block_clip.inc"
+; Cut CD: blit_clip — Rust blob + smoke (USE_RUST_BLIT_CLIP)
+include "rust/blit_clip.inc"
 ; Cut I: ntfs_decode_mcb_entry — Rust blob + smoke (see docs/migration/cut-i-plan.md)
 include "rust/ntfs_decode_mcb_entry.inc"
 ; Cut AX: createMcbEntry — Rust blob + smoke (USE_RUST_NTFS_CREATE_MCB_ENTRY)

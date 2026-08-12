@@ -24,7 +24,7 @@ use crate::exfat_checksum::{calculate_set_checksum_field_ptr, exfat_hash_calcula
 use crate::fat_name::{fat_gen_short_name_ptr, fat_name_is_legal_ptr, fat_next_short_name_ptr};
 use crate::font::anti_aliasing;
 use crate::fs_operation_safe::file_system_is_operation_safe_ptr;
-use crate::geometry::block_clip_ptr;
+use crate::geometry::{block_clip_ptr, blit_clip_ptr};
 use crate::get_coff_sym::get_coff_sym_ptr;
 use crate::get_pg_addr::get_pg_addr_ptr;
 use crate::io_access::set_io_access_rights_ptr;
@@ -950,6 +950,22 @@ pub unsafe extern "stdcall" fn rust_iso9660_copy_name(
 pub unsafe extern "stdcall" fn rust_block_clip(clip: *const u8, rect: *mut u8) -> u32 {
     // SAFETY: kernel trampoline passes ESI/EDI → valid RECT blocks.
     unsafe { block_clip_ptr(clip, rect) }
+}
+
+/// `stdcall` rust_blit_clip(blitter) -> EAX = 0 draw / 1 reject.
+///
+/// Cut CD: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 4 bytes (`ret 4`). FASM trampoline maps EAX → `clc`/`stc`.
+/// Mutates `BLITTER` dst/src/w/h only on draw; composes Cut H `block_clip` inline.
+///
+/// # Safety
+/// `blitter` must be a readable/writable KolibriOS `BLITTER` (64 bytes).
+#[no_mangle]
+#[link_section = ".text.rust_blit_clip"]
+pub unsafe extern "stdcall" fn rust_blit_clip(blitter: *mut u8) -> u32 {
+    // SAFETY: kernel trampoline passes ECX → BLITTER*.
+    unsafe { blit_clip_ptr(blitter) }
 }
 
 /// `stdcall` rust_ntfs_decode_mcb_entry(esi_inout, buffer) -> EAX = 0 end / 1 more.

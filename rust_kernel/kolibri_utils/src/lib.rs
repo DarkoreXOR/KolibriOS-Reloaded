@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA/CB/CC
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA/CB/CC/CD
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
@@ -19,8 +19,8 @@
 //! config-space address encode, AHCI free command-slot scan + PxSIG known-device
 //! recognition, AHCI port TFD busy/DRQ poll with timer deadline,
 //! reverse character search (`strrchr`), bounded padded
-//! copy (`strncpy`), C-string length (`strlen`), and endian word-byte swap
-//! (`swap_bytes_in_words`) for KolibriOS hybrid
+//! copy (`strncpy`), C-string length (`strlen`), endian word-byte swap
+//! (`swap_bytes_in_words`), and video `block_clip` + `blit_clip` for KolibriOS hybrid
 //! migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
@@ -149,7 +149,11 @@ pub use fs_operation_safe::{
     FILE_SYSTEM_IS_OPERATION_SAFE_PRNG_SEED, INF_STRUCT_MIN, OFF_BUFFER_BASE, OFF_COUNT_OR_SIZE,
     OFF_ENCODING, OFF_SUBFN, SUBFN5_LEN, SUBFN6_LEN,
 };
-pub use geometry::{block_clip, BlockClipResult, Rect};
+pub use geometry::{
+    blit_clip, blit_clip_ptr, block_clip, BlitClipResult, BlitterGeom, BlockClipResult, Rect,
+    BLITTER_OFF_DC, BLITTER_OFF_DST_X, BLITTER_OFF_DST_Y, BLITTER_OFF_H, BLITTER_OFF_SC,
+    BLITTER_OFF_SRC_X, BLITTER_OFF_SRC_Y, BLITTER_OFF_W, BLITTER_SIZE, BLIT_CLIP_PRNG_SEED,
+};
 pub use get_coff_sym::{
     get_coff_sym, get_coff_sym_oracle, get_coff_sym_ptr, make_sym, name_eq_n, COFF_SYM_NAME_LEN,
     GET_COFF_SYM_PRNG_SEED, OFF_SYM_VALUE as GET_COFF_SYM_OFF_VALUE,

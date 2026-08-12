@@ -295,6 +295,10 @@ high_code:
         ; Cut CA: fsReadCMOS smoke (Rust when USE_RUST_FS_READ_CMOS=1).
         call    fs_read_cmos_rust_smoke_test
         call    block_clip_rust_smoke_test
+        ; Cut CD: blit_clip smoke — requires Rust trampoline CF (legacy add esp clobbers CF).
+if USE_RUST_BLIT_CLIP
+        call    blit_clip_rust_smoke_test
+end if
         call    ntfs_decode_mcb_rust_smoke_test
         call    ntfs_restore_usa_rust_smoke_test
         call    fat_next_short_name_rust_smoke_test
