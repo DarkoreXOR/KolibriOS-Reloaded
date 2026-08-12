@@ -684,6 +684,27 @@ proc get_proc_ex stdcall uses ebx esi, proc_name:dword, imports:dword
         ret
 endp
 
+; Cut BU: USE_RUST_FIX_COFF_SYMBOLS=1 routes through Rust
+; rust_fix_coff_symbols (see rust/fix_coff_symbols.inc).
+; Set USE_RUST_FIX_COFF_SYMBOLS=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–BT.
+
+USE_RUST_FIX_COFF_SYMBOLS = 1
+
+if USE_RUST_FIX_COFF_SYMBOLS
+
+; Compatibility trampoline: stdcall(sec,symbols,sym_count,strings,imports).
+; Injects live `get_proc_ex` for external symbol resolution.
+align 4
+proc fix_coff_symbols stdcall uses ebx esi, sec:dword, symbols:dword,\
+                      sym_count:dword, strings:dword, imports:dword
+        stdcall rust_fix_coff_symbols, [sec], [symbols], [sym_count], \
+                [strings], [imports], get_proc_ex
+        ret
+endp
+
+else
+
 align 4
 proc fix_coff_symbols stdcall uses ebx esi, sec:dword, symbols:dword,\
                       sym_count:dword, strings:dword, imports:dword
@@ -746,6 +767,8 @@ proc fix_coff_symbols stdcall uses ebx esi, sec:dword, symbols:dword,\
         mov     eax, [retval]
         ret
 endp
+
+end if
 
 align 4
 ; Cut Y: USE_RUST_FIX_COFF_RELOCS=1 routes through Rust

@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
@@ -12,7 +12,7 @@
 //! extent unpack + dir leaf hash binary search + DA node first-match-by-hash + dir name hash +
 //! AG-relative block→absolute sector + last data dirblock selection, window screen-fit helpers, TSS I/O permission bitmap
 //! updates + port-area reserve/free, COFF reloc application + symbol name→Value lookup + section
-//! alignment mask decode, MBR/EBR
+//! alignment mask decode + import symbol table resolve, MBR/EBR
 //! partition-table entry validation, GPT protective-MBR recognition, process TID→slot lookup,
 //! IPv4 on-link/gateway/broadcast routing + fragment-slot lookup, AHCI free command-slot scan,
 //! kernel VA→PA page translation, socket-list membership, NIC device-list ptr→index×4, PCI
@@ -38,6 +38,7 @@ mod casefold;
 mod checksum;
 mod coff_get_align;
 mod coff_reloc;
+mod fix_coff_symbols;
 mod cp866_to_utf8_string;
 mod crc;
 mod ext_read_all_times;

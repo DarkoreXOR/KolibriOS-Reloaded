@@ -40,6 +40,13 @@ probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_fix_coff_symbols"
+symbol = "rust_fix_coff_symbols"
+expect_ret_imm = 24
+out = "rust_fix_coff_symbols.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_ntfs_get_time_pack"
 symbol = "rust_ntfs_get_time_pack"
 expect_ret_imm = 4
@@ -573,6 +580,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "BU"
+blob = "rust_fix_coff_symbols.bin"
+symbol = "rust_fix_coff_symbols"
+gate = "USE_RUST_FIX_COFF_SYMBOLS"
+include = "kernel/rust/fix_coff_symbols.inc"
+gate_file = "kernel/core/dll.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "BT"
 blob = "rust_ntfs_get_time_pack.bin"

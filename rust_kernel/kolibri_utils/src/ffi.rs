@@ -15,6 +15,7 @@ use crate::cp866_to_utf8_string::cp866_to_utf8_string_ptr;
 use crate::coff_get_align::coff_get_align_ptr;
 use crate::v86_get_lin_addr::v86_get_lin_addr_ptr;
 use crate::coff_reloc::fix_coff_relocs_ptr;
+use crate::fix_coff_symbols::{fix_coff_symbols_ptr, GetProcExFn};
 use crate::crc::crc32_update;
 use crate::exfat_checksum::{calculate_set_checksum_field_ptr, exfat_hash_calculate_ptr};
 use crate::fat_name::{fat_gen_short_name_ptr, fat_name_is_legal_ptr, fat_next_short_name_ptr};
@@ -1109,6 +1110,26 @@ pub unsafe extern "stdcall" fn rust_fix_coff_relocs(
 ) {
     // SAFETY: kernel trampoline / load_library passes live COFF pointers.
     unsafe { fix_coff_relocs_ptr(coff, sym, delta) }
+}
+
+/// `stdcall` rust_fix_coff_symbols(sec, symbols, sym_count, strings, imports, get_proc_ex) -> EAX.
+///
+/// Cut BU: dedicated section for reloc-free extract + FASM `file` embed.
+/// Callee cleans 24 bytes (`ret 24`). Injected `get_proc_ex` resolves externals.
+///
+/// # Safety
+/// Live COFF symbol/section/string tables; `get_proc_ex` must match legacy ABI.
+#[no_mangle]
+#[link_section = ".text.rust_fix_coff_symbols"]
+pub unsafe extern "stdcall" fn rust_fix_coff_symbols(
+    sec: *const u8,
+    symbols: *mut u8,
+    sym_count: u32,
+    strings: *const u8,
+    imports: u32,
+    get_proc_ex: GetProcExFn,
+) -> u32 {
+    unsafe { fix_coff_symbols_ptr(sec, symbols, sym_count, strings, imports, get_proc_ex) }
 }
 
 /// `stdcall` rust_is_partition_table_entry(entry, ebp_base, cap_lo, cap_hi) -> EAX.

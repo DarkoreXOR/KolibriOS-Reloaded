@@ -216,6 +216,8 @@ include "rust/xfs_get_addr_by_hash.inc"
 include "rust/set_io_access_rights.inc"
 ; Cut Y: fix_coff_relocs — Rust blob + smoke (USE_RUST_FIX_COFF_RELOCS)
 include "rust/fix_coff_relocs.inc"
+; Cut BU: fix_coff_symbols — Rust blob + smoke (USE_RUST_FIX_COFF_SYMBOLS)
+include "rust/fix_coff_symbols.inc"
 ; Cut Z: is_partition_table_entry — Rust blob + smoke (USE_RUST_IS_PARTITION_TABLE_ENTRY)
 include "rust/is_partition_table_entry.inc"
 ; Cut AA: pid_to_slot — Rust blob + smoke (USE_RUST_PID_TO_SLOT)

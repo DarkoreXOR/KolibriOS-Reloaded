@@ -96,6 +96,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut BR:** `ext_read_all_times` — **done** 2026-08-12 ([`cut-br-plan.md`](cut-br-plan.md), [`cut-br-implementation.md`](cut-br-implementation.md)). EXT inode triple-timestamp→BDFE fan-out (Cut AL+T compose); Path B after fresh post-BQ audit (`Path A: REJECTED`; selected over `fix_coff_symbols`, `ext_write_time`, `fsGetTime`); reloc-free. **Stop; do not start Cut BS.**
 - **Cut BS:** `ext_write_time` — **done** 2026-08-12 ([`cut-bs-plan.md`](cut-bs-plan.md), [`cut-bs-implementation.md`](cut-bs-implementation.md)). EXT KOS→inode i_time pack after `fsGetTime` (Cut AL inverse pack); Path B after fresh post-BR audit (`Path A: REJECTED`; selected over `fix_coff_symbols`, `fsGetTime`, `ext_SetFileInfo`); reloc-free. **`--disk ext` soak NOT AVAILABLE.** **Stop; do not start Cut BT.**
 - **Cut BT:** `ntfsGetTime` — **done** 2026-08-12 ([`cut-bt-plan.md`](cut-bt-plan.md), [`cut-bt-implementation.md`](cut-bt-implementation.md)). KOS secs→NTFS FILETIME pack after `fsGetTime` (Cut AF bias twin on CMOS metadata path); Path B after fresh post-BS audit (`Path A: REJECTED`; selected over `fix_coff_symbols`, `fsGetTime`, `fsReadCMOS`); reloc-free. **`--disk ntfs` attach-only soak PASS.** **Stop; do not start Cut BU.**
+- **Cut BU:** `fix_coff_symbols` — **done** 2026-08-12 ([`cut-bu-plan.md`](cut-bu-plan.md), [`cut-bu-implementation.md`](cut-bu-implementation.md)). COFF symbol-table resolve loop (external `get_proc_ex` + internal VA add); Path B after fresh post-BT audit (`Path A: REJECTED`; selected over `fsGetTime`, `tcp_mss`, `fsReadCMOS`); reloc-free. Desktop partial soak PASS. **Stop; do not start Cut BV.**
 
 ### Stage 3 — Compat syscall façade (selected)
 
@@ -125,7 +126,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 ### Stage 8 — PE driver loader
 
 - Export directory ownership in Rust.
-- **Status:** foothold via Cuts Y/AT/BK (`fix_coff_relocs` + `get_coff_sym` + `coff_get_align`); loader orchestration remains FASM.
+- **Status:** foothold via Cuts Y/AT/BK/BU (`fix_coff_relocs` + `get_coff_sym` + `coff_get_align` + `fix_coff_symbols`); loader orchestration remains FASM.
 
 ### Stage 9 — Boot ownership
 
