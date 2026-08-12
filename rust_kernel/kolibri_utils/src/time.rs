@@ -7,6 +7,7 @@
 //! Cut AO: `fat_time_to_bdfe` — DOS FAT packed time → BDFE time dword.
 //! Cut BW: `fat_date_to_bdfe` — DOS FAT packed date → BDFE date dword.
 //! Cut BX: `bdfe_to_fat_date` — BDFE date dword → DOS FAT packed date (BW inverse).
+//! Cut BY: `bdfe_to_fat_time` — BDFE time dword → DOS FAT packed time (AO inverse).
 //!
 //! Matches `kernel/fs/fs_common.inc` / `ntfs.inc` / `xfs.asm` / `ext.inc` /
 //! `fat.inc` FASM leaf semantics for the production domain (year &lt; 3025 so
@@ -57,6 +58,9 @@ pub const FAT_DATE_TO_BDFE_PRNG_SEED: u32 = 0x4355_4257;
 
 /// PRNG seed for Cut BX differential corpus (`'CUBX'`).
 pub const BDFE_TO_FAT_DATE_PRNG_SEED: u32 = 0x4355_4258;
+
+/// PRNG seed for Cut BY differential corpus (`'CUBY'`).
+pub const BDFE_TO_FAT_TIME_PRNG_SEED: u32 = 0x4355_4259;
 
 /// BDFE-style datetime block layout (same offsets as FASM / `fsTime2bdfe`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -498,6 +502,26 @@ pub fn fat_date_to_bdfe(fat_date: u32) -> u32 {
     eax = (eax & 0xFFFF_FF00) | u32::from(day);
     let month = ((ecx >> 5) & 0xF) as u8;
     eax = (eax & 0xFFFF_00FF) | (u32::from(month) << 8);
+    eax
+}
+
+/// Convert BDFE time dword to DOS FAT packed time (`bdfe_to_fat_time` in `fat.inc`).
+///
+/// Cut BY: mirrors FASM register flow (`edx` temp, minute/second bitfield pack).
+/// Callers store only `AX`; high `EAX` bits follow FASM (hour field dominates).
+#[inline(always)]
+pub fn bdfe_to_fat_time(bdfe_time: u32) -> u32 {
+    let mut eax = bdfe_time;
+    let edx = bdfe_time;
+    eax >>= 16;
+    let dh = ((edx >> 8) & 0xFF) as u8 & 0x3F;
+    eax <<= 6;
+    eax |= u32::from(dh);
+    let mut dl = (edx & 0xFF) as u8;
+    dl >>= 1;
+    dl &= 0x1F;
+    eax <<= 5;
+    eax |= u32::from(dl);
     eax
 }
 
@@ -1847,6 +1871,47 @@ mod tests {
             );
         }
     }
+
+    // Cut BY — bdfe_to_fat_time
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn bdfe_to_fat_time_known_vectors() {
+        assert_eq!(bdfe_to_fat_time(0), 0);
+        assert_eq!(bdfe_to_fat_time(0x0000_0002), 0x0001);
+        assert_eq!(bdfe_to_fat_time(0x0000_0100), 0x0020);
+        assert_eq!(bdfe_to_fat_time(0x0001_0000), 0x0800);
+        assert_eq!(bdfe_to_fat_time(0x0017_3B3A), 0xBF7D);
+    }
+
+    #[test]
+    fn bdfe_to_fat_time_roundtrip_via_ao() {
+        for t in 0u32..=0xFFFF {
+            let bdfe = fat_time_to_bdfe(t);
+            assert_eq!(
+                bdfe_to_fat_time(bdfe),
+                t,
+                "roundtrip fat_time={t:#x} bdfe={bdfe:#x}"
+            );
+        }
+    }
+
+    #[test]
+    fn bdfe_to_fat_time_prng_oracle_50k() {
+        const CASES: usize = 50_000;
+        let mut state = BDFE_TO_FAT_TIME_PRNG_SEED;
+        for i in 0..CASES {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            let bdfe = state;
+            assert_eq!(
+                bdfe_to_fat_time(bdfe),
+                fasm_oracle_bdfe_to_fat_time(bdfe),
+                "prng#{i} bdfe={bdfe:#x}"
+            );
+        }
+    }
 }
 
 /// FASM-faithful host oracle for `fsTime2bdfe` — separate control-flow mirror
@@ -2105,8 +2170,9 @@ pub fn fasm_oracle_bdfe_to_fat_date(bdfe_date: u32) -> u32 {
     eax
 }
 
-/// FASM-faithful host oracle for `bdfe_to_fat_time` (inverse leaf; used for
-/// round-trip checks only — not migrated in Cut AO).
+/// FASM-faithful host oracle for `bdfe_to_fat_time` — mirrors `fat.inc`
+/// register flow (`push/pop edx`, minute/second pack), not a call through
+/// [`bdfe_to_fat_time`].
 #[cfg(test)]
 pub fn fasm_oracle_bdfe_to_fat_time(bdfe_time: u32) -> u32 {
     // push edx; mov edx,eax; shr eax,16; and dh,0x3F; shl eax,6; or al,dh;

@@ -194,6 +194,8 @@ include "rust/fat_time_to_bdfe.inc"
 include "rust/fat_date_to_bdfe.inc"
 ; Cut BX: bdfe_to_fat_date — Rust blob + smoke (USE_RUST_BDFE_TO_FAT_DATE)
 include "rust/bdfe_to_fat_date.inc"
+; Cut BY: bdfe_to_fat_time — Rust blob + smoke (USE_RUST_BDFE_TO_FAT_TIME)
+include "rust/bdfe_to_fat_time.inc"
 ; Cut AP: xfs_hashname — Rust blob + smoke (USE_RUST_XFS_HASHNAME)
 include "rust/xfs_hashname.inc"
 ; Cut AQ: get_pg_addr — Rust blob + smoke (USE_RUST_GET_PG_ADDR)

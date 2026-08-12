@@ -48,10 +48,9 @@ use crate::tcp::{tcp_outflags_ptr, tcp_set_persist_ptr, tcp_xmit_timer_ptr};
 use crate::ext_read_all_times::ext_read_all_times_ptr;
 use crate::ext_write_time::ext_write_time_pack_ptr;
 use crate::time::{
-    bdfe_to_fat_date, ext_unix_to_secs, fat_date_to_bdfe, fat_time_to_bdfe, fs_calculate_time_ptr,
-    fs_time2bdfe_ptr,
-    ntfs_calculate_time_ptr, ntfs_datetime_to_bdfe_ptr, xfs_bigtime_to_secs,
-    xfs_conv_time_to_kos_epoch_ptr,
+    bdfe_to_fat_date, bdfe_to_fat_time, ext_unix_to_secs, fat_date_to_bdfe, fat_time_to_bdfe,
+    fs_calculate_time_ptr, fs_time2bdfe_ptr, ntfs_calculate_time_ptr, ntfs_datetime_to_bdfe_ptr,
+    xfs_bigtime_to_secs, xfs_conv_time_to_kos_epoch_ptr,
 };
 use crate::unicode::{cp866_decode, cp866_encode, utf16_encode, utf8_decode};
 use crate::userspace::{is_region_userspace, is_string_userspace};
@@ -201,6 +200,18 @@ pub extern "stdcall" fn rust_fat_date_to_bdfe(fat_date: u32) -> u32 {
 #[link_section = ".text.rust_bdfe_to_fat_date"]
 pub extern "stdcall" fn rust_bdfe_to_fat_date(bdfe_date: u32) -> u32 {
     bdfe_to_fat_date(bdfe_date)
+}
+
+/// `stdcall` rust_bdfe_to_fat_time(bdfe_time) -> EAX = FAT packed time.
+///
+/// Cut BY: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 4 bytes (`ret 4`). FASM trampoline preserves ECX+EDX
+/// (REG-001 / legacy `push edx` body).
+#[no_mangle]
+#[link_section = ".text.rust_bdfe_to_fat_time"]
+pub extern "stdcall" fn rust_bdfe_to_fat_time(bdfe_time: u32) -> u32 {
+    bdfe_to_fat_time(bdfe_time)
 }
 
 /// `stdcall` rust_xfs_hashname(name, len) -> EAX = XFS dir name hash.

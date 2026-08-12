@@ -40,6 +40,13 @@ probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_bdfe_to_fat_time"
+symbol = "rust_bdfe_to_fat_time"
+expect_ret_imm = 4
+out = "rust_bdfe_to_fat_time.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_bdfe_to_fat_date"
 symbol = "rust_bdfe_to_fat_date"
 expect_ret_imm = 4
@@ -601,6 +608,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "BY"
+blob = "rust_bdfe_to_fat_time.bin"
+symbol = "rust_bdfe_to_fat_time"
+gate = "USE_RUST_BDFE_TO_FAT_TIME"
+include = "kernel/rust/bdfe_to_fat_time.inc"
+gate_file = "kernel/fs/fat.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "BX"
 blob = "rust_bdfe_to_fat_date.bin"
