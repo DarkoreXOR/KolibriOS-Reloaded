@@ -122,6 +122,16 @@ Use this before enabling a migration gate and when debugging a live FS bug.
     before `endp` skips `leave` and leaves the frame pointer on the stack.
     Match Cut patterns that `jmp` into the real FASM callee when arg layout
     matches (REG-009).
+18. **Naked trampolines that `sub esp` for a ctx must count the return
+    address** when indexing original stdcall args —
+    `ctx_size + saved_regs + 4` (REG-010). Mis-indexing feeds the retaddr
+    as an argument; ABI smoke `jmp $` then looks like a black “running”
+    desktop with `resets=0`.
+19. **PE-exported leaves must preserve EBX/ESI/EDI/EBP** even when the
+    FASM body only listed `uses ecx edx` — the original `proc` kept
+    those regs intact via frame / non-use. Rust stdcall clobbers them;
+    trampoline must push/pop the full set. Smoke must canary all six
+    (REG-011 — frozen mouse after Cut CF).
 
 ---
 
@@ -138,6 +148,8 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | [REG-007](#reg-007--post-bootloader-reset-cut-cc-smoke-2026-08-12) | 2026-08-12 | Post-bootloader reset (Cut CC smoke mock ret) | Fixed |
 | [REG-008](#reg-008--post-bootloader-reset-cut-cc-disk-add-partition-esi-ebx-2026-08-12) | 2026-08-12 | Post-bootloader reset (Cut CC disk_add_partition ESI/EBX) | Fixed |
 | [REG-009](#reg-009--bootloader-reset-loop-cut-cc-stdcall-double-cleanup-2026-08-12) | 2026-08-12 | Bootloader reset loop (Cut CC stdcall double cleanup) | Fixed |
+| [REG-010](#reg-010--black-desktop-cut-cf-trampoline-arg-offset-2026-08-12) | 2026-08-12 | Black desktop (Cut CF trampoline arg offset) | Fixed |
+| [REG-011](#reg-011--mouse-cursor-frozen-cut-cf-ebxesiediebp-2026-08-12) | 2026-08-12 | Mouse cursor frozen (Cut CF EBX/ESI/EDI/EBP) | Fixed |
 
 ---
 
@@ -284,6 +296,38 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | Avoid next time | Match Cut Z/AD: always `stdcall rust_*`. Treat non-black without RESET watch as insufficient for reboot-loop bugs. |
 
 **Class:** stdcall vs cdecl trampoline mismatch / smoke ABI.
+
+---
+
+### REG-010 — Black desktop (Cut CF trampoline arg offset) (2026-08-12)
+
+| Field | Value |
+|-------|-------|
+| Symptom | QEMU `query-status: running`, `resets=0`, screendump **non-black=0** (never reached desktop). |
+| Suspected | Cut CF `set_mouse_data` Rust leaf / HID globals. |
+| Cleared by A/B | Gate ON with corrected trampoline reaches desktop (779380); first ON image hung in ABI smoke. |
+| Root cause | Naked trampoline built a 44-byte stack `SetMouseDataCtx` after `push ecx`/`push edx`, then read stdcall args at **`[esp+52]`** — that slot is the **return address**, not `BtnState`. Correct base is **`ctx(44)+saved(8)+retaddr(4)=56`**. Smoke compared wrong results → `jmp $` hang before desktop. |
+| Fix | `kernel/hid/mousedrv.inc`: arg loads at `[esp+56..72]`. |
+| Verify | `python scripts/qmp_desktop_smoke.py --wait 90` PASS — non-black=779380, resets=0. |
+| Avoid next time | When `sub esp, N` under a naked stdcall entry, always add **+4 for the return address** in the arg-offset formula; unit-check one known vector in smoke before relying on desktop pixels alone. |
+
+**Class:** trampoline stack-frame arithmetic / smoke hang (related to REG-006/009).
+
+---
+
+### REG-011 — Mouse cursor frozen (Cut CF EBX/ESI/EDI/EBP) (2026-08-12)
+
+| Field | Value |
+|-------|-------|
+| Symptom | Desktop boots, but **mouse cursor does not move** (HID input dead). |
+| Suspected | Cut CF `set_mouse_data` Rust leaf / absolute-vs-relative compose. |
+| Cleared by A/B | Gate OFF restores mouse; host oracle + desktop non-black smoke still passed ON. |
+| Root cause | Naked Cut CF trampoline preserved only **ECX/EDX** (matching FASM `uses`), but used **EBX/ESI/EDI/EBP** as arg temps and let Rust clobber them. Original `proc set_mouse_data stdcall uses ecx edx` kept **EBP** via frame and never wrote **EBX/ESI/EDI**, so PE `SetMouseData` callers (PS/2/USB drivers) kept live state across the call. Destroying those regs broke the driver after return → no further cursor updates. |
+| Fix | `kernel/hid/mousedrv.inc`: push/pop **EBX/ESI/EDI/EBP** (+ ECX/EDX); arg base **72**. `kernel/rust/set_mouse_data.inc`: smoke canaries for all six. |
+| Verify | Rebuild ON; QEMU desktop PASS (779380); QMP mouse soak PASS. Image: `dev_build/test/kernel-20260812-165948.img`. User confirms cursor moves. |
+| Avoid next time | For PE exports, treat **EBX/ESI/EDI/EBP** as preserved unless the legacy body truly clobbers them. ABI smoke must canary callee-saved regs, not only `uses` list. |
+
+**Class:** PE-export register preserve / REG-001 family.
 
 ---
 

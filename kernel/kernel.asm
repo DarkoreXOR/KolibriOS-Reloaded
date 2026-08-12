@@ -304,6 +304,9 @@ end if
         call    ntfs_restore_usa_rust_smoke_test
         call    fat_next_short_name_rust_smoke_test
         call    mouse_acceleration_rust_smoke_test
+if USE_RUST_SET_MOUSE_DATA
+        call    set_mouse_data_rust_smoke_test
+end if
         call    tcp_xmit_timer_rust_smoke_test
         call    anti_aliasing_rust_smoke_test
         call    test_app_header_rust_smoke_test

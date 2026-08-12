@@ -197,6 +197,72 @@ align 4
 ;-----------------------------------------------------------------------------
 
 align 4
+;-----------------------------------------------------------------------------
+; Cut CF: USE_RUST_SET_MOUSE_DATA=1 routes through Rust
+; rust_set_mouse_data (see rust/set_mouse_data.inc).
+; Set USE_RUST_SET_MOUSE_DATA=0 to restore the original FASM body
+; without deleting it. Independent of Cut L / USE_RUST_MOUSE_ACCELERATION
+; (accel is inlined into the Cut CF blob).
+
+USE_RUST_SET_MOUSE_DATA = 1
+
+if USE_RUST_SET_MOUSE_DATA
+
+; Compatibility trampoline: stdcall 5 args → Rust stdcall + ctx; ret 20.
+; Preserves ECX/EDX (FASM `uses ecx edx`) AND EBX/ESI/EDI/EBP — original
+; `proc` kept them intact (EBP via frame; others unused). PE SetMouseData
+; callers rely on that (REG-011).
+; HID globals injected via stack ctx so the blob stays reloc-free.
+; rust_set_mouse_data ends `ret 24` — do NOT add esp for those args (REG-009).
+align 4
+set_mouse_data:
+        push    ebx
+        push    esi
+        push    edi
+        push    ebp
+        push    ecx
+        push    edx
+        ; Build SetMouseDataCtx on stack (11 dwords = 44 bytes):
+        ;   +0  mouse_x*, +4 mouse_y*, +8 scroll_h*, +12 scroll_v*
+        ;   +16 btn_down*, +20 mouse_active*
+        ;   +24 display_width, +28 display_height
+        ;   +32 mouse_delay, +36 mouse_speed_factor
+        ;   +40 osloop*
+        sub     esp, 44
+        mov     dword [esp + 0], MOUSE_X
+        mov     dword [esp + 4], MOUSE_Y
+        mov     dword [esp + 8], MOUSE_SCROLL_H
+        mov     dword [esp + 12], MOUSE_SCROLL_V
+        mov     dword [esp + 16], BTN_DOWN
+        mov     dword [esp + 20], mouse_active
+        mov     eax, [_display.width]
+        mov     [esp + 24], eax
+        mov     eax, [_display.height]
+        mov     [esp + 28], eax
+        movzx   eax, byte [mouse_delay]
+        mov     [esp + 32], eax
+        movzx   eax, word [mouse_speed_factor]
+        mov     [esp + 36], eax
+        mov     dword [esp + 40], osloop_nonperiodic_work
+        ; Args above: ctx(44) + edx,ecx,ebp,edi,esi,ebx(24) + retaddr(4) = 72
+        ; [esp+72]=BtnState, +76=XMoving, +80=YMoving, +84=VScroll, +88=HScroll
+        mov     eax, [esp + 72]
+        mov     ebx, [esp + 76]
+        mov     esi, [esp + 80]
+        mov     edi, [esp + 84]
+        mov     ebp, [esp + 88]
+        stdcall rust_set_mouse_data, eax, ebx, esi, edi, ebp, esp
+        add     esp, 44                 ; local ctx only — not Rust args
+        pop     edx
+        pop     ecx
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     ebx
+        ret     20
+
+else
+
 proc set_mouse_data stdcall uses ecx edx, BtnState:dword, XMoving:dword, YMoving:dword, VScroll:dword, HScroll:dword
 
         mov     eax, [BtnState]
@@ -266,6 +332,8 @@ proc set_mouse_data stdcall uses ecx edx, BtnState:dword, XMoving:dword, YMoving
         call    wakeup_osloop
         ret
 endp
+
+end if
 
 ;-----------------------------------------------------------------------------
 ; Cut L: USE_RUST_MOUSE_ACCELERATION=1 routes through Rust

@@ -186,7 +186,11 @@ pub use iso9660_copy_name::{
     iso9660_copy_name, iso9660_copy_name_ptr, Iso9660CopyNameResult, ISO9660_COPY_NAME_PRNG_SEED,
 };
 pub use hotkey::{hotkey_do_test, HOTKEY_DO_TEST_PRNG_SEED, HOTKEY_TESTS_NUM};
-pub use mouse::mouse_acceleration;
+pub use mouse::{
+    mouse_acceleration, set_mouse_data, set_mouse_data_ptr, MouseDataParams, MouseDataState,
+    SetMouseDataCtx, SET_MOUSE_DATA_PRNG_SEED, MOUSE_BTN_ABS_X, MOUSE_BTN_ABS_Y,
+    MOUSE_BTN_DOWN_MASK,
+};
 pub use net_ptr_to_num4::{
     net_ptr_to_num4, net_ptr_to_num4_from_slice, net_ptr_to_num4_ptr, NET_PTR_TO_NUM4_MISS,
     NET_PTR_TO_NUM4_PRNG_SEED,

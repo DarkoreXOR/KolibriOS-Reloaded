@@ -284,9 +284,12 @@ MEM_AMOUNT          = OS_BASE + 0x000FE8C
 SYS_SHUTDOWN        = OS_BASE + 0x000FF00
 
 
-; Early boot stack top (physical/low identity). Raised 0x400 (Cut CE, 2026-08-12)
-; for cumulative Stage-2 Rust blob + smoke growth; still below sys_proc @ 0x8E000.
-TMP_STACK_TOP       = 0x008D000
+; Early boot stack top (physical/low identity).
+; Cut CE: 0x8CC00 → 0x8D000 (+1 KiB). Cut CF: → 0x8D800 (+2 KiB more).
+; Proof (CF): end .bss @ OS_BASE+0x8C243; assert needs
+; $-OS_BASE+PAGE_SIZE = 0x8D243 < TMP_STACK_TOP (0x8D000 failed by 0x243).
+; Still below sys_proc @ 0x8E000 (gap 0x800).
+TMP_STACK_TOP       = 0x008D800
 
 sys_proc            = OS_BASE + 0x008E000
 

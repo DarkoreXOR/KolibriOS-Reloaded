@@ -36,7 +36,7 @@ use crate::socket_check::socket_check_ptr;
 use crate::iso9660_compare::iso9660_compare_name_ptr;
 use crate::iso9660_copy_name::iso9660_copy_name_ptr;
 use crate::hotkey::hotkey_do_test;
-use crate::mouse::mouse_acceleration;
+use crate::mouse::{mouse_acceleration, set_mouse_data_ptr, SetMouseDataCtx};
 use crate::ntfs_bootsec::ntfs_test_bootsec_ptr;
 use crate::ntfs_create_mcb::ntfs_create_mcb_entry_ptr;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
@@ -1096,6 +1096,31 @@ pub extern "stdcall" fn rust_mouse_acceleration(
     speed_factor: u32,
 ) -> u32 {
     mouse_acceleration(delta, delay as u8, speed_factor as u16)
+}
+
+/// `stdcall` rust_set_mouse_data(btn, x, y, vscroll, hscroll, ctx) -> void.
+///
+/// Cut CF: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 24 bytes (`ret 24`). Trampoline builds `SetMouseDataCtx`
+/// from HID globals so the blob never references them by absolute address.
+///
+/// # Safety
+/// `ctx` must point to a writable `SetMouseDataCtx` with valid field pointers.
+#[no_mangle]
+#[link_section = ".text.rust_set_mouse_data"]
+pub unsafe extern "stdcall" fn rust_set_mouse_data(
+    btn_state: u32,
+    x_moving: u32,
+    y_moving: u32,
+    v_scroll: u32,
+    h_scroll: u32,
+    ctx: *mut SetMouseDataCtx,
+) {
+    // SAFETY: kernel trampoline passes stack ctx with live HID pointers.
+    unsafe {
+        set_mouse_data_ptr(btn_state, x_moving, y_moving, v_scroll, h_scroll, ctx)
+    }
 }
 
 /// `stdcall` rust_tcp_xmit_timer(rtt, socket) -> void.
