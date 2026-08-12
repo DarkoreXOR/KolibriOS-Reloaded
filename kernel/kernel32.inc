@@ -154,6 +154,8 @@ include "rust/cp866_to_utf8_string.inc"
 include "rust/xfs_extent_unpack.inc"
 ; Cut S: window._.check_window_position — Rust blob + smoke (USE_RUST_CHECK_WINDOW_POSITION)
 include "rust/check_window_position.inc"
+; Cut CE: window._.set_window_clientbox — Rust blob + smoke (USE_RUST_SET_WINDOW_CLIENTBOX)
+include "rust/set_window_clientbox.inc"
 ; Cut T: fsTime2bdfe — Rust blob + smoke (USE_RUST_FS_TIME2BDFE)
 include "rust/fs_time2bdfe.inc"
 ; Cut AE: ntfs_datetime_to_bdfe — Rust blob + smoke (USE_RUST_NTFS_DATETIME_TO_BDFE)

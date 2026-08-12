@@ -61,7 +61,7 @@ use crate::unicode::{cp866_decode, cp866_encode, utf16_encode, utf8_decode};
 use crate::userspace::{is_region_userspace, is_string_userspace};
 use crate::utf16_to_8::{utf16_to_8_ptr, pack_sf_zf_eax, utf16_to_8};
 use crate::utf8to16::utf8to16_ptr;
-use crate::window::check_window_position_ptr;
+use crate::window::{check_window_position_ptr, set_window_clientbox_ptr};
 use crate::xfs_extent::xfs_extent_unpack_ptr;
 use crate::xfs_get_last_dirblock::xfs_get_last_dirblock_ptr;
 use crate::xfs_hash_lookup::{pack_eax_zf, xfs_get_addr_by_hash_ptr};
@@ -1679,4 +1679,28 @@ pub unsafe extern "stdcall" fn rust_check_window_position(
 ) {
     // SAFETY: kernel trampoline passes EDI → WDATA.box + display dims.
     unsafe { check_window_position_ptr(box_ptr, display_width, display_height) }
+}
+
+/// `stdcall` rust_set_window_clientbox(wdata, skinh, window_topleft).
+///
+/// Cut CE: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 12 bytes (`ret 12`).
+///
+/// `wdata` → writable `WDATA*` (box + fl_wstyle + clientbox). `skinh` and
+/// `window_topleft` are trampoline-injected so the blob never references
+/// `_skinh` / `window_topleft` iglobals.
+///
+/// # Safety
+/// `wdata` must cover through `clientbox` (48 bytes). `window_topleft` must
+/// be writable for the live style slots (types 0–4: 10 dwords).
+#[no_mangle]
+#[link_section = ".text.rust_set_window_clientbox"]
+pub unsafe extern "stdcall" fn rust_set_window_clientbox(
+    wdata: *mut u8,
+    skinh: i32,
+    window_topleft: *mut i32,
+) {
+    // SAFETY: kernel trampoline passes EDI → WDATA* + skinh + window_topleft.
+    unsafe { set_window_clientbox_ptr(wdata, skinh, window_topleft) }
 }

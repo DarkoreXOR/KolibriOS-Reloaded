@@ -40,6 +40,13 @@ probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_set_window_clientbox"
+symbol = "rust_set_window_clientbox"
+expect_ret_imm = 12
+out = "rust_set_window_clientbox.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_blit_clip"
 symbol = "rust_blit_clip"
 expect_ret_imm = 4
@@ -643,6 +650,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "CE"
+blob = "rust_set_window_clientbox.bin"
+symbol = "rust_set_window_clientbox"
+gate = "USE_RUST_SET_WINDOW_CLIENTBOX"
+include = "kernel/rust/set_window_clientbox.inc"
+gate_file = "kernel/gui/window.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "CD"
 blob = "rust_blit_clip.bin"

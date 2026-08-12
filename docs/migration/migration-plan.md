@@ -106,6 +106,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut CB:** `ahci_port_wait` — **done** 2026-08-12 ([`cut-cb-plan.md`](cut-cb-plan.md), [`cut-cb-implementation.md`](cut-cb-implementation.md)). AHCI port TFD busy/DRQ poll with timer deadline (complements AV/BM); Path B after fresh post-CA audit (`Path A: REJECTED`; selected over `ntfs_restore_usa_frs`, `tcp_mss`, `exFAT_find_lfn`); reloc-free via injected TFD/tick callbacks. Desktop soak PASS. **Stop; do not start Cut CC.**
 - **Cut CC:** `process_partition_table_entry` — **done** 2026-08-12 ([`cut-cc-plan.md`](cut-cc-plan.md), [`cut-cc-implementation.md`](cut-cc-implementation.md)). MBR/EBR partition-table entry dispatch (complements Cut Z validate); Path B after fresh post-CB audit (`Path A: REJECTED`; selected over `unpack`, `exFAT_find_lfn`, `irq_eoi`); reloc-free via injected `disk_add_partition`. Desktop soak PASS. **Stop; do not start Cut CD.**
 - **Cut CD:** `blit_clip` — **done** 2026-08-12 ([`cut-cd-plan.md`](cut-cd-plan.md), [`cut-cd-implementation.md`](cut-cd-implementation.md)). Dual `block_clip` compose + src/dst remap (Cut H follow-on); Path B after fresh post-CC audit (`Path A: REJECTED`; selected over `enable_irq`, `unpack`, `window._.set_window_clientbox`); reloc-free via inlined `block_clip`. Desktop blit soak PASS. **Stop; do not start Cut CE.**
+- **Cut CE:** `window._.set_window_clientbox` — **done** 2026-08-12 ([`cut-ce-plan.md`](cut-ce-plan.md), [`cut-ce-implementation.md`](cut-ce-implementation.md)). GUI clientbox + skin inset policy (Cut S follow-on); Path B after fresh post-CD audit (`Path A: REJECTED`; selected over `enable_irq`, `unpack`, `set_mouse_data`); reloc-free via trampoline-injected `_skinh`/`window_topleft`; `TMP_STACK_TOP` +1 KiB for memmap headroom. Desktop GUI soak PASS. **Stop; do not start Cut CF.**
 
 ### Stage 3 — Compat syscall façade (selected)
 
@@ -120,7 +121,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 ### Stage 5 — FS plugin / net protocol islands
 
 - One filesystem; optional TCP path.
-- **Status (2026-08-12):** foothold via Cuts AC/M/V/AS/AU/AY/BD (IPv4 route + TCP timers + socket_check + fragment-slot lookup + NIC device-list index + TCP outflags); AHCI cmdslot via Cut AV; AHCI PxSIG validation via Cut BM; **AHCI port TFD poll via Cut CB**; **MBR/EBR partition entry dispatch via Cut CC**; endian word-swap via Cut BG; XFS AG->sector via Cut AW, classic inode-time conversion via Cut BN, and final data-dirblock selection via Cut BO; NTFS MCB encode via Cut AX; PCI config address via Cut BA; FAT LFN charset via Cut BC; HID hotkey match via Cut BE; string padded copy via Cut BF; C-string length via Cut BH; ISO9660 volume-name copy via Cut BI; Stage-3 string userspace gate via Cut BJ; PE section align mask via Cut BK; V86 linear translate via Cut BL; UTF-16 string streaming encode via Cut BP; CP866 string streaming encode via Cut BQ; EXT inode triple-timestamp read fan-out via Cut BR; EXT write-time inode pack via Cut BS; NTFS CMOS metadata FILETIME pack via Cut BT; CMOS RTC orchestration via Cut BV; CMOS BCD decode leaf via Cut CA; DOS FAT date/time BDFE pack-unpack via Cuts AO/BW/BX/BY; Unicode→CP866 public encode via Cut BZ; **video `blit_clip` compose via Cut CD**; broader protocol/driver islands still open.
+- **Status (2026-08-12):** foothold via Cuts AC/M/V/AS/AU/AY/BD (IPv4 route + TCP timers + socket_check + fragment-slot lookup + NIC device-list index + TCP outflags); AHCI cmdslot via Cut AV; AHCI PxSIG validation via Cut BM; **AHCI port TFD poll via Cut CB**; **MBR/EBR partition entry dispatch via Cut CC**; endian word-swap via Cut BG; XFS AG->sector via Cut AW, classic inode-time conversion via Cut BN, and final data-dirblock selection via Cut BO; NTFS MCB encode via Cut AX; PCI config address via Cut BA; FAT LFN charset via Cut BC; HID hotkey match via Cut BE; string padded copy via Cut BF; C-string length via Cut BH; ISO9660 volume-name copy via Cut BI; Stage-3 string userspace gate via Cut BJ; PE section align mask via Cut BK; V86 linear translate via Cut BL; UTF-16 string streaming encode via Cut BP; CP866 string streaming encode via Cut BQ; EXT inode triple-timestamp read fan-out via Cut BR; EXT write-time inode pack via Cut BS; NTFS CMOS metadata FILETIME pack via Cut BT; CMOS RTC orchestration via Cut BV; CMOS BCD decode leaf via Cut CA; DOS FAT date/time BDFE pack-unpack via Cuts AO/BW/BX/BY; Unicode→CP866 public encode via Cut BZ; **video `blit_clip` compose via Cut CD**; **GUI clientbox policy via Cut CE**; broader protocol/driver islands still open.
 
 ### Stage 6 — Scheduler policy + process create
 
@@ -130,7 +131,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 ### Stage 7 — GUI server
 
 - Last major app-facing move.
-- **Status:** not started.
+- **Status:** foothold via Cuts S/CE (`check_window_position` + `set_window_clientbox`); broader GUI server still FASM.
 
 ### Stage 8 — PE driver loader
 

@@ -284,7 +284,9 @@ MEM_AMOUNT          = OS_BASE + 0x000FE8C
 SYS_SHUTDOWN        = OS_BASE + 0x000FF00
 
 
-TMP_STACK_TOP       = 0x008CC00
+; Early boot stack top (physical/low identity). Raised 0x400 (Cut CE, 2026-08-12)
+; for cumulative Stage-2 Rust blob + smoke growth; still below sys_proc @ 0x8E000.
+TMP_STACK_TOP       = 0x008D000
 
 sys_proc            = OS_BASE + 0x008E000
 

@@ -232,6 +232,7 @@ high_code:
 ; Cut P: is_region_userspace smoke ON (Rust trampoline; production switch=1).
 ; Cut Q: UTF16to8 smoke ON (Rust trampoline; USE_RUST_UTF16_TO_8=1).
 ; Cut S: check_window_position smoke ON when USE_RUST_CHECK_WINDOW_POSITION=1.
+; Cut CE: set_window_clientbox smoke ON when USE_RUST_SET_WINDOW_CLIENTBOX=1.
 ; Cut T: fsTime2bdfe smoke ON when USE_RUST_FS_TIME2BDFE=1.
 ; Cut U: fat_gen_short_name smoke ON when USE_RUST_FAT_GEN_SHORT_NAME=1.
 ; Cut V: tcp_set_persist smoke ON when USE_RUST_TCP_SET_PERSIST=1.
@@ -333,6 +334,10 @@ end if
         call    xfs_extent_unpack_rust_smoke_test
         ; Cut S: window._.check_window_position smoke (Rust when USE_RUST_CHECK_WINDOW_POSITION=1).
         call    check_window_position_rust_smoke_test
+        ; Cut CE: window._.set_window_clientbox smoke (Rust when USE_RUST_SET_WINDOW_CLIENTBOX=1).
+if USE_RUST_SET_WINDOW_CLIENTBOX
+        call    set_window_clientbox_rust_smoke_test
+end if
         ; Cut T: fsTime2bdfe smoke (Rust when USE_RUST_FS_TIME2BDFE=1).
         call    fs_time2bdfe_rust_smoke_test
         ; Cut AE: ntfs_datetime_to_bdfe smoke (Rust when USE_RUST_NTFS_DATETIME_TO_BDFE=1).

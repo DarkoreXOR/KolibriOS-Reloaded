@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA/CB/CC/CD
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA/CB/CC/CD/CE
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
@@ -10,7 +10,8 @@
 //! string userspace gate + sysfn70/80
 //! operation-safe size→gate, UTF-16→UTF-8 streaming encode, UTF-8→UTF-16 streaming decode, XFS
 //! extent unpack + dir leaf hash binary search + DA node first-match-by-hash + dir name hash +
-//! AG-relative block→absolute sector + last data dirblock selection, window screen-fit helpers, TSS I/O permission bitmap
+//! AG-relative block→absolute sector + last data dirblock selection, window screen-fit +
+//! clientbox helpers, TSS I/O permission bitmap
 //! updates + port-area reserve/free, COFF reloc application + symbol name→Value lookup + section
 //! alignment mask decode + import symbol table resolve, MBR/EBR
 //! partition-table entry validation, GPT protective-MBR recognition, process TID→slot lookup,
@@ -270,7 +271,10 @@ pub use v86_get_lin_addr::{
     V86_GET_LIN_ADDR_PRNG_SEED,
 };
 pub use window::{
-    check_window_position, check_window_position_ptr, WindowBox, CHECK_WINDOW_POSITION_PRNG_SEED,
+    check_window_position, check_window_position_ptr, set_window_clientbox,
+    set_window_clientbox_ptr, SetWindowClientboxResult, WindowBox, CHECK_WINDOW_POSITION_PRNG_SEED,
+    SET_WINDOW_CLIENTBOX_PRNG_SEED, WINDOW_TOPLEFT_DEFAULT, WSTYLE_CLIENTRELATIVE,
+    WDATA_CLIENTBOX_OFF, WDATA_FL_WSTYLE_OFF,
 };
 pub use xfs_blkrel2sectabs::{
     xfs_blkrel2sectabs, xfs_blkrel2sectabs_from_regs, xfs_blkrel2sectabs_ptr,

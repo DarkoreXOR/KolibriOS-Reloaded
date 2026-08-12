@@ -1559,6 +1559,27 @@ align 4
 
 align 4
 ;> edi = pointer to WDATA struct
+; Cut CE: USE_RUST_SET_WINDOW_CLIENTBOX=1 routes through Rust
+; rust_set_window_clientbox (see rust/set_window_clientbox.inc).
+; Set USE_RUST_SET_WINDOW_CLIENTBOX=0 to restore the original FASM body
+; without deleting it. Independent of Cut S / USE_RUST_CHECK_WINDOW_POSITION.
+
+USE_RUST_SET_WINDOW_CLIENTBOX = 1
+
+if USE_RUST_SET_WINDOW_CLIENTBOX
+
+; Compatibility trampoline: register ABI → Rust stdcall.
+; Callers keep `call window._.set_window_clientbox` with EDI → WDATA*.
+; EAX/ECX/EDI preserved (matches original FASM push/pop).
+; _skinh + window_topleft stay FASM globals so the Rust blob remains reloc-free.
+window._.set_window_clientbox:
+        push    eax ecx edi
+        stdcall rust_set_window_clientbox, edi, [_skinh], window_topleft
+        pop     edi ecx eax
+        ret
+
+else
+
 window._.set_window_clientbox:
         push    eax ecx edi
 
@@ -1607,6 +1628,8 @@ align 4
 .exit:
         pop     edi ecx eax
         ret
+
+end if
 ;------------------------------------------------------------------------------
 
 
