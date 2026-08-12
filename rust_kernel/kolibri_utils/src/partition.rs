@@ -38,6 +38,24 @@ pub const IS_PARTITION_TABLE_ENTRY_PRNG_SEED: u32 = 0x4355_545A;
 /// Cut AD differential PRNG seed (`'CUTD'`).
 pub const IS_PROTECTIVE_MBR_PRNG_SEED: u32 = 0x4355_5444;
 
+/// Cut CC differential PRNG seed (`'CUTC'`).
+pub const PROCESS_PARTITION_TABLE_ENTRY_PRNG_SEED: u32 = 0x4355_5443;
+
+/// `DISK.MediaInfo.Capacity` low dword offset within a `DISK` object.
+pub const DISK_CAPACITY_LO_OFFSET: usize = 56;
+
+/// Extended-partition type IDs recognized by `process_partition_table_entry`.
+pub const EXTENDED_PARTITION_TYPES: [u8; 4] = [0x05, 0x0f, 0xc5, 0xd5];
+
+/// Stdcall hook mirroring FASM `disk_add_partition`.
+pub type DiskAddPartitionFn = unsafe extern "stdcall" fn(
+    start_lo: u32,
+    start_hi: u32,
+    length_lo: u32,
+    length_hi: u32,
+    disk: u32,
+);
+
 /// FASM-faithful validity check (CF=0 valid / CF=1 invalid).
 ///
 /// Returns `true` when the entry is **valid** (legacy clears CF).
@@ -106,6 +124,111 @@ pub fn make_entry(bootable: u8, first_abs: u32, length: u32) -> [u8; PARTITION_T
     e[OFF_FIRST_ABS_SECTOR..OFF_FIRST_ABS_SECTOR + 4].copy_from_slice(&first_abs.to_le_bytes());
     e[OFF_LENGTH..OFF_LENGTH + 4].copy_from_slice(&length.to_le_bytes());
     e
+}
+
+/// Pack a synthetic entry including the filesystem type byte.
+#[inline(always)]
+pub fn make_entry_with_type(
+    bootable: u8,
+    ty: u8,
+    first_abs: u32,
+    length: u32,
+) -> [u8; PARTITION_TABLE_ENTRY_SIZE] {
+    let mut e = make_entry(bootable, first_abs, length);
+    e[OFF_TYPE] = ty;
+    e
+}
+
+#[inline(always)]
+fn is_extended_partition_type(ty: u8) -> bool {
+    ty == 0x05 || ty == 0x0f || ty == 0xc5 || ty == 0xd5
+}
+
+/// FASM-faithful 64-bit `ebp + FirstAbsSector` (zero-extended high via `adc`).
+#[inline(always)]
+pub fn partition_start_from_mbr(mbr_ebr_sector: u32, first_abs_sector: u32) -> (u32, u32) {
+    let sum = (mbr_ebr_sector as u64).wrapping_add(first_abs_sector as u64);
+    (sum as u32, (sum >> 32) as u32)
+}
+
+/// Independent FASM-flow oracle for Cut CC (does not call the Rust helper body).
+#[inline(always)]
+pub fn fasm_oracle_process_partition_table_entry(
+    entry: &[u8; PARTITION_TABLE_ENTRY_SIZE],
+    mbr_ebr_sector: u32,
+    capacity: u64,
+    extended_out: &mut u32,
+    add_calls: &mut dyn FnMut(u32, u32, u32, u32),
+) {
+    if !is_partition_table_entry(
+        entry[OFF_BOOTABLE],
+        u32::from_le_bytes(entry[OFF_FIRST_ABS_SECTOR..OFF_FIRST_ABS_SECTOR + 4].try_into().unwrap()),
+        u32::from_le_bytes(entry[OFF_LENGTH..OFF_LENGTH + 4].try_into().unwrap()),
+        mbr_ebr_sector,
+        capacity,
+    ) {
+        return;
+    }
+    let ty = entry[OFF_TYPE];
+    if ty == 0 {
+        return;
+    }
+    if is_extended_partition_type(ty) {
+        *extended_out = u32::from_le_bytes(
+            entry[OFF_FIRST_ABS_SECTOR..OFF_FIRST_ABS_SECTOR + 4]
+                .try_into()
+                .unwrap(),
+        );
+        return;
+    }
+    let first = u32::from_le_bytes(
+        entry[OFF_FIRST_ABS_SECTOR..OFF_FIRST_ABS_SECTOR + 4]
+            .try_into()
+            .unwrap(),
+    );
+    let length = u32::from_le_bytes(entry[OFF_LENGTH..OFF_LENGTH + 4].try_into().unwrap());
+    let (start_lo, start_hi) = partition_start_from_mbr(mbr_ebr_sector, first);
+    add_calls(start_lo, start_hi, length, 0);
+}
+
+/// Parse one MBR/EBR partition-table slot (`kernel/blkdev/disk.inc`).
+///
+/// * Invalid entry (Cut Z rules) → no-op.
+/// * Empty type → no-op.
+/// * Extended type → writes `FirstAbsSector` to `*extended_out`.
+/// * Normal partition → invokes `add_partition` with computed start + length.
+///
+/// # Safety
+/// `entry` readable for 16 bytes; `extended_out` writable when extended path taken.
+#[inline(always)]
+pub unsafe fn process_partition_table_entry(
+    entry: *const u8,
+    mbr_ebr_sector: u32,
+    capacity_lo: u32,
+    capacity_hi: u32,
+    extended_out: *mut u32,
+    disk: u32,
+    add_partition: DiskAddPartitionFn,
+) {
+    if unsafe {
+        is_partition_table_entry_ptr(entry, mbr_ebr_sector, capacity_lo, capacity_hi)
+    } != 0
+    {
+        return;
+    }
+    let ty = unsafe { *entry.add(OFF_TYPE) };
+    if ty == 0 {
+        return;
+    }
+    if is_extended_partition_type(ty) {
+        let first = unsafe { read_u32_le(entry.add(OFF_FIRST_ABS_SECTOR)) };
+        unsafe { *extended_out = first };
+        return;
+    }
+    let first = unsafe { read_u32_le(entry.add(OFF_FIRST_ABS_SECTOR)) };
+    let length = unsafe { read_u32_le(entry.add(OFF_LENGTH)) };
+    let (start_lo, start_hi) = partition_start_from_mbr(mbr_ebr_sector, first);
+    unsafe { add_partition(start_lo, start_hi, length, 0, disk) };
 }
 
 /// FASM-faithful GPT protective-MBR check (ZF set = protective).
@@ -584,6 +707,142 @@ mod tests {
                 (pre, e0, trail, next())
             };
             check_protective(pre, &e0, &trail, cap);
+        }
+    }
+
+    // --- Cut CC: process_partition_table_entry ---
+
+    struct MockAdd {
+        calls: Vec<(u32, u32, u32, u32)>,
+    }
+
+    fn run_cc(
+        entry: &[u8; PARTITION_TABLE_ENTRY_SIZE],
+        mbr: u32,
+        cap_lo: u32,
+        cap_hi: u32,
+        extended_inout: &mut u32,
+    ) -> Vec<(u32, u32, u32, u32)> {
+        use std::cell::Cell;
+        thread_local! {
+            static MOCK: Cell<*mut MockAdd> = const { Cell::new(core::ptr::null_mut()) };
+        }
+        let mut mock = MockAdd { calls: Vec::new() };
+        unsafe extern "stdcall" fn shim(
+            start_lo: u32,
+            start_hi: u32,
+            length_lo: u32,
+            length_hi: u32,
+            _disk: u32,
+        ) {
+            MOCK.with(|cell| {
+                let ptr = cell.get();
+                assert!(!ptr.is_null());
+                // SAFETY: test-only — set immediately before each call.
+                unsafe { (*ptr).calls.push((start_lo, start_hi, length_lo, length_hi)) };
+            });
+        }
+        MOCK.with(|cell| cell.set(&mut mock as *mut MockAdd));
+        unsafe {
+            process_partition_table_entry(
+                entry.as_ptr(),
+                mbr,
+                cap_lo,
+                cap_hi,
+                extended_inout,
+                0xD15C_0000,
+                shim,
+            );
+        }
+        MOCK.with(|cell| cell.set(core::ptr::null_mut()));
+        mock.calls
+    }
+
+    fn check_cc(
+        entry: &[u8; PARTITION_TABLE_ENTRY_SIZE],
+        mbr: u32,
+        cap_lo: u32,
+        cap_hi: u32,
+        extended_inout: &mut u32,
+    ) {
+        let cap = ((cap_hi as u64) << 32) | (cap_lo as u64);
+        let mut oracle_ext = *extended_inout;
+        let mut oracle_calls: Vec<(u32, u32, u32, u32)> = Vec::new();
+        fasm_oracle_process_partition_table_entry(
+            entry,
+            mbr,
+            cap,
+            &mut oracle_ext,
+            &mut |a, b, c, d| oracle_calls.push((a, b, c, d)),
+        );
+        let got = run_cc(entry, mbr, cap_lo, cap_hi, extended_inout);
+        assert_eq!(*extended_inout, oracle_ext);
+        assert_eq!(got, oracle_calls);
+    }
+
+    #[test]
+    fn cc_invalid_entry_no_op() {
+        let e = make_entry_with_type(0x01, 0x07, 0, 10); // illegal bootable
+        let mut ext = 0xBEEFu32;
+        check_cc(&e, 0, 100, 0, &mut ext);
+        assert_eq!(ext, 0xBEEF);
+    }
+
+    #[test]
+    fn cc_empty_type_no_op() {
+        let e = make_entry_with_type(0, 0, 10, 20);
+        let mut ext = 0u32;
+        check_cc(&e, 0, 100, 0, &mut ext);
+    }
+
+    #[test]
+    fn cc_extended_writes_stack_slot() {
+        for &ty in &EXTENDED_PARTITION_TYPES {
+            let e = make_entry_with_type(0, ty, 0x1234, 0);
+            let mut ext = 0u32;
+            check_cc(&e, 0, 0x10000, 0, &mut ext);
+            assert_eq!(ext, 0x1234);
+        }
+    }
+
+    #[test]
+    fn cc_normal_add_partition() {
+        let e = make_entry_with_type(0, 0x07, 100, 500);
+        let mut ext = 0u32;
+        let calls = run_cc(&e, 1000, 0x10000, 0, &mut ext);
+        assert_eq!(calls, vec![(1100, 0, 500, 0)]);
+    }
+
+    #[test]
+    fn cc_start_carry_to_high_dword() {
+        let e = make_entry_with_type(0, 0x83, 0xFFFF_FFFF, 1);
+        let mut ext = 0u32;
+        let calls = run_cc(&e, 1, 0xFFFF_FFFF, 0, &mut ext);
+        assert_eq!(calls, vec![(0, 1, 1, 0)]);
+    }
+
+    #[test]
+    fn cc_prng_corpus_50k() {
+        let mut state = PROCESS_PARTITION_TABLE_ENTRY_PRNG_SEED;
+        let mut next = || {
+            state = state.wrapping_mul(1664525).wrapping_add(1013904223);
+            state
+        };
+        for _ in 0..50_000 {
+            let bootable = if next() & 7 == 0 {
+                if next() & 1 == 0 { 0 } else { 0x80 }
+            } else {
+                (next() & 0xFF) as u8
+            };
+            let ty = (next() & 0xFF) as u8;
+            let first = next();
+            let length = next();
+            let mbr = next();
+            let cap_lo = next();
+            let cap_hi = next() & 0xFFFF;
+            let e = make_entry_with_type(bootable, ty, first, length);
+            let mut ext = next();
+            check_cc(&e, mbr, cap_lo, cap_hi, &mut ext);
         }
     }
 }

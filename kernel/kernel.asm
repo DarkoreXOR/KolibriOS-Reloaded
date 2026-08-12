@@ -577,6 +577,8 @@ high_code:
         call    is_partition_table_entry_rust_smoke_test
         ; Cut AD: is_protective_mbr smoke — synthetic protective MBR + DISK stub.
         call    is_protective_mbr_rust_smoke_test
+        ; Cut CC: process_partition_table_entry smoke — synthetic entry + mock add.
+        call    process_partition_table_entry_rust_smoke_test
 
         mov     eax, sys_proc
         list_init eax

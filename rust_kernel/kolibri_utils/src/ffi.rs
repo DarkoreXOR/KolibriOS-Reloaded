@@ -41,7 +41,10 @@ use crate::ntfs_bootsec::ntfs_test_bootsec_ptr;
 use crate::ntfs_create_mcb::ntfs_create_mcb_entry_ptr;
 use crate::ntfs_mcb::ntfs_decode_mcb_entry_ptr;
 use crate::ntfs_usa::ntfs_restore_usa_ptr;
-use crate::partition::{is_partition_table_entry_ptr, is_protective_mbr_ptr};
+use crate::partition::{
+    is_partition_table_entry_ptr, is_protective_mbr_ptr, process_partition_table_entry,
+    DiskAddPartitionFn,
+};
 use crate::pci_make_config_cmd::pci_make_config_cmd;
 use crate::pid_to_slot::pid_to_slot_ptr;
 use crate::string::{strlen, strncmp, strncpy, strrchr};
@@ -1248,6 +1251,38 @@ pub unsafe extern "stdcall" fn rust_is_partition_table_entry(
 ) -> u32 {
     // SAFETY: kernel trampoline passes ECX→entry + capacity from DISK.
     unsafe { is_partition_table_entry_ptr(entry, ebp_base, capacity_lo, capacity_hi) }
+}
+
+/// `stdcall` rust_process_partition_table_entry(entry, mbr, cap_lo, cap_hi, ext_out, disk, add_fn).
+///
+/// Cut CC: dedicated section for reloc-free extract + FASM `file` embed.
+/// Callee cleans 28 bytes (`ret 28`). Side effects only via injected `disk_add_partition`.
+/// FASM trampoline preserves ECX/ESI/EBP (REG-005).
+///
+/// # Safety
+/// `entry` readable for 16 bytes; `extended_out` writable; `add_fn` is FASM `disk_add_partition`.
+#[no_mangle]
+#[link_section = ".text.rust_process_partition_table_entry"]
+pub unsafe extern "stdcall" fn rust_process_partition_table_entry(
+    entry: *const u8,
+    mbr_ebr_sector: u32,
+    capacity_lo: u32,
+    capacity_hi: u32,
+    extended_out: *mut u32,
+    disk: u32,
+    add_partition: DiskAddPartitionFn,
+) {
+    unsafe {
+        process_partition_table_entry(
+            entry,
+            mbr_ebr_sector,
+            capacity_lo,
+            capacity_hi,
+            extended_out,
+            disk,
+            add_partition,
+        )
+    }
 }
 
 /// `stdcall` rust_is_protective_mbr(pt_array, capacity_lo) -> EAX.

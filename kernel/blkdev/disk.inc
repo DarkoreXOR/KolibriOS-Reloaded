@@ -1155,6 +1155,33 @@ end if
 ; * Otherwise, add the partition to the list of partitions for this disk.
 ;   We don't use the type from the entry to identify the file system;
 ;   fs-specific checks do this more reliably.
+; Cut CC: USE_RUST_PROCESS_PARTITION_TABLE_ENTRY=1 routes through Rust
+; rust_process_partition_table_entry (see rust/process_partition_table_entry.inc).
+; Set USE_RUST_PROCESS_PARTITION_TABLE_ENTRY=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–CB.
+
+USE_RUST_PROCESS_PARTITION_TABLE_ENTRY = 1
+
+if USE_RUST_PROCESS_PARTITION_TABLE_ENTRY
+
+; Compatibility trampoline: ECX/EBP/ESI + caller [esp+4] extended slot → Rust stdcall.
+; Preserves ECX/ESI/EBP (callers advance ECX by 16 between slots).
+; Injects cc_disk_add_partition_for_rust so disk_add_partition receives ESI+EBX (REG-008).
+; CRITICAL: use FASM `stdcall` (callee `ret 28`) — never `call` + `add esp, 28` (REG-009).
+align 4
+process_partition_table_entry:
+        pushad
+        mov     [cc_trampoline_mbr_buf], ebx
+        lea     eax, [esp+36]   ; caller's extended-partition stack slot
+        stdcall rust_process_partition_table_entry, ecx, ebp, \
+                dword [esi+DISK.MediaInfo.Capacity], \
+                dword [esi+DISK.MediaInfo.Capacity+4], \
+                eax, esi, cc_disk_add_partition_for_rust
+        popad
+        ret
+
+else
+
 process_partition_table_entry:
 ; 1. Check for valid entry. If invalid, return (go to 5).
         call    is_partition_table_entry
@@ -1191,6 +1218,8 @@ irp type,\
         mov     eax, [ecx+PARTITION_TABLE_ENTRY.FirstAbsSector]
         mov     [esp+4], eax
         ret
+
+end if
 
 ; This is an internal function called from disk_scan_partitions and
 ; process_partition_table_entry. It adds one partition to the list of

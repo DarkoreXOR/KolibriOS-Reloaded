@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA/CB
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA/CB/CC
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
@@ -198,11 +198,13 @@ pub use ntfs_create_mcb::{
 pub use ntfs_mcb::{ntfs_decode_mcb_entry, McbDecodeResult};
 pub use ntfs_usa::{ntfs_restore_usa, UsaRestoreResult};
 pub use partition::{
-    is_partition_table_entry, is_partition_table_entry_ptr, is_protective_mbr,
-    is_protective_mbr_ptr, make_entry, make_mbr_sector, make_protective_entry0,
-    IS_PARTITION_TABLE_ENTRY_PRNG_SEED, IS_PROTECTIVE_MBR_PRNG_SEED, OFF_BOOTABLE,
-    OFF_FIRST_ABS_SECTOR, OFF_LENGTH, OFF_TYPE, PARTITION_TABLE_ENTRY_SIZE, PROTECTIVE_MBR_TYPE,
-    PROTECTIVE_TRAILING_BYTES,
+    fasm_oracle_process_partition_table_entry, is_partition_table_entry,
+    is_partition_table_entry_ptr, is_protective_mbr, is_protective_mbr_ptr, make_entry,
+    make_entry_with_type, make_mbr_sector, make_protective_entry0, partition_start_from_mbr,
+    process_partition_table_entry, DiskAddPartitionFn, DISK_CAPACITY_LO_OFFSET,
+    EXTENDED_PARTITION_TYPES, IS_PARTITION_TABLE_ENTRY_PRNG_SEED, IS_PROTECTIVE_MBR_PRNG_SEED,
+    OFF_BOOTABLE, OFF_FIRST_ABS_SECTOR, OFF_LENGTH, OFF_TYPE, PARTITION_TABLE_ENTRY_SIZE,
+    PROCESS_PARTITION_TABLE_ENTRY_PRNG_SEED, PROTECTIVE_MBR_TYPE, PROTECTIVE_TRAILING_BYTES,
 };
 pub use pci_make_config_cmd::{
     pci_make_config_cmd, pci_make_config_cmd_from_regs, PCI_MAKE_CONFIG_CMD_PRNG_SEED,

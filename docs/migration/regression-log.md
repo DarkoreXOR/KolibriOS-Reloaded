@@ -98,14 +98,30 @@ Use this before enabling a migration gate and when debugging a live FS bug.
     **non-fatal** (return to caller; don't `jmp @b`). Desktop-only QEMU will
     not catch AHCI-init-stage hangs — test with `--bus ahci --disk …`
     (REG-004).
-13. **Injected stdcall callbacks in smoke must use `ret` / `ret 4`** — mock
+13. **Injected stdcall callbacks in smoke must use correct `ret N`** — mock
     readers called from Rust must match `fs_read_cmos` smoke (`ret 4` for one
-    arg). Plain `ret` corrupts the stack each poll iteration (REG-006).
-14. **Do not busy-wait on live `timer_ticks` before multitasking** — during
+    arg; `ret 20` for five-arg `disk_add_partition`). Plain `ret` corrupts the
+    stack each callback (REG-006, REG-007).
+14. **Injected partition callbacks must restore `ESI`+`EBX`** before
+    `disk_add_partition` — the callee reads **`[esi+DISK…]`** and **`[ebp-4]`→MBR
+    buffer via saved **`EBX`**, not the stack `disk` arg alone (REG-008).
+    Trampoline must save **`EBX`** (MBR buffer from `disk_scan_partitions`) and
+    thunk must `mov esi,[disk]` before the call.
+15. **Do not busy-wait on live `timer_ticks` before multitasking** — during
     early `high_code`, `timer_ticks` is frozen until `timer_ticks_enable` +
     `sti` (near end of boot log). Smoke or tests that call `ahci_port_wait`
     with `timeout > 0` and a busy synthetic TFD spin forever (REG-006).
     Use mock tick callbacks or `timeout = 0` for immediate timeout vectors.
+16. **Never `call rust_*` + `add esp, N` for stdcall blobs** — Rust
+    `extern "stdcall"` emits `ret N`. FASM must use the `stdcall` macro (or
+    plain `call` with **no** caller cleanup). Double cleanup destroys
+    `pushad`/return and yields a bootloader reset loop; headless `-no-reboot`
+    looks like `query-status: shutdown`. Pixel non-black alone is not enough —
+    watch QMP **`RESET`** events (REG-009).
+17. **Prefer naked stdcall thunks over `proc`+early `ret N`** — early `ret N`
+    before `endp` skips `leave` and leaves the frame pointer on the stack.
+    Match Cut patterns that `jmp` into the real FASM callee when arg layout
+    matches (REG-009).
 
 ---
 
@@ -119,6 +135,9 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | [REG-004](#reg-004--ahci-4-disk-init-screen-hang-no-desktop-2026-08-12) | 2026-08-12 | AHCI 4-disk init-screen hang (no desktop) | Fixed |
 | [REG-005](#reg-005--intermittent-desktop-hang-cut-ca-fsreadcmos-ebx-2026-08-12) | 2026-08-12 | Intermittent desktop hang (Cut CA fsReadCMOS EBX) | Fixed |
 | [REG-006](#reg-006--init-screen-hang-cut-cb-ahci-port-wait-smoke-2026-08-12) | 2026-08-12 | Init-screen hang (Cut CB ahci_port_wait smoke) | Fixed |
+| [REG-007](#reg-007--post-bootloader-reset-cut-cc-smoke-2026-08-12) | 2026-08-12 | Post-bootloader reset (Cut CC smoke mock ret) | Fixed |
+| [REG-008](#reg-008--post-bootloader-reset-cut-cc-disk-add-partition-esi-ebx-2026-08-12) | 2026-08-12 | Post-bootloader reset (Cut CC disk_add_partition ESI/EBX) | Fixed |
+| [REG-009](#reg-009--bootloader-reset-loop-cut-cc-stdcall-double-cleanup-2026-08-12) | 2026-08-12 | Bootloader reset loop (Cut CC stdcall double cleanup) | Fixed |
 
 ---
 
@@ -217,6 +236,54 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | Avoid next time | Match `fs_read_cmos` mock pattern (`ret 4`). Never busy-wait on live `timer_ticks` in pre-multitasking smoke. Prefer mock tick callbacks for all `rust_*` direct tests. |
 
 **Class:** ABI smoke / early-init timer assumption (REG-004 family).
+
+---
+
+### REG-007 — Post-bootloader reset (Cut CC smoke mock `ret`) (2026-08-12)
+
+| Field | Value |
+|-------|-------|
+| Symptom | VM **resets** immediately after the bootloader stage (before desktop). |
+| Suspected | Cut CC `process_partition_table_entry` Rust leaf or live partition scan. |
+| Cleared by A/B | Live leaf + trampoline ABI match FASM; failure was **smoke-only** at `process_partition_table_entry_rust_smoke_test` in `high_code` (after Cut Z/AD smokes). |
+| Root cause | Mock `cc_smoke_disk_add_partition` (`stdcall`, five args) used plain **`ret`** instead of **`ret 20`** — stack corruption when the direct `rust_process_partition_table_entry` smoke vector invoked the callback. Secondary: extended-path smoke checked `cc_smoke_ext` instead of the caller stack slot written by the public trampoline (`pop eax` / `0x4321`). |
+| Fix | `kernel/rust/process_partition_table_entry.inc`: mock uses **`ret 20`**; extended vector checks **`pop eax`** against `0x4321`. |
+| Verify | Rebuild ON; QEMU reaches desktop; `rust_process_partition_table_entry_smoke_result == 'PART'`. |
+| Avoid next time | Scale mock stdcall cleanup to arg count (`ret 4` × N dwords). Do not assert global `cc_smoke_ext` when the public trampoline writes the caller's `[esp+4]` extended slot. |
+
+**Class:** ABI smoke stack corruption (REG-006 family).
+
+---
+
+### REG-008 — Post-bootloader reset (Cut CC `disk_add_partition` ESI/EBX) (2026-08-12)
+
+| Field | Value |
+|-------|-------|
+| Symptom | VM **resets** after bootloader when **`--bus ahci`** + multiple **`--disk`** images attached (partition scan during AHCI media init). Desktop-only floppy smoke still passed. |
+| Suspected | Cut CC `process_partition_table_entry` Rust leaf or live partition scan. |
+| Cleared by A/B | Gate OFF (`USE_RUST_PROCESS_PARTITION_TABLE_ENTRY=0`) stable; ON fails only when Rust path calls live `disk_add_partition`. |
+| Root cause | Trampoline passed raw **`disk_add_partition`** to Rust. That routine uses **`ESI`→DISK** and entry **`EBX`→MBR buffer** (`disk_detect_partition` reads `[ebp-4]` from saved **`EBX`**), not the stdcall `disk` stack arg alone. Rust clobbers **`ESI`/`EBX`** before invoking the callback → garbage DISK pointer / buffer → triple fault during **`disk_scan_partitions`**. |
+| Fix | `cc_trampoline_mbr_buf` saved in trampoline; **`cc_disk_add_partition_for_rust`** thunk sets **`ESI`**+**`EBX`** then **`stdcall disk_add_partition`**. |
+| Verify | `python scripts/qmp_desktop_smoke.py --wait 90 --bus ahci --disk exfat --disk ntfs --disk iso9660 --disk xfs` PASS (779380 non-black). Image: `dev_build/test/kernel-20260812-150740.img`. |
+| Avoid next time | Audit every Rust-injected callback against callee **register** deps, not only stack args. Match `fix_coff_symbols`/`get_proc_ex` thunk pattern. |
+
+**Class:** live callback register contract / REG-001 family.
+
+---
+
+### REG-009 — Bootloader reset loop (Cut CC stdcall double cleanup) (2026-08-12)
+
+| Field | Value |
+|-------|-------|
+| Symptom | Bootloader → crash → bootloader loop with `python scripts/run.py --disk exfat --disk ntfs --disk iso9660 --disk xfs --bus ahci`. Headless QMP often reported **PASS** (non-black bootloader pixels) or **`shutdown`** (`-no-reboot`). |
+| Suspected | Cut CC live `disk_add_partition` path (after REG-008). |
+| Cleared by A/B | Disabling Cut CC ABI smoke alone restored desktop; gate OFF still failed while smoke used `call`+`add esp,28`. |
+| Root cause | Trampoline/smoke did `call rust_process_partition_table_entry` + **`add esp, 28`** while the blob ends in **`ret 28`** (stdcall) → double cleanup. Secondary: FASM `proc stdcall` thunks with early **`ret 20`** skipped **`leave`**. |
+| Fix | Trampoline uses FASM **`stdcall rust_…`**. Naked `cc_disk_add_partition_for_rust` tail-`jmp`s into `disk_add_partition` after setting **ESI/EBX**. Smoke mock is naked **`ret 20`**. QMP smoke counts **RESET** events. |
+| Verify | Desktop + AHCI 4-disk: `resets=0`, `query-status: running`, non-black=779380. Image: `dev_build/test/kernel-20260812-152359.img`. |
+| Avoid next time | Match Cut Z/AD: always `stdcall rust_*`. Treat non-black without RESET watch as insufficient for reboot-loop bugs. |
+
+**Class:** stdcall vs cdecl trampoline mismatch / smoke ABI.
 
 ---
 

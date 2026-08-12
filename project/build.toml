@@ -40,6 +40,13 @@ probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_process_partition_table_entry"
+symbol = "rust_process_partition_table_entry"
+expect_ret_imm = 28
+out = "rust_process_partition_table_entry.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_ahci_port_wait"
 symbol = "rust_ahci_port_wait"
 expect_ret_imm = 16
@@ -629,6 +636,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "CC"
+blob = "rust_process_partition_table_entry.bin"
+symbol = "rust_process_partition_table_entry"
+gate = "USE_RUST_PROCESS_PARTITION_TABLE_ENTRY"
+include = "kernel/rust/process_partition_table_entry.inc"
+gate_file = "kernel/blkdev/disk.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "CB"
 blob = "rust_ahci_port_wait.bin"

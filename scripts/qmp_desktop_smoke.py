@@ -137,7 +137,20 @@ def main() -> None:
         if "QMP" not in greet:
             raise SystemExit(f"unexpected QMP greeting: {greet}")
         qmp_exec(sock, {"execute": "qmp_capabilities"})
-        time.sleep(args.wait)
+        deadline = time.time() + args.wait
+        resets = 0
+        sock.settimeout(1.0)
+        while time.time() < deadline:
+            try:
+                obj = qmp_recv_obj(sock)
+            except (TimeoutError, socket.timeout):
+                continue
+            if obj.get("event") == "RESET":
+                resets += 1
+                print(f"QMP RESET event #{resets}")
+        sock.settimeout(10.0)
+        if resets:
+            raise SystemExit(f"guest reset {resets} time(s) during wait — boot loop")
         status = qmp_exec(sock, {"execute": "query-status"})
         st = status.get("return", {}).get("status")
         print(f"query-status: {st}")
@@ -148,7 +161,7 @@ def main() -> None:
         # give filesystem a moment
         time.sleep(0.5)
         w, h, nb = count_non_black_ppm(ppm)
-        print(f"screendump: {ppm} {w}x{h} non-black={nb}")
+        print(f"screendump: {ppm} {w}x{h} non-black={nb} resets={resets}")
         if nb < 1000:
             raise SystemExit("screendump looks black / failed")
         print("PASS")
