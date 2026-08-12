@@ -5,6 +5,7 @@
 //! Cut AK: `xfs._.conv_bigtime_to_kos_epoch` — XFS v5 bigtime (ns) → BDFE (EDI+=8).
 //! Cut AL: `ext_read_time` — EXT/ext4 Unix (+extra epoch bits) → BDFE (EDI+=8).
 //! Cut AO: `fat_time_to_bdfe` — DOS FAT packed time → BDFE time dword.
+//! Cut BW: `fat_date_to_bdfe` — DOS FAT packed date → BDFE date dword.
 //!
 //! Matches `kernel/fs/fs_common.inc` / `ntfs.inc` / `xfs.asm` / `ext.inc` /
 //! `fat.inc` FASM leaf semantics for the production domain (year &lt; 3025 so
@@ -49,6 +50,9 @@ pub const EXT_READ_TIME_PRNG_SEED: u32 = 0x4355_544C;
 
 /// PRNG seed for Cut AO differential corpus (`'CUTO'`).
 pub const FAT_TIME_TO_BDFE_PRNG_SEED: u32 = 0x4355_544F;
+
+/// PRNG seed for Cut BW differential corpus (`'CUBW'`).
+pub const FAT_DATE_TO_BDFE_PRNG_SEED: u32 = 0x4355_4257;
 
 /// BDFE-style datetime block layout (same offsets as FASM / `fsTime2bdfe`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -473,6 +477,24 @@ pub fn fat_time_to_bdfe(fat_time: u32) -> u32 {
     let seconds = (fat_time & 0x1F) << 1;
     let minutes = (fat_time >> 5) & 0x3F;
     (hours << 16) | (minutes << 8) | seconds
+}
+
+/// Convert DOS FAT packed date to BDFE date dword (`fat_date_to_bdfe` in `fat.inc`).
+///
+/// Cut BW: mirrors FASM register flow (`ecx`/`edx` temps, `shr`/`shl`/`add ax,1980`).
+#[inline(always)]
+pub fn fat_date_to_bdfe(fat_date: u32) -> u32 {
+    let ecx = fat_date;
+    let edx = fat_date;
+    let mut eax = fat_date;
+    eax >>= 9;
+    let year = (eax as u16).wrapping_add(1980);
+    eax = u32::from(year) << 16;
+    let day = (edx & 0x1F) as u8;
+    eax = (eax & 0xFFFF_FF00) | u32::from(day);
+    let month = ((ecx >> 5) & 0xF) as u8;
+    eax = (eax & 0xFFFF_00FF) | (u32::from(month) << 8);
+    eax
 }
 
 /// Pointer form used by the FFI trampoline — writes 8 BDFE bytes at `out`.
@@ -1718,6 +1740,49 @@ mod tests {
             }
         }
     }
+
+    // Cut BW — fat_date_to_bdfe
+    // -----------------------------------------------------------------------
+
+    #[test]
+    fn fat_date_known_vectors() {
+        // 1980-00-00
+        assert_eq!(fat_date_to_bdfe(0), 0x07BC_0000);
+        // 1980-01-01
+        assert_eq!(fat_date_to_bdfe(0x21), 0x07BC_0101);
+        // 2024-06-15: year=44<<9 | month=6<<5 | day=15 = 0x5800+0xC0+0xF = 0x58CF
+        assert_eq!(fat_date_to_bdfe(0x58CF), 0x07E8_060F);
+        // max u16 packed (2107-07-31)
+        assert_eq!(fat_date_to_bdfe(0xFFFF), 0x083B_0F1F);
+    }
+
+    #[test]
+    fn fat_date_exhaustive_matches_oracle() {
+        for d in 0u32..=0xFFFF {
+            assert_eq!(
+                fat_date_to_bdfe(d),
+                fasm_oracle_fat_date_to_bdfe(d),
+                "fat_date={d:#x}"
+            );
+        }
+    }
+
+    #[test]
+    fn fat_date_prng_oracle_50k() {
+        const CASES: usize = 50_000;
+        let mut state = FAT_DATE_TO_BDFE_PRNG_SEED;
+        for i in 0..CASES {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            let d = state & 0xFFFF;
+            assert_eq!(
+                fat_date_to_bdfe(d),
+                fasm_oracle_fat_date_to_bdfe(d),
+                "prng#{i} fat_date={d:#x}"
+            );
+        }
+    }
 }
 
 /// FASM-faithful host oracle for `fsTime2bdfe` — separate control-flow mirror
@@ -1936,6 +2001,24 @@ pub fn fasm_oracle_fat_time_to_bdfe(fat_time: u32) -> u32 {
     let mut ecx = ecx >> 5;
     ecx &= 0x3F;
     eax = (eax & 0xFFFF_00FF) | ((ecx & 0xFF) << 8); // mov ah, cl
+    eax
+}
+
+/// FASM-faithful host oracle for `fat_date_to_bdfe` — mirrors `fat.inc`
+/// register flow (`ecx`/`edx` temps, `add ax,1980`), not a call through
+/// [`fat_date_to_bdfe`].
+#[cfg(test)]
+pub fn fasm_oracle_fat_date_to_bdfe(fat_date: u32) -> u32 {
+    let mut eax = fat_date;
+    let ecx = fat_date;
+    let edx = fat_date;
+    eax >>= 9;
+    let ax = (eax as u16).wrapping_add(1980);
+    eax = u32::from(ax) << 16;
+    let dl = (edx & 0x1F) as u8;
+    eax = (eax & 0xFFFF_FF00) | u32::from(dl);
+    let cl = ((ecx >> 5) & 0xF) as u8;
+    eax = (eax & 0xFFFF_00FF) | (u32::from(cl) << 8);
     eax
 }
 

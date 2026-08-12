@@ -256,6 +256,7 @@ high_code:
 ; Cut AM: xfs._.get_before_by_hashval smoke ON when USE_RUST_XFS_GET_BEFORE_BY_HASHVAL=1.
 ; Cut AN: ansi2uni_char smoke ON when USE_RUST_ANSI2UNI_CHAR=1.
 ; Cut AO: fat_time_to_bdfe smoke ON when USE_RUST_FAT_TIME_TO_BDFE=1.
+; Cut BW: fat_date_to_bdfe smoke ON when USE_RUST_FAT_DATE_TO_BDFE=1.
 ; Cut AP: xfs_hashname smoke ON when USE_RUST_XFS_HASHNAME=1.
 ; Cut AQ: get_pg_addr smoke ON when USE_RUST_GET_PG_ADDR=1.
 ; Cut AR: r_f_port_area smoke ON when USE_RUST_R_F_PORT_AREA=1 (after reserve_irqs_ports).
@@ -360,6 +361,8 @@ high_code:
         call    ansi2uni_char_rust_smoke_test
         ; Cut AO: fat_time_to_bdfe smoke (Rust when USE_RUST_FAT_TIME_TO_BDFE=1).
         call    fat_time_to_bdfe_rust_smoke_test
+        ; Cut BW: fat_date_to_bdfe smoke (Rust when USE_RUST_FAT_DATE_TO_BDFE=1).
+        call    fat_date_to_bdfe_rust_smoke_test
         ; Cut AP: xfs_hashname smoke (Rust when USE_RUST_XFS_HASHNAME=1).
         call    xfs_hashname_rust_smoke_test
         ; Cut AW: xfs._.blkrel2sectabs smoke (Rust when USE_RUST_XFS_BLKREL2SECTABS=1).
