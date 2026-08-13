@@ -14,6 +14,7 @@ tools/**/target/
 /images/*.img
 /images/*.img.tmp
 !/images/README.md
+*.img
 
 # Local toolchain caches (repo ships ./fasm/; do not re-download into tools/)
 tools/fasm_extract/
