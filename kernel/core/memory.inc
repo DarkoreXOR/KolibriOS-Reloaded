@@ -249,6 +249,10 @@ commit_pages:
 ; param
 ;  eax= base
 ;  ecx= count
+;
+; Bitmap BTS + pages_free accounting is delegated to
+; release_bitmap_page_without_cursor_update (Mode A: local EBP batching).
+; MUST NOT call free_page — that path may lower page_start.
 
 align 4
 release_pages:
@@ -270,8 +274,7 @@ release_pages:
         pop     ecx
 
         mov     ebp, [pg_data.pages_free]
-        mov     ebx, [page_start]
-        mov     edx, sys_pgmap
+        ; Local page_start candidate (legacy EBX) omitted: FASM never stored it.
 @@:
         xor     eax, eax
         xchg    eax, [esi]
@@ -281,16 +284,8 @@ release_pages:
         jz      .next
 
         shr     eax, 12
-        bts     [edx], eax
-        cmc
-        adc     ebp, 0
-        shr     eax, 3
-        and     eax, -4
-        add     eax, edx
-        cmp     eax, ebx
-        jae     .next
-
-        mov     ebx, eax
+        call    release_bitmap_page_without_cursor_update
+        add     ebp, eax                ; Mode A: batch; was adc ebp,0 via CF
 .next:
         add     edi, PAGE_SIZE
         add     esi, 4
@@ -305,6 +300,61 @@ release_pages:
         pop     esi
         pop     ebp
         ret
+
+;=======================================================================
+; release_bitmap_page_without_cursor_update — Cut CT bitmap release helper
+;
+; Mechanical extract of release_pages bitmap half. NOT free_page.
+; Does NOT write page_start. Does NOT clear PTEs / invlpg / mutex.
+; Does NOT write [pages_free] (caller batches via returned delta).
+;
+; IN:  EAX = page index (phys >> 12)
+; OUT: EAX = delta ∈ {0,1}  (1 iff OLD bit was 0 / allocated)
+; Preserves: EBX, ECX, EDX, ESI, EDI, EBP
+; Clobbers: EAX, EFLAGS
+; DF: unchanged
+; Stack: plain call / ret (0) — no stdcall
+;
+; Cut CT: USE_RUST_RELEASE_BITMAP_PAGE_WITHOUT_CURSOR_UPDATE=1 routes through
+; Rust (see rust/release_bitmap_page_without_cursor_update.inc).
+; Set =0 to restore the extracted FASM body without deleting it.
+;=======================================================================
+
+USE_RUST_RELEASE_BITMAP_PAGE_WITHOUT_CURSOR_UPDATE = 1
+
+if USE_RUST_RELEASE_BITMAP_PAGE_WITHOUT_CURSOR_UPDATE
+
+; Compatibility trampoline: register ABI → Rust stdcall → EAX.
+; Injects sys_pgmap so the Rust blob stays reloc-free (Cut AA class).
+; Preserves EBX/ECX/EDX/ESI/EDI/EBP. No CF public contract (REG-018).
+align 4
+release_bitmap_page_without_cursor_update:
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    edi
+        push    ebp
+        stdcall rust_release_bitmap_page_without_cursor_update, eax, sys_pgmap
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
+align 4
+release_bitmap_page_without_cursor_update:
+        bts     dword [sys_pgmap], eax  ; CF = OLD bit (1 = already free)
+        cmc                             ; CF = !OLD = delta
+        mov     eax, 0
+        adc     eax, 0                  ; EAX = delta ∈ {0,1}
+        ret
+
+end if
 
 ; param
 ;  eax= base

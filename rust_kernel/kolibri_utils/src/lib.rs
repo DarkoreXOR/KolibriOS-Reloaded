@@ -83,6 +83,7 @@ mod ntfs_usa;
 mod partition;
 mod pci_make_config_cmd;
 mod pid_to_slot;
+mod release_bitmap_page;
 mod port_area;
 mod net_ptr_to_num4;
 mod socket_check;
@@ -272,6 +273,10 @@ pub use pid_to_slot::{
     pid_to_slot, pid_to_slot_ptr, plant_slot, write_u32_le, APPDATA_SIZE, APPDATA_SIZE_SHIFT,
     OFF_TID as APPDATA_OFF_TID, OFF_STATE as APPDATA_OFF_STATE, PID_TO_SLOT_PRNG_SEED, TSTATE_FREE,
 };
+pub use release_bitmap_page::{
+    release_bitmap_page_without_cursor_update, release_bitmap_page_without_cursor_update_ptr,
+    RELEASE_BITMAP_PAGE_PRNG_SEED,
+};
 pub use port_area::{
     r_f_port_area, r_f_port_area_ptr, ENTRY_SIZE as PORT_AREA_ENTRY_SIZE, MAX_RESERVED,
     OFF_END as PORT_AREA_OFF_END, OFF_START as PORT_AREA_OFF_START, OFF_TID as PORT_AREA_OFF_TID,
@@ -366,6 +371,10 @@ mod phase_c_magic_tests {
         assert_eq!(crate::PHASE_C_PROBE_MAGIC, 0xC0DE_A11C);
     }
 }
+
+/// Stage-4 host-only physical bitmap oracle (research + Cut CT differential).
+#[cfg(test)]
+pub(crate) mod pg_bitmap_oracle;
 
 #[cfg(target_os = "none")]
 #[panic_handler]

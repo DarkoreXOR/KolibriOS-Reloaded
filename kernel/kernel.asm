@@ -261,6 +261,7 @@ high_code:
 ; Cut BX: bdfe_to_fat_date smoke ON when USE_RUST_BDFE_TO_FAT_DATE=1.
 ; Cut AP: xfs_hashname smoke ON when USE_RUST_XFS_HASHNAME=1.
 ; Cut AQ: get_pg_addr smoke ON when USE_RUST_GET_PG_ADDR=1.
+; Cut CT: release_bitmap_page_without_cursor_update smoke (RBPB / Cut CT).
 ; Cut AR: r_f_port_area smoke ON when USE_RUST_R_F_PORT_AREA=1 (after reserve_irqs_ports).
 ; Cut AS: socket_check smoke ON when USE_RUST_SOCKET_CHECK=1 (after stack_init).
 ; Cut AU: ipv4_find_fragment_slot smoke ON when USE_RUST_IPV4_FIND_FRAGMENT_SLOT=1 (after stack_init).
@@ -426,6 +427,8 @@ end if
         call    ntfs_create_mcb_rust_smoke_test
         ; Cut AQ: get_pg_addr smoke (Rust when USE_RUST_GET_PG_ADDR=1).
         call    get_pg_addr_rust_smoke_test
+        ; Cut CT: release_bitmap_page_without_cursor_update smoke (RBPB).
+        call    release_bitmap_page_rust_smoke_test
         ; Cut U: fat_gen_short_name smoke (Rust when USE_RUST_FAT_GEN_SHORT_NAME=1).
         call    fat_gen_short_name_rust_smoke_test
         ; Cut V: tcp_set_persist smoke (Rust when USE_RUST_TCP_SET_PERSIST=1).

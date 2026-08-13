@@ -263,6 +263,8 @@ include "rust/is_partition_table_entry.inc"
 include "rust/process_partition_table_entry.inc"
 ; Cut AA: pid_to_slot — Rust blob + smoke (USE_RUST_PID_TO_SLOT)
 include "rust/pid_to_slot.inc"
+; Cut CT: release_bitmap_page_without_cursor_update — Rust blob + smoke
+include "rust/release_bitmap_page_without_cursor_update.inc"
 ; Cut AB: utf8to16 — Rust blob + smoke (USE_RUST_UTF8TO16)
 include "rust/utf8to16.inc"
 ; Cut AC: ipv4_route — Rust blob + smoke (USE_RUST_IPV4_ROUTE)

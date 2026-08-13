@@ -4,10 +4,12 @@
 Rust hybrid migration scope. One-time project map; update when a Cut
 completes or the scoped candidate set changes.
 
-**Last inventory baseline:** post-Cut CR (2026-08-13).
+**Last inventory baseline:** post-Cut CT (2026-08-14).
+**Cut CS:** **BLOCKED** (historical) — superseded as next-cut blocker by Stage-4
+research + Cut CT authorization. Inventory after CT: **100 / 136**.
 
 **Gates source of truth:** `project/build.toml` `[[rust.migrations]]`
-(99 production entries, all `enabled = true` after CR).
+(100 production entries, all `enabled = true` after CT).
 
 ---
 
@@ -195,9 +197,10 @@ leaves. Path A rejections are recorded in cut plans, not as fake completions.
 ## core/memory
 
 - [x] `get_pg_addr` — Cut AQ
-- [ ] `alloc_page` — deferred: Stage 4 / boundaries allocator Cut B
+- [x] `release_bitmap_page_without_cursor_update` — Cut CT (Stage-4 bitmap release helper; not `release_pages` / not `free_page`)
+- [ ] `alloc_page` — deferred: Stage 4 / boundaries allocator Cut B; ownership design: [`stage4-ownership-design.md`](stage4-ownership-design.md)
 - [ ] `get_phys_addr` — deferred: Stage 4 after AQ
-- [ ] `map_page` — deferred: Stage 4 paging ownership
+- [ ] `map_page` — deferred: Stage 4 paging; **not** in first phys-allocator ownership slice (see stage4 design)
 - [ ] `mem_test` — deferred: boot/memory test
 - [x] `v86_get_lin_addr` — Cut BL
 
@@ -307,9 +310,10 @@ Documented across Cuts AO–AZ plans:
 
 **Functions completed / functions total**
 
-`99 / 135`
+`100 / 136`
 
-(Mechanically: `99` `[x]` + `36` `[ ]` = `135`.)
+(Mechanically: `100` `[x]` + `36` `[ ]` = `136`. Cut CT added one new Stage-4
+helper leaf that was not previously on the pending checklist.)
 
 When a new Cut completes: mark its `[ ]` → `[x]`, move the note to the Cut id,
 and update this counter so it still matches the checklist.

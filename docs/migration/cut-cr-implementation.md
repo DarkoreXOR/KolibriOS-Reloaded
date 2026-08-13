@@ -194,4 +194,4 @@ After CR, the named Path B leaf inventory that meets the CQ/CR evidence bar is l
 | 6 | `enable_irq` / `irq_eoi` / `mem_test` | **REJECT** — no deterministic I/O/hardware oracle |
 | 7 | wrappers / dead | **REJECT** — `get_phys_addr`, `net_ptr_to_num`, `sysfn_*`, `pid_to_appdata` (commented-only caller), `socket_check_owner`, `socket_ptr_to_num`, `strtoint_dec` |
 
-**Stop after Cut CR. Do not start Cut CS.**
+**Stop after Cut CR.** Cut CS audit: **BLOCKED** — see [`cut-cs-plan.md`](cut-cs-plan.md).

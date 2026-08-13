@@ -57,6 +57,7 @@ use crate::partition::{
 };
 use crate::pci_make_config_cmd::pci_make_config_cmd;
 use crate::pid_to_slot::pid_to_slot_ptr;
+use crate::release_bitmap_page::release_bitmap_page_without_cursor_update_ptr;
 use crate::string::{strchr, strlen, strncmp, strncpy, strrchr};
 use crate::unpack::unpack;
 use crate::swap_bytes_in_words::swap_bytes_in_words;
@@ -1610,6 +1611,26 @@ pub unsafe extern "stdcall" fn rust_pid_to_slot(
 ) -> u32 {
     // SAFETY: kernel trampoline passes live SLOT_BASE + thread_count.
     unsafe { pid_to_slot_ptr(pid, slot_base, thread_count) }
+}
+
+/// `stdcall` rust_release_bitmap_page_without_cursor_update(page_index, map) -> EAX.
+///
+/// Cut CT: dedicated section for reloc-free extract + FASM `file` embed.
+/// Must remain free of GOT/rodata/external calls (verified by extractor).
+/// Callee cleans 8 bytes (`ret 8`). Returns delta ∈ {0,1}.
+/// FASM trampoline injects `sys_pgmap` and preserves EBX/ECX/EDX/ESI/EDI/EBP.
+/// Does **not** write `pages_free` or `page_start`.
+///
+/// # Safety
+/// `map` must be writable at byte `page_index >> 3` (production: `sys_pgmap`).
+#[no_mangle]
+#[link_section = ".text.rust_release_bitmap_page_without_cursor_update"]
+pub unsafe extern "stdcall" fn rust_release_bitmap_page_without_cursor_update(
+    page_index: u32,
+    map: *mut u8,
+) -> u32 {
+    // SAFETY: kernel trampoline passes live sys_pgmap + page index.
+    unsafe { release_bitmap_page_without_cursor_update_ptr(page_index, map) }
 }
 
 /// `stdcall` rust_utf8to16(esi_inout, initial_eax) -> EAX.

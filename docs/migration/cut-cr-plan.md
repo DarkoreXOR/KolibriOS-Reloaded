@@ -162,4 +162,4 @@ Trampoline: snapshot row count / widthX / deltaToScreen / EDX **before** stdcall
 
 ---
 
-**Stop after Cut CR. Do not start Cut CS.**
+**Stop after Cut CR.** Successor Cut CS audit: **BLOCKED** — [`cut-cs-plan.md`](cut-cs-plan.md).

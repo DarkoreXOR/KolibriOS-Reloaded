@@ -530,6 +530,13 @@ out = "rust_pid_to_slot.bin"
 
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_release_bitmap_page_without_cursor_update"
+symbol = "rust_release_bitmap_page_without_cursor_update"
+expect_ret_imm = 8
+out = "rust_release_bitmap_page_without_cursor_update.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_is_partition_table_entry"
 symbol = "rust_is_partition_table_entry"
 expect_ret_imm = 16
@@ -741,6 +748,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "CT"
+blob = "rust_release_bitmap_page_without_cursor_update.bin"
+symbol = "rust_release_bitmap_page_without_cursor_update"
+gate = "USE_RUST_RELEASE_BITMAP_PAGE_WITHOUT_CURSOR_UPDATE"
+include = "kernel/rust/release_bitmap_page_without_cursor_update.inc"
+gate_file = "kernel/core/memory.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "CR"
 blob = "rust_draw_char.bin"

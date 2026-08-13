@@ -120,6 +120,8 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 - **Cut CP:** `blit_32` — **done** 2026-08-13 ([`cut-cp-plan.md`](cut-cp-plan.md), [`cut-cp-implementation.md`](cut-cp-implementation.md)). Syscall-73 LFB blit (Cut CD compose); Path B after fresh post-CO / REG-016 audit (`Path A: REJECTED`; selected over `exFAT_find_lfn`, `drawChar`, thin/IRQ rejects); reloc-free 2292 B; REG-012 pack unchanged (`end .bss` `0x8B503`, `TMP_STACK_TOP` `0x8E000`); exact-pixel host oracle + desktop syscall-73 soak PASS. **Stop; do not start Cut CQ.**
 - **Cut CQ:** `exFAT_find_lfn` — **done** 2026-08-13 ([`cut-cq-plan.md`](cut-cq-plan.md), [`cut-cq-implementation.md`](cut-cq-implementation.md)). exFAT UTF-8 path-component lookup (AH+AI+CL compose; `exFAT_get_name` injected); Path B after fresh post-CP audit (`Path A: REJECTED`; selected over `drawChar` Stage 7, `mem_test` hardware probe, thin/IRQ rejects); reloc-free 1301 B; REG-012 pack unchanged (`end .bss` `0x8BAC3`, `TMP_STACK_TOP` `0x8E000`); REG-017 get_name EBP/ESI pin + REG-018 callback CF capture; independent LFN oracle + `--disk exfat` soak PASS. **Stop; do not start Cut CR.**
 - **Cut CR:** `drawChar` — **done** 2026-08-13 ([`cut-cr-plan.md`](cut-cr-plan.md), [`cut-cr-implementation.md`](cut-cr-implementation.md)). GUI 1× glyph rasterization (Cut N compose; scaled `esi!=1` stays FASM for REG-012); Path B after fresh post-CQ audit (`Path A: REJECTED`; selected over `ntfs_restore_usa_frs` fallthrough, Stage 4–7 orchestration, thin/IRQ rejects); reloc-free 1958 B; REG-012 pack unchanged (`end .bss` `0x8C3C3`, `TMP_STACK_TOP` `0x8E000`); exact-pixel host oracle + desktop `dtext` soak PASS. **Stop; do not start Cut CS.**
+- **Cut CS:** **BLOCKED** 2026-08-13 ([`cut-cs-plan.md`](cut-cs-plan.md)). Fresh post-CR audit of all 36 pending symbols: Path A **REJECTED**; no Path B target clears the evidence bar (Stage 4–7 orchestration deferred; thin/dead/IRQ/fallthrough/anti-cluster rejected). Inventory stayed **99 / 135** until Stage-4 research + Cut CT. **Do not invent a wrapper cut.**
+- **Cut CT:** `release_bitmap_page_without_cursor_update` — **done** 2026-08-14 ([`cut-ct-plan.md`](cut-ct-plan.md), [`cut-ct-implementation.md`](cut-ct-implementation.md)). First production Stage-4 bitmap leaf after research (oracle + writers + release/free A/B + FASM extract); Path B (`Path A: REJECTED`); reloc-free **49 B**; REG-012 pack unchanged; `pages_free` / `page_start` remain FASM-owned outside the helper. **Stop; do not start Cut CU.** Does **not** complete Stage-4 allocator ownership.
 
 ### Stage 3 — Compat syscall façade (selected)
 
@@ -129,7 +131,7 @@ Staged coexistence: keep FASM bootable; replace behind **dependency cuts** ([`bo
 ### Stage 4 — Memory exports
 
 - Rust page/heap behind same symbols.
-- **Status:** foothold via Cuts AQ/BL/CI (`get_pg_addr` + `v86_get_lin_addr` + `usb_td_to_virt`); allocator/map/fault remain FASM.
+- **Status:** foothold via Cuts AQ/BL/CI + **CT** (`get_pg_addr` + `v86_get_lin_addr` + `usb_td_to_virt` + bitmap-release helper); `alloc_page` / `free_page` / `release_pages` orchestration / map/fault remain FASM.
 
 ### Stage 5 — FS plugin / net protocol islands
 
