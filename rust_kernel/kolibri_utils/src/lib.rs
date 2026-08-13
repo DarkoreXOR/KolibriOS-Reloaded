@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA/CB/CC/CD/CE/CF/CG/CH/CI/CJ/CK/CL/CM
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA/CB/CC/CD/CE/CF/CG/CH/CI/CJ/CK/CL/CM/CN
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
@@ -19,7 +19,8 @@
 //! kernel VA→PA page translation, socket-list membership, NIC device-list ptr→index×4, PCI
 //! config-space address encode, AHCI free command-slot scan + PxSIG known-device
 //! recognition, AHCI port TFD busy/DRQ poll with timer deadline,
-//! reverse character search (`strrchr`), bounded padded
+//! reverse character search (`strrchr`), forward character search (`strchr`),
+//! bounded padded
 //! copy (`strncpy`), C-string length (`strlen`), endian word-byte swap
 //! (`swap_bytes_in_words`), video `block_clip` + `blit_clip`, PE preferred-base
 //! DIR32 rebase, USB TD phys→virt, forward `memmove`, FAT `fat_get_sector`,

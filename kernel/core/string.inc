@@ -176,6 +176,29 @@ proc strnlen stdcall, s:dword, n:dword
 endp
 
 align 4
+; strchr migration: USE_RUST_STRCHR=1 routes through Rust
+; rust_strchr (see rust/strchr.inc).
+; Set USE_RUST_STRCHR=0 to restore the original FASM body without deleting it.
+
+USE_RUST_STRCHR = 1
+
+if USE_RUST_STRCHR
+
+; Compatibility trampoline: stdcall(s,c) → rust_strchr → EAX.
+; Legacy DF: FASM always `cld` at entry — match at return.
+proc strchr stdcall, s:dword, c:dword
+        stdcall rust_strchr, [s], [c]
+        cld
+        ret
+endp
+
+align 4
+rust_strchr:
+        file '../../rust_kernel/kolibri_utils/out/rust_strchr.bin'
+
+else
+
+; --- original FASM implementation (rollback) ---
 proc strchr stdcall, s:dword, c:dword
         push    edi
         cld
@@ -205,6 +228,8 @@ proc strchr stdcall, s:dword, c:dword
         ret
 
 endp
+
+end if
 
 
 align 4

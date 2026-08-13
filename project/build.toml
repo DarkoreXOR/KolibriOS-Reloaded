@@ -299,6 +299,13 @@ out = "rust_fat_name_is_legal.bin"
 
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_strchr"
+symbol = "rust_strchr"
+expect_ret_imm = 8
+out = "rust_strchr.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_strrchr"
 symbol = "rust_strrchr"
 expect_ret_imm = 8
@@ -706,6 +713,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "CN"
+blob = "rust_strchr.bin"
+symbol = "rust_strchr"
+gate = "USE_RUST_STRCHR"
+include = "kernel/core/string.inc"
+gate_file = "kernel/core/string.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "CM"
 blob = "rust_get_inode_location.bin"

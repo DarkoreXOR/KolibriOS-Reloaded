@@ -10,6 +10,9 @@ pub const STRNCPY_PRNG_SEED: u32 = 0x4355_4246;
 /// Cut BH differential PRNG seed (`'CUBH'`).
 pub const STRLEN_PRNG_SEED: u32 = 0x4355_4248;
 
+/// Cut CN differential PRNG seed (`'SCHR'`).
+pub const STRCHR_PRNG_SEED: u32 = 0x5343_4852;
+
 /// C-string length matching FASM `strlen` (`parse_fn.inc`).
 ///
 /// Mirrors:
@@ -129,6 +132,31 @@ pub unsafe fn strrchr(s: *const u8, c: u32) -> usize {
         p = p.wrapping_sub(1);
     }
     0
+}
+
+/// First occurrence of byte `c` in C string `s`, matching FASM `strchr` semantics.
+///
+/// Equivalent to the chunk-doubling FASM body in `string.inc`; production uses a
+/// compact forward scan (same results, smaller reloc-free blob).
+///
+/// Returns the match address as `usize` (`0` = NULL).
+///
+/// # Safety
+/// `s` must be a readable NUL-terminated C string.
+#[inline(always)]
+pub unsafe fn strchr(s: *const u8, c: u32) -> usize {
+    let needle = c as u8;
+    let mut p = s;
+    loop {
+        let b = unsafe { *p };
+        if b == needle {
+            return p as usize;
+        }
+        if b == 0 {
+            return 0;
+        }
+        p = unsafe { p.add(1) };
+    }
 }
 
 /// Compare up to `n` bytes of two C strings, matching FASM `strncmp`.
@@ -266,11 +294,60 @@ pub fn strrchr_fasm_oracle(s: &[u8], c: u32) -> Option<usize> {
     None
 }
 
+/// Independent FASM-flow oracle for `strchr` (chunk-doubling forward search).
+#[cfg(test)]
+pub fn strchr_fasm_oracle(s: &[u8], c: u32) -> Option<usize> {
+    let needle = (c & 0xff) as u8;
+    let base = s.as_ptr() as usize;
+    let mut edi = base;
+    let mut edx: u32 = 16;
+    loop {
+        edx = edx.wrapping_shl(1);
+        let mut ecx = edx;
+        let mut nul_in_chunk = false;
+        while ecx != 0 {
+            let off = edi - base;
+            assert!(off < s.len(), "oracle overrun (missing NUL)");
+            let b = s[off];
+            edi = edi.wrapping_add(1);
+            ecx = ecx.wrapping_sub(1);
+            if b == 0 {
+                nul_in_chunk = true;
+                break;
+            }
+        }
+        let scanned = edx.wrapping_sub(ecx);
+        edi = edi.wrapping_sub(scanned as usize);
+        let mut found = false;
+        ecx = scanned;
+        while ecx != 0 {
+            let off = edi - base;
+            assert!(off < s.len(), "oracle rescan overrun");
+            let b = s[off];
+            if b == needle {
+                found = true;
+                edi = edi.wrapping_add(1);
+                break;
+            }
+            edi = edi.wrapping_add(1);
+            ecx = ecx.wrapping_sub(1);
+        }
+        if found {
+            return Some(edi - 1 - base);
+        }
+        if !nul_in_chunk {
+            continue;
+        }
+        return None;
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::{
-        strlen, strncmp, strncmp_fasm_oracle, strncpy, strncpy_fasm_oracle, strrchr,
-        strrchr_fasm_oracle, STRLEN_PRNG_SEED, STRNCPY_PRNG_SEED, STRRCHR_PRNG_SEED,
+        strchr, strchr_fasm_oracle, strlen, strncmp, strncmp_fasm_oracle, strncpy,
+        strncpy_fasm_oracle, strrchr, strrchr_fasm_oracle, STRCHR_PRNG_SEED, STRLEN_PRNG_SEED,
+        STRNCPY_PRNG_SEED, STRRCHR_PRNG_SEED,
     };
 
     fn check_strncpy(s2: &[u8], n: u32) {
@@ -445,6 +522,88 @@ mod tests {
             state ^= state << 5;
             let c = state;
             check_strrchr(&buf[..=len], c);
+        }
+    }
+
+    fn rust_strchr_offset(s: &[u8], c: u32) -> Option<usize> {
+        let base = s.as_ptr() as usize;
+        let p = unsafe { strchr(s.as_ptr(), c) };
+        if p == 0 {
+            None
+        } else {
+            Some(p - base)
+        }
+    }
+
+    fn check_strchr(s: &[u8], c: u32) {
+        assert!(s.ends_with(&[0]), "fixture must be NUL-terminated");
+        let got = rust_strchr_offset(s, c);
+        let exp = strchr_fasm_oracle(s, c);
+        assert_eq!(got, exp, "mismatch s={s:?} c={c:#x}");
+    }
+
+    #[test]
+    fn schrc_empty_and_nul_needle() {
+        check_strchr(b"\0", 0);
+        check_strchr(b"\0", b'a' as u32);
+        check_strchr(b"\0", 0x100);
+    }
+
+    #[test]
+    fn schrc_first_mid_not_found() {
+        check_strchr(b"abc\0", b'a' as u32);
+        check_strchr(b"abc\0", b'b' as u32);
+        check_strchr(b"abc\0", b'c' as u32);
+        check_strchr(b"abc\0", b'd' as u32);
+        check_strchr(b"abca\0", b'a' as u32);
+    }
+
+    #[test]
+    fn schrc_path_first_slash() {
+        check_strchr(b"/sys/app\0", b'/' as u32);
+        check_strchr(b"app\0", b'/' as u32);
+        check_strchr(b"/a/b/c\0", b'/' as u32);
+        check_strchr(b"///\0", b'/' as u32);
+    }
+
+    #[test]
+    fn schrc_wide_c_truncates_to_byte() {
+        check_strchr(b"x/y\0", 0x1234_002F);
+        check_strchr(b"x/y\0", 0xFFFFFF00u32);
+    }
+
+    #[test]
+    fn schrc_chunk_boundary_long() {
+        // Force chunk growth past initial 16/32 window.
+        let mut s = vec![b'a'; 40];
+        s.push(b'z');
+        s.push(0);
+        check_strchr(&s, b'z' as u32);
+        check_strchr(&s, b'a' as u32);
+        check_strchr(&s, b'q' as u32);
+    }
+
+    #[test]
+    fn schrc_prng_50k_matches_oracle() {
+        let mut state = STRCHR_PRNG_SEED;
+        let mut buf = [0u8; 96];
+        for _ in 0..50_000 {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            let len = (state % 64) as usize;
+            for i in 0..len {
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+                buf[i] = (state as u8).wrapping_add(1).max(1);
+            }
+            buf[len] = 0;
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            let c = state;
+            check_strchr(&buf[..=len], c);
         }
     }
 

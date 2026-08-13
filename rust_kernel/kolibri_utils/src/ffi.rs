@@ -54,7 +54,7 @@ use crate::partition::{
 };
 use crate::pci_make_config_cmd::pci_make_config_cmd;
 use crate::pid_to_slot::pid_to_slot_ptr;
-use crate::string::{strlen, strncmp, strncpy, strrchr};
+use crate::string::{strchr, strlen, strncmp, strncpy, strrchr};
 use crate::swap_bytes_in_words::swap_bytes_in_words;
 use crate::tcp::{tcp_outflags_ptr, tcp_set_persist_ptr, tcp_xmit_timer_ptr};
 use crate::ext_read_all_times::ext_read_all_times_ptr;
@@ -762,6 +762,21 @@ pub unsafe extern "stdcall" fn rust_strrchr(s: *const u8, c: u32) -> u32 {
     // SAFETY: kernel callers pass valid C-string regions for this search.
     // Freestanding i686: usize == u32.
     unsafe { strrchr(s, c) as u32 }
+}
+
+/// `stdcall` rust_strchr(s, c) -> EAX = ptr to first byte `c` or NULL.
+///
+/// Cut CN: dedicated section for reloc-free extract + FASM `file` embed.
+/// Callee cleans 8 bytes (`ret 8`). Legacy FASM preserves EDI only; trampoline
+/// executes `cld` (DF unchanged from entry). Returns address as `u32` in EAX.
+///
+/// # Safety
+/// `s` must be a readable NUL-terminated C string.
+#[no_mangle]
+#[link_section = ".text.rust_strchr"]
+pub unsafe extern "stdcall" fn rust_strchr(s: *const u8, c: u32) -> u32 {
+    // SAFETY: kernel/export callers pass valid C-string regions for this search.
+    unsafe { strchr(s, c) as u32 }
 }
 
 /// `stdcall` rust_strncpy(s1, s2, n) -> EAX = s1.
