@@ -349,8 +349,10 @@ fpu_data:
         rb  0xa80       ; bochs avx512
 fpu_data_size = $ - fpu_data
 
-BPSLine_calc_area   rd  MAX_SCREEN_HEIGHT
-d_width_calc_area   rd  MAX_SCREEN_HEIGHT
+; Cut CO: BPSLine/d_width lookup tables moved after sys_pgmap (uninitialized
+; `rd`, not in kernel.mnt). Frees ~17 KiB under TMP_STACK_TOP so the unpack
+; .text blob can replace the FASM body without overlapping sys_proc.
+; Callers use labels only; B32 CLEAN_ZONE→HEAP wipe still zeroes them.
 
 mem_block_list      rd  64*2
 mem_used_list       rd  64*2
@@ -539,3 +541,9 @@ RESERVED_PORTS:
         rb  64*1024
 sys_pgmap:
         rb  1024*1024/8
+
+; Cut CO: pitch/width LUTs (were packed in .bss under TMP_STACK_TOP).
+; Uninitialized — FASM does not emit these into kernel.mnt.
+align 16
+BPSLine_calc_area   rd  MAX_SCREEN_HEIGHT
+d_width_calc_area   rd  MAX_SCREEN_HEIGHT

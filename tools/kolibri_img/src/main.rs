@@ -49,7 +49,7 @@ Usage:
   kolibri_img ls <image.img> [--path DIR]
   kolibri_img cow <readonly-source.img> <dest-copy.img>
   kolibri_img extract <image.img> <FAT-NAME> <out-file>
-  kolibri_img delete <writable-image.img> <FAT-NAME-OR-PATH>
+  kolibri_img delete [--ignore-missing] <writable-image.img> <FAT-NAME-OR-PATH>
   kolibri_img replace <writable-image.img> <FAT-NAME> <host-file>
   kolibri_img put <writable-image.img> <FAT-NAME> <host-file>
 
@@ -59,6 +59,7 @@ Rules:
   - `delete` / `replace` / `put` refuse known reference image filenames.
   - Delete disposable copies under dev_build/ when done.
   - `delete` accepts root 8.3 names or nested paths (e.g. DEVELOP/FASM).
+  - `delete --ignore-missing` succeeds if the path is already absent.
   - `put` creates a new root file, or replaces it if already present.
 "
     );
@@ -207,13 +208,32 @@ fn cmd_extract(args: &[String]) -> Result<(), BoxError> {
 }
 
 fn cmd_delete(args: &[String]) -> Result<(), BoxError> {
-    let img_path = args.first().ok_or("delete requires <image.img> <NAME>")?;
-    let name = args.get(1).ok_or("delete requires <image.img> <NAME>")?;
+    let mut ignore_missing = false;
+    let mut positional: Vec<&str> = Vec::new();
+    for a in args {
+        if a == "--ignore-missing" {
+            ignore_missing = true;
+        } else if a.starts_with('-') {
+            return Err(format!("unexpected argument '{a}'").into());
+        } else {
+            positional.push(a.as_str());
+        }
+    }
+    let img_path = positional
+        .first()
+        .ok_or("delete requires <image.img> <NAME>")?;
+    let name = positional
+        .get(1)
+        .ok_or("delete requires <image.img> <NAME>")?;
     refuse_reference_image(img_path)?;
     let mut img = Image::open_mut(img_path)?;
-    let (offset, entry) = img
-        .find_file_path(name)?
-        .ok_or_else(|| format!("file not found: {name}"))?;
+    let Some((offset, entry)) = img.find_file_path(name)? else {
+        if ignore_missing {
+            println!("skip {name} (not found)");
+            return Ok(());
+        }
+        return Err(format!("file not found: {name}").into());
+    };
     if entry.is_dir() {
         return Err("refusing to delete a directory (not implemented)".into());
     }
@@ -589,10 +609,11 @@ impl Image {
         let mut walk = self.list_root()?;
         for component in &components[..components.len() - 1] {
             let fat = to_fat_83(component)?;
-            let dir = walk
-                .into_iter()
-                .find(|e| !e.is_deleted() && !e.is_lfn() && e.is_dir() && e.fat_name() == fat)
-                .ok_or_else(|| format!("directory not found: {component}"))?;
+            let Some(dir) = walk.into_iter().find(|e| {
+                !e.is_deleted() && !e.is_lfn() && e.is_dir() && e.fat_name() == fat
+            }) else {
+                return Ok(None);
+            };
             parent_start = Some(dir.start_cluster);
             let bytes = self.read_clusters(dir.start_cluster, None)?;
             walk = self.parse_dir_region_bytes(&bytes)?;

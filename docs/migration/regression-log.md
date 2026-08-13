@@ -140,6 +140,23 @@ Use this before enabling a migration gate and when debugging a live FS bug.
     window, boots a desktop wallpaper, and kills `@PANEL` / app launch
     (REG-012). Prefer shrinking the new leaf (smoke/blob) or rejecting
     the candidate over breaking the sys_proc↔SLOT↔VGA pack.
+21. **FASM comments that say “bswap” may not be `bswap`.** Kolibri unpacker
+    uses `shr ax,8` / `ror eax,16` / `xchg al,ah`, which **discards** the
+    original high byte. `u32::swap_bytes()` / Intel `bswap` is a different
+    function (REG-016). Emulate the instructions.
+22. **Flag tests on `AL`/`AX` must not be widened to EAX.** Method/E8 bits
+    live in the low byte; high bytes can be nonzero (`SDHCI.SYS` flags
+    `0x1000081`) (REG-016).
+23. **Match-literal `lea [base+ecx*4+0x100*4]` with `CH=match_bit`** addresses
+    planes `256+symbol` **and** `512+symbol` inside `LZMA_LIT_SIZE=768`.
+    Always using `probs[256+symbol]` is wrong (REG-015).
+24. **`MENUET01` / COFF magic is not a full-file oracle.** Compare every dest
+    byte. Unicorn-compare the OFF FASM body against the i686 blob on **all**
+    boot KPCK (`LAUNCHER` can match while `@TASKBAR` E8 patches diverge).
+25. **A multi-KiB `.text` blob is not free vs the TMP_STACK_TOP assert** —
+    Kolibri is one linear org through `.bss`. Moving uninitialized LUTs after
+    `sys_pgmap` (still first-4MiB PSE, B32-wiped) can reclaim space without
+    touching `SLOT_BASE` (Cut CO / REG-012).
 
 ---
 
@@ -161,6 +178,8 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | [REG-012](#reg-012--no-taskbar--apps-wont-launch-cut-cm-slot_base-vga-overlap-2026-08-13) | 2026-08-13 | No taskbar / apps won't launch (Cut CM SLOT_BASE↔VGA overlap) | Fixed |
 | [REG-013](#reg-013--ext-eolite-empty-names--zero-sizes-2026-08-13) | 2026-08-13 | EXT Eolite empty names / zero sizes | Fixed |
 | [REG-014](#reg-014--ext-eolite-names-ok-all-file-sizes-0-2026-08-13) | 2026-08-13 | EXT Eolite names OK, all file sizes 0 | Fixed |
+| [REG-015](#reg-015--splash-only-desktop-cut-co-lzma-match-literal-planes-2026-08-13) | 2026-08-13 | Splash-only desktop (Cut CO LZMA match-literal planes) | Fixed |
+| [REG-016](#reg-016--splash-only-desktop-cut-co-e8-not-bswap-2026-08-13) | 2026-08-13 | Splash-only desktop (Cut CO E8 not-bswap) | Fixed |
 
 ---
 
@@ -387,6 +406,38 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | Avoid next time | When replacing a leaf that advances EDI/ESI via `stos`/`fsTime2bdfe`, trampoline must restore that side effect. ABI smoke must compare **live** EDI/ESI after the public symbol — never `lea` the expected value then `cmp` it to itself. |
 
 **Class:** trampoline missing post-condition / pointer advance (related to REG-001 family).
+
+---
+
+### REG-015 — Splash-only desktop (Cut CO LZMA match-literal planes) (2026-08-13)
+
+| Field | Value |
+|-------|-------|
+| Symptom | Cut CO gate ON: QEMU `running`, `resets=0`, **non-black≈6330–8020** (boot splash). OFF+LUT desktop **779380**. A/B FAIL. |
+| Suspected | Rust KPCK/LZMA vs FASM `unpack`. |
+| Cleared by A/B | OFF with the same pitch-LUT move still **779380** — LUT placement is not the desktop break. |
+| Root cause | FASM `LzmaLiteralDecodeMatch` does `lea eax,[base+ecx*4+0x100*4]` with `CH=match_bit` (`setc ch`), so slots are `256+(match_bit<<8)+symbol` (planes **256** and **512** inside `LZMA_LIT_SIZE=768`). Production+oracle always used `probs[256+symbol]`. Host PRNG mostly `dest_len=0` / fail flags, so both sides agreed and missed FASM. |
+| Fix | `rust_kernel/kolibri_utils/src/unpack.rs` `decode_literal_matched` / oracle `lit_match`. Fixture `testdata/launcher.kpck` (`upck_real_launcher_kpck`). |
+| Verify | Host: LAUNCHER KPCK → `MENUET01`, `upck_*` PASS. Live desktop still failed until [REG-016](#reg-016--splash-only-desktop-cut-co-e8-not-bswap-2026-08-13) (`LAUNCHER` E8 count is 0). |
+| Avoid next time | Translate `lea` with `CH` in the index as a 9-bit slot, not “+256”. Add a real compressed fixture, not only dest_len=0 PRNG. |
+
+**Class:** FASM addressing / LZMA literal context (hidden by weak random corpus).
+
+---
+
+### REG-016 — Splash-only desktop (Cut CO E8 not-bswap) (2026-08-13)
+
+| Field | Value |
+|-------|-------|
+| Symptom | After REG-015: still splash **~8020**, `resets=0`. Unicorn FASM=blob for `LAUNCHER`/`PS2MOUSE.SYS`; **41/238** KPCK files diverged (including `@TASKBAR`). |
+| Suspected | Remaining LZMA mismatch; `fs_execute` / heap. |
+| Cleared by A/B | Same as REG-015 (OFF+LUT desktop OK). |
+| Root cause | FASM `.c1`/`.c2` comment says `"bswap eax" is not supported on i386` then uses `shr ax,8` / `ror eax,16` / `xchg al,ah`. That sequence is **not** Intel `bswap` (high byte discarded). Rust used `u32::swap_bytes()`. Files with E8/Jcc count 0 (`LAUNCHER`) matched; `@TASKBAR` flags `0x81` did not. Secondary: flags method/E8 tests were 32-bit (`flags & !0xC0 != 1`) vs FASM **AL** (`SDHCI.SYS` `0x1000081`). |
+| Fix | `fasm_load_rel32` matching the three-instruction sequence; AL-only flag tests. Fixture `testdata/taskbar.kpck`. |
+| Verify | Unicorn OFF FASM vs blob **238/238 EQ**. QEMU OFF `kernel-20260813-111308.img` **779380**; ON `kernel-20260813-121344.img` **779380**; A/B; ON×3; `resets=0`. Host `upck_*` 13/13, suite 764/764. |
+| Avoid next time | Emulate the exact FASM byte-swap sequence. Do not widen AL flag tests. Compare **all** dest bytes of **all** boot KPCK, not header magic / not only `LAUNCHER`. |
+
+**Class:** ISA-literal translation / E8 filter (hidden by count=0 fixtures).
 
 ---
 

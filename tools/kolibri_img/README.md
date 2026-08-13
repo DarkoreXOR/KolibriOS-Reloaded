@@ -20,7 +20,7 @@ Binary: `tools/kolibri_img/target/release/kolibri_img.exe`
 | `ls <img> [--path DIR]` | List 8.3 root or subdirectory |
 | `cow <src.img> <dst.img>` | Byte-copy to a disposable image (refuses same path) |
 | `extract <img> <NAME> <out>` | Extract a root 8.3 file (e.g. `KERNEL.MNT`) |
-| `delete <img> <NAME>` | Delete a root 8.3 file on a **writable** copy |
+| `delete [--ignore-missing] …` | Delete a file on a **writable** copy. `--ignore-missing` succeeds if the path is already absent. |
 | `replace <img> <NAME> <host-file>` | Replace a root 8.3 file on a **writable** copy |
 | `put <img> <NAME> <host-file>` | Create or replace a root 8.3 file on a **writable** copy |
 

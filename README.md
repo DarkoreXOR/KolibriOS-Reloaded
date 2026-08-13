@@ -181,17 +181,17 @@ Still in `tools/kolibri_img` (or use the same relative paths from that directory
 
 ```powershell
 .\target\release\kolibri_img.exe cow ..\..\kolibrios-0.7.7.0-9160-g944d74f01-en_US.img ..\..\dev_build\dev-test.img
-.\target\release\kolibri_img.exe delete ..\..\dev_build\dev-test.img DOCPACK
-.\target\release\kolibri_img.exe delete ..\..\dev_build\dev-test.img DEVELOP/FASM
-.\target\release\kolibri_img.exe delete ..\..\dev_build\dev-test.img 3D/VIEW3DS
-.\target\release\kolibri_img.exe delete ..\..\dev_build\dev-test.img GAMES/DINO
+.\target\release\kolibri_img.exe delete --ignore-missing ..\..\dev_build\dev-test.img DOCPACK
+.\target\release\kolibri_img.exe delete --ignore-missing ..\..\dev_build\dev-test.img DEVELOP/FASM
+.\target\release\kolibri_img.exe delete --ignore-missing ..\..\dev_build\dev-test.img 3D/VIEW3DS
+.\target\release\kolibri_img.exe delete --ignore-missing ..\..\dev_build\dev-test.img GAMES/DINO
 .\target\release\kolibri_img.exe replace ..\..\dev_build\dev-test.img KERNEL.MNT ..\..\kernel\bin\kernel.mnt
 ```
 
 | Step | Why |
 |------|-----|
 | `cow` | Creates disposable `dev_build/dev-test.img` (refuses same-path overwrite) |
-| `delete …` | Authorized free-space paths (see `.cursor/rules/image-handling.mdc`); `DOCPACK` alone is no longer enough for current hybrid kernels |
+| `delete …` | Optional authorized free-space paths (see `.cursor/rules/image-handling.mdc`); skipped if already absent. `DOCPACK` alone is no longer enough when those files are still present. |
 | `replace … KERNEL.MNT` | Puts **your** `kernel/bin/kernel.mnt` onto that image |
 
 **Resulting image:**
@@ -277,7 +277,7 @@ When finished, quit QEMU. Disposable images under `dev_build/` may be deleted.
 | `python: command not found` during blob extract | Install Python 3 and ensure `python` is on `PATH` |
 | `lang.inc` / assemble errors | Run the assemble sequence from the **repo root**; create ephemeral `kernel/lang.inc` as shown, then remove it — or use `python scripts/build.py` |
 | `kolibri_img` missing | `cd tools\kolibri_img` then `cargo build --release` |
-| `replace` fails (not enough space / write refused) | Always `cow` to `dev_build/`/`build/test/`, then delete authorized free-space paths (`DOCPACK`, `DEVELOP/FASM`, `3D/VIEW3DS`, `GAMES/DINO` — see `.cursor/rules/image-handling.mdc`), then `replace`. Never mutate `kolibrios-*.img`. The prepare_image script does this via `project/build.toml` `delete_before_replace`. |
+| `replace` fails (not enough space / write refused) | Always `cow` to `dev_build/`/`build/test/`, then delete authorized free-space paths if they are still present (`DOCPACK`, `DEVELOP/FASM`, `3D/VIEW3DS`, `GAMES/DINO` — see `.cursor/rules/image-handling.mdc`), then `replace`. Missing paths are skipped. Never mutate `kolibrios-*.img`. `python scripts/prepare_image.py` does this via `project/build.toml` `delete_before_replace` (`--no-delete` or `delete_before_replace_enabled = false` skips the pass). |
 | QEMU not found | Use the full path to `qemu-system-i386.exe`, or add QEMU to `PATH` |
 | Boots but looks like an old build | Image was not recreated or still has old `KERNEL.MNT` — rebuild `kernel.mnt`, then new `cow` + `delete` + `replace` |
 | Wrong directory | FASM and `powershell -File …` expect repo-root paths; `kolibri_img` commands in the docs use paths relative to `tools/kolibri_img` |

@@ -55,6 +55,7 @@ use crate::partition::{
 use crate::pci_make_config_cmd::pci_make_config_cmd;
 use crate::pid_to_slot::pid_to_slot_ptr;
 use crate::string::{strchr, strlen, strncmp, strncpy, strrchr};
+use crate::unpack::unpack;
 use crate::swap_bytes_in_words::swap_bytes_in_words;
 use crate::tcp::{tcp_outflags_ptr, tcp_set_persist_ptr, tcp_xmit_timer_ptr};
 use crate::ext_read_all_times::ext_read_all_times_ptr;
@@ -777,6 +778,22 @@ pub unsafe extern "stdcall" fn rust_strrchr(s: *const u8, c: u32) -> u32 {
 pub unsafe extern "stdcall" fn rust_strchr(s: *const u8, c: u32) -> u32 {
     // SAFETY: kernel/export callers pass valid C-string regions for this search.
     unsafe { strchr(s, c) as u32 }
+}
+
+/// `stdcall` rust_unpack(packed, unpacked, p).
+///
+/// Cut CO: dedicated section for reloc-free extract + FASM `file` embed.
+/// Callee cleans 12 bytes (`ret 12`). Trampoline injects `[unpack.p]` and
+/// uses `pushad`/`popad` (legacy preserves all GPRs). No extra `add esp`
+/// (REG-009). No `cld` (FASM unpack has none).
+///
+/// # Safety
+/// `packed` readable for the consumed KPCK/LZMA stream; `unpacked` writable
+/// for the dest length in the header; `p` writable for 7990 probability dwords.
+#[no_mangle]
+#[link_section = ".text.rust_unpack"]
+pub unsafe extern "stdcall" fn rust_unpack(packed: *const u8, unpacked: *mut u8, p: *mut u32) {
+    unsafe { unpack(packed, unpacked, p) }
 }
 
 /// `stdcall` rust_strncpy(s1, s2, n) -> EAX = s1.

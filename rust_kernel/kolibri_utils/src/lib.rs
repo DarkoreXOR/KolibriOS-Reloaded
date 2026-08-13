@@ -1,4 +1,4 @@
-//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA/CB/CC/CD/CE/CF/CG/CH/CI/CJ/CK/CL/CM/CN
+//! Cut A/B/C/D/E/F/G/H/I/J/K/L/M/N/O/P/Q/R/S/T/U/V/W/X/Y/Z/AA/AB/AC/AD/AE/AF/AG/AH/AI/AJ/AK/AL/AM/AN/AO/AP/AQ/AR/AS/AT/AU/AV/AW/AX/AY/AZ/BA/BB/BC/BD/BE/BF/BG/BH/BI/BJ/BK/BL/BM/BN/BO/BP/BQ/BR/BS/BT/BU/BV/BW/BX/BY/BZ/CA/CB/CC/CD/CE/CF/CG/CH/CI/CJ/CK/CL/CM/CN/CO
 //! utilities: CRC32, Unicode (incl. CP866 encode+decode), casefold, string, checksum,
 //! filesystem calendar (BDFE↔secs), NTFS FILETIME↔BDFE, NTFS bootsector CF validate, exFAT
 //! SetChecksum + NameHash rolling hash, ISO9660 path-component name match + volume-name
@@ -24,7 +24,7 @@
 //! copy (`strncpy`), C-string length (`strlen`), endian word-byte swap
 //! (`swap_bytes_in_words`), video `block_clip` + `blit_clip`, PE preferred-base
 //! DIR32 rebase, USB TD phys→virt, forward `memmove`, FAT `fat_get_sector`,
-//! exFAT `exFAT_get_sector`, and EXT `getInodeLocation` for KolibriOS hybrid
+//! exFAT `exFAT_get_sector`, EXT `getInodeLocation`, and KPCK/LZMA `unpack` for KolibriOS hybrid
 //! migration.
 //!
 //! Freestanding on `os = "none"` targets (`no_std`, no allocator).
@@ -88,6 +88,7 @@ mod swap_bytes_in_words;
 mod tcp;
 mod time;
 mod unicode;
+mod unpack;
 mod userspace;
 mod utf16_to_8;
 mod utf8to16;
@@ -267,6 +268,7 @@ pub use socket_check::{
 pub use string::{
     strlen, strncmp, strncpy, strrchr, STRLEN_PRNG_SEED, STRNCPY_PRNG_SEED, STRRCHR_PRNG_SEED,
 };
+pub use unpack::{unpack, unpack_ptr, PROB_SLOTS, UNPACK_PRNG_SEED};
 pub use swap_bytes_in_words::{
     swap_bytes_in_words, swap_bytes_in_words_slice, SWAP_BYTES_IN_WORDS_PRNG_SEED,
 };

@@ -70,7 +70,11 @@ def resolve_output_dir(cfg: Mapping[str, Any], image: Mapping[str, Any]) -> Path
     return out_dir
 
 
-def prepare_image(cfg: Mapping[str, Any] | None = None) -> Path:
+def prepare_image(
+    cfg: Mapping[str, Any] | None = None,
+    *,
+    delete: bool | None = None,
+) -> Path:
     cfg = cfg or load_config()
     image = cfg["image"]
     kernel = resolve(cfg["kernel"]["output"])
@@ -94,12 +98,18 @@ def prepare_image(cfg: Mapping[str, Any] | None = None) -> Path:
     log.info("Creating disk image %s", image_path)
     run_cmd([img_tool, "cow", base, image_path], what="kolibri_img cow")
 
-    for del_path in image["delete_before_replace"]:
-        log.info("delete %s", del_path)
-        run_cmd(
-            [img_tool, "delete", image_path, del_path],
-            what=f"kolibri_img delete {del_path}",
-        )
+    do_delete = bool(image.get("delete_before_replace_enabled", True))
+    if delete is not None:
+        do_delete = delete
+    if do_delete:
+        for del_path in image.get("delete_before_replace") or []:
+            log.info("delete %s (skip if missing)", del_path)
+            run_cmd(
+                [img_tool, "delete", "--ignore-missing", image_path, del_path],
+                what=f"kolibri_img delete {del_path}",
+            )
+    else:
+        log.info("skip CoW deletes (delete_before_replace disabled)")
 
     fat_name = image["kernel_fat_name"]
     log.info("replace %s", fat_name)
@@ -126,9 +136,14 @@ def prepare_image(cfg: Mapping[str, Any] | None = None) -> Path:
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--verbose", action="store_true")
+    parser.add_argument(
+        "--no-delete",
+        action="store_true",
+        help="Do not delete authorized free-space paths on the CoW copy",
+    )
     args = parser.parse_args(argv)
     setup_logging(args.verbose)
-    prepare_image()
+    prepare_image(delete=False if args.no_delete else None)
 
 
 if __name__ == "__main__":

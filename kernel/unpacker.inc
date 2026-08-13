@@ -13,6 +13,43 @@
 ; @param packed_data Data to unpack
 ; @param unpacked_data Buffer to hold unpacked data
 ; @returns Nothing
+;
+; Cut CO: USE_RUST_UNPACK=1 routes through Rust rust_unpack.
+; Set USE_RUST_UNPACK=0 to restore the original FASM body without deleting it.
+
+USE_RUST_UNPACK = 1
+
+if USE_RUST_UNPACK
+
+; Size constants are locals of the FASM body (unpack.LZMA_* / .lc / .lp).
+; Keep them visible when the rollback body is not assembled so kernel.asm
+; can still `kernel_alloc` the probability buffer.
+unpack.lc = 3
+unpack.lp = 0
+unpack.pb = 2
+unpack.LZMA_BASE_SIZE = 1846
+unpack.LZMA_LIT_SIZE = 768
+
+; Compatibility trampoline: stdcall(packed, unpacked) → rust_unpack(packed, unpacked, p).
+; Snapshot args into registers before stdcall pushes (REG-010).
+; Rust `ret 12`; trampoline must NOT `add esp` (REG-009).
+; Legacy preserves all GPRs via pushad/popad. No `cld` (FASM has none).
+unpack:
+        pushad
+        mov     eax, [esp + 36]
+        mov     ecx, [esp + 40]
+        mov     edx, [unpack.p]
+        stdcall rust_unpack, eax, ecx, edx
+        popad
+        ret     8
+
+align 4
+rust_unpack:
+        file '../rust_kernel/kolibri_utils/out/rust_unpack.bin'
+
+else
+
+; --- original FASM implementation (rollback) ---
 unpack:
         pushad
         mov     esi, [esp+32+4]
@@ -517,6 +554,8 @@ end if
         mov     ecx, ebx
         pop     ebx
         ret
+
+end if
 
 uglobal
 align 4

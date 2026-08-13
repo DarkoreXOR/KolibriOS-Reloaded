@@ -71,6 +71,7 @@
 | `SLOT_BASE=0x80090000` | `APPDATA` slots × 256 bytes | Internal layout; must end at `VGABasePtr` (REG-012) — see fixed-addresses |
 | `window_data=0x80001000` | `WDATA` array | Same |
 | `sys_proc=0x8008E000` | Kernel `PROC` | Internal; page-aligned; packed against `SLOT_BASE` |
+| `BPSLine_calc_area` / `d_width_calc_area` | Pitch / win-map LUTs (`rd MAX_SCREEN_HEIGHT` each) | Cut CO: labels live **after `sys_pgmap`** (uninitialized, not in `kernel.mnt`, first 4 MiB PSE, B32 wipe). Callers use labels only. |
 | `BOOT` / `BOOT_LO` | Boot parameter block | Boot ABI |
 | `KEY_BUFF`, `BTN_BUFF` | Input rings | Legacy observable |
 | IPC temp maps | Allocated in `high_code` (`ipc_tmp`, …) | Internal helper for IPC mapping |

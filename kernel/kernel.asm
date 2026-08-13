@@ -277,6 +277,7 @@ high_code:
 ; Cut AZ: file_system_is_operation_safe smoke ON when USE_RUST_FILE_SYSTEM_IS_OPERATION_SAFE=1.
 ; Cut BB: strrchr smoke ON when USE_RUST_STRRCHR=1.
 ; Cut CN: strchr smoke ON when USE_RUST_STRCHR=1 (host schrc_* covers ABI).
+; Cut CO: unpack smoke omitted (REG-012 .bss headroom; host upck_* covers ABI).
 ; Cut BF: strncpy smoke ON when USE_RUST_STRNCPY=1.
 ; Cut BC: fat_name_is_legal smoke ON when USE_RUST_FAT_NAME_IS_LEGAL=1.
 ; Cut BD: tcp_outflags smoke ON when USE_RUST_TCP_OUTFLAGS=1.
