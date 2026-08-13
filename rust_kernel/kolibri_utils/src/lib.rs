@@ -22,7 +22,7 @@
 //! reverse character search (`strrchr`), forward character search (`strchr`),
 //! bounded padded
 //! copy (`strncpy`), C-string length (`strlen`), endian word-byte swap
-//! (`swap_bytes_in_words`), video `block_clip` + `blit_clip`, PE preferred-base
+//! (`swap_bytes_in_words`), video `block_clip` + `blit_clip` + `blit_32`, PE preferred-base
 //! DIR32 rebase, USB TD phys→virt, forward `memmove`, FAT `fat_get_sector`,
 //! exFAT `exFAT_get_sector`, EXT `getInodeLocation`, and KPCK/LZMA `unpack` for KolibriOS hybrid
 //! migration.
@@ -36,6 +36,7 @@
 
 #![cfg_attr(target_os = "none", no_std)]
 
+mod blit_32;
 mod ahci_find_cmdslot;
 mod ahci_is_sig_known;
 mod ahci_port_wait;
@@ -160,6 +161,10 @@ pub use fs_operation_safe::{
     fs_op_safe_buffer_len_ex, make_inf, BDVK_CP866, BDVK_HEADER, BDVK_UNICODE,
     FILE_SYSTEM_IS_OPERATION_SAFE_PRNG_SEED, INF_STRUCT_MIN, OFF_BUFFER_BASE, OFF_COUNT_OR_SIZE,
     OFF_ENCODING, OFF_SUBFN, SUBFN5_LEN, SUBFN6_LEN,
+};
+pub use blit_32::{
+    blit_32, blit_32_ptr, fasm_pack_rgb565, independent_pack_rgb565, Blit32Ctx, CheckMouseFn,
+    BLIT32_CTX_SIZE, BLIT32_PRNG_SEED, BLIT_CLIENT_RELATIVE, PARAM_SIZE,
 };
 pub use geometry::{
     blit_clip, blit_clip_ptr, block_clip, BlitClipResult, BlitterGeom, BlockClipResult, Rect,

@@ -24,6 +24,7 @@ use crate::exfat_checksum::{calculate_set_checksum_field_ptr, exfat_hash_calcula
 use crate::fat_name::{fat_gen_short_name_ptr, fat_name_is_legal_ptr, fat_next_short_name_ptr};
 use crate::font::anti_aliasing;
 use crate::fs_operation_safe::file_system_is_operation_safe_ptr;
+use crate::blit_32::{blit_32_ptr, Blit32Ctx};
 use crate::geometry::{block_clip_ptr, blit_clip_ptr};
 use crate::get_coff_sym::get_coff_sym_ptr;
 use crate::get_proc_ex::get_proc_ex_ptr;
@@ -1155,6 +1156,27 @@ pub unsafe extern "stdcall" fn rust_block_clip(clip: *const u8, rect: *mut u8) -
 pub unsafe extern "stdcall" fn rust_blit_clip(blitter: *mut u8) -> u32 {
     // SAFETY: kernel trampoline passes ECX → BLITTER*.
     unsafe { blit_clip_ptr(blitter) }
+}
+
+/// `stdcall` rust_blit_32(params, flags, ctx).
+///
+/// Cut CP: dedicated section for reloc-free extract + FASM `file` embed.
+/// Callee cleans 12 bytes (`ret 12`). Trampoline injects `Blit32Ctx` and
+/// must NOT `add esp` for these args (REG-009). Snapshot args before
+/// stdcall pushes (REG-010). No `cld` (FASM blit_32 has none).
+///
+/// # Safety
+/// `params` is a readable 40-byte syscall-73 block; `ctx` is a readable
+/// [`Blit32Ctx`] whose LFB/win_map/LUT/bitmap pointers cover the blit.
+#[no_mangle]
+#[link_section = ".text.rust_blit_32"]
+pub unsafe extern "stdcall" fn rust_blit_32(
+    params: *const u8,
+    flags: u32,
+    ctx: *const Blit32Ctx,
+) {
+    // SAFETY: kernel trampoline passes live or synthetic ctx + params.
+    unsafe { blit_32_ptr(params, flags, ctx) }
 }
 
 /// `stdcall` rust_ntfs_decode_mcb_entry(esi_inout, buffer) -> EAX = 0 end / 1 more.

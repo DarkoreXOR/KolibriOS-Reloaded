@@ -105,6 +105,16 @@ def main() -> None:
     ap.add_argument("--port", type=int, default=4550)
     ap.add_argument("--disk", action="append", default=[])
     ap.add_argument("--bus", choices=("ide", "ahci"), default="ide")
+    # Splash-class Kolibri boots (REG-015/016) sit around ~8k non-black pixels.
+    # Desktop is ~779380. Default floor rejects splash-only without treating
+    # the count as the sole success criterion (RESET/shutdown/status still apply).
+    ap.add_argument("--min-non-black", type=int, default=100000)
+    ap.add_argument(
+        "--splash-max",
+        type=int,
+        default=20000,
+        help="non-black at or below this is classified as splash-only (FAIL)",
+    )
     args = ap.parse_args()
 
     cfg = load_config()
@@ -162,8 +172,18 @@ def main() -> None:
         time.sleep(0.5)
         w, h, nb = count_non_black_ppm(ppm)
         print(f"screendump: {ppm} {w}x{h} non-black={nb} resets={resets}")
-        if nb < 1000:
-            raise SystemExit("screendump looks black / failed")
+        if nb <= args.splash_max:
+            kind = "black" if nb < 1000 else "splash-only"
+            raise SystemExit(
+                f"{kind} framebuffer (non-black={nb} <= splash-max={args.splash_max}) "
+                "— desktop not reached"
+            )
+        if nb < args.min_non_black:
+            raise SystemExit(
+                f"framebuffer short of desktop floor "
+                f"(non-black={nb} < min-non-black={args.min_non_black})"
+            )
+        print("desktop-reached")
         print("PASS")
     finally:
         proc.terminate()

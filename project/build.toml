@@ -40,6 +40,13 @@ probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_blit_32"
+symbol = "rust_blit_32"
+expect_ret_imm = 12
+out = "rust_blit_32.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_unpack"
 symbol = "rust_unpack"
 expect_ret_imm = 12
@@ -720,6 +727,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "CP"
+blob = "rust_blit_32.bin"
+symbol = "rust_blit_32"
+gate = "USE_RUST_BLIT_32"
+include = "kernel/rust/blit_32.inc"
+gate_file = "kernel/video/blitter.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "CO"
 blob = "rust_unpack.bin"

@@ -278,6 +278,7 @@ high_code:
 ; Cut BB: strrchr smoke ON when USE_RUST_STRRCHR=1.
 ; Cut CN: strchr smoke ON when USE_RUST_STRCHR=1 (host schrc_* covers ABI).
 ; Cut CO: unpack smoke omitted (REG-012 .bss headroom; host upck_* covers ABI).
+; Cut CP: blit_32 smoke ON when USE_RUST_BLIT_32=1 (synthetic LFB; not public trampoline).
 ; Cut BF: strncpy smoke ON when USE_RUST_STRNCPY=1.
 ; Cut BC: fat_name_is_legal smoke ON when USE_RUST_FAT_NAME_IS_LEGAL=1.
 ; Cut BD: tcp_outflags smoke ON when USE_RUST_TCP_OUTFLAGS=1.
@@ -301,6 +302,9 @@ high_code:
         ; Cut CD: blit_clip smoke — requires Rust trampoline CF (legacy add esp clobbers CF).
 if USE_RUST_BLIT_CLIP
         call    blit_clip_rust_smoke_test
+end if
+if USE_RUST_BLIT_32
+        call    blit_32_rust_smoke_test
 end if
         call    ntfs_decode_mcb_rust_smoke_test
         call    ntfs_restore_usa_rust_smoke_test

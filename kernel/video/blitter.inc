@@ -253,6 +253,72 @@ purge .dy1
 
 end if
 
+; Cut CP: USE_RUST_BLIT_32=1 routes syscall-73 blit_32 through rust_blit_32.
+; Set USE_RUST_BLIT_32=0 to restore the original FASM body without deleting it.
+; Independent of USE_RUST_BLIT_CLIP — the Rust blit_32 blob inlines blit_clip.
+
+USE_RUST_BLIT_32 = 1
+
+if USE_RUST_BLIT_32
+
+; Compatibility trampoline: EBX=flags, ECX→params → rust_blit_32(params, flags, ctx).
+; Snapshot args into registers before stdcall pushes (REG-010).
+; Rust `ret 12`; trampoline must NOT `add esp` for those args (REG-009).
+; `add esp, 68` is local Blit32Ctx only. Legacy preserves EBX/ESI/EDI/EBP.
+; No `cld` (FASM has none; syscall entry already cld).
+align 4
+blit_32:
+        push    ebp
+        push    edi
+        push    esi
+        push    ebx                     ; [esp] = flags
+        mov     esi, ecx                ; params
+        sub     esp, 68
+        mov     eax, [current_slot]
+        mov     eax, [eax + APPDATA.window]
+        mov     edx, [eax + WDATA.box.left]
+        mov     [esp + 0], edx
+        mov     edx, [eax + WDATA.box.top]
+        mov     [esp + 4], edx
+        mov     edx, [eax + WDATA.box.width]
+        mov     [esp + 8], edx
+        mov     edx, [eax + WDATA.box.height]
+        mov     [esp + 12], edx
+        mov     edx, [eax + WDATA.clientbox.left]
+        mov     [esp + 16], edx
+        mov     edx, [eax + WDATA.clientbox.top]
+        mov     [esp + 20], edx
+        mov     edx, [current_slot_idx]
+        mov     [esp + 24], edx
+        mov     edx, [_display.bits_per_pixel]
+        mov     [esp + 28], edx
+        mov     edx, [_display.width]
+        mov     [esp + 32], edx
+        mov     edx, [_display.lfb_pitch]
+        mov     [esp + 36], edx
+        mov     edx, [_display.win_map]
+        mov     [esp + 40], edx
+        mov     dword [esp + 44], LFB_BASE
+        mov     dword [esp + 48], BPSLine_calc_area
+        mov     dword [esp + 52], d_width_calc_area
+        mov     edx, [_display.select_cursor]
+        mov     [esp + 56], edx
+        mov     dword [esp + 60], select_cursor
+        mov     edx, [_display.check_mouse]
+        mov     [esp + 64], edx
+        mov     eax, esi                ; params
+        mov     ecx, [esp + 68]         ; flags (saved ebx)
+        mov     edx, esp                ; ctx
+        stdcall rust_blit_32, eax, ecx, edx
+        add     esp, 68                 ; local ctx only
+        pop     ebx
+        pop     esi
+        pop     edi
+        pop     ebp
+        ret
+
+else
+
 align 4
 blit_32:
         push    ebp
@@ -583,4 +649,6 @@ align 4
         jnz     .outer16
 
         jmp     .done
+
+end if
 
