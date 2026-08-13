@@ -123,6 +123,70 @@ def attach_disk_images(
             ahci_added = append_ahci_image(qargs, Path(img), index, ahci_added)
 
 
+def validate_named_disks(
+    names: Sequence[str],
+    *,
+    create_ntfs_if_missing: bool = False,
+) -> list[Path]:
+    """Resolve disk paths or exit with mkfs hints (call before an expensive build)."""
+    missing: list[str] = []
+    resolved: list[Path] = []
+    for name in names:
+        suffixes = _NAMED_DISK_SUFFIXES.get(name, _DEFAULT_DISK_SUFFIXES)
+        found: Path | None = None
+        for suf in suffixes:
+            cand = resolve(f"images/{name}-image{suf}")
+            if cand.is_file():
+                found = cand
+                break
+        if found is None:
+            missing.append(name)
+        else:
+            resolved.append(found)
+    if create_ntfs_if_missing and "ntfs" in missing:
+        log.info(
+            "NTFS image missing; creating images/ntfs-image.img "
+            "(Administrator UAC prompt if needed)"
+        )
+        from mkfs import mkfs_one
+
+        mkfs_one("ntfs", "128M")
+        cand = resolve("images/ntfs-image.img")
+        if cand.is_file():
+            missing = [n for n in missing if n != "ntfs"]
+            resolved.append(cand)
+    if missing:
+        lines = [
+            "ERROR: missing regression disk image(s): "
+            + ", ".join(missing),
+            "",
+        ]
+        for name in missing:
+            if name == "iso9660":
+                lines.append(
+                    f"  {name}: place images/{name}-image.iso (no mkfs generator yet)"
+                )
+            elif name == "ntfs":
+                lines.append(
+                    f"  {name}: python scripts/mkfs.py ntfs --force "
+                    "(Windows: approve the UAC prompt for diskpart)"
+                )
+                soak = resolve("dev_build/ntfssoak/ntfs-minimal-reference.img")
+                if soak.is_file():
+                    lines.append(
+                        f"    Note: soak-only minimal fixture at {soak} is NOT mountable "
+                        "— do not copy it to images/ for --disk ntfs"
+                    )
+            else:
+                lines.append(f"  {name}: python scripts/mkfs.py {name} --force")
+        lines.append("")
+        lines.append(
+            "Workaround: omit missing types, e.g. drop --disk ntfs until the image exists."
+        )
+        raise SystemExit("\n".join(lines))
+    return resolved
+
+
 def resolve_named_disk(name: str) -> Path:
     suffixes = _NAMED_DISK_SUFFIXES.get(name, _DEFAULT_DISK_SUFFIXES)
     for suf in suffixes:

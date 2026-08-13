@@ -1,0 +1,349 @@
+# Post-Cut CW Migration Frontier Audit
+
+**Date:** 2026-08-14  
+**Status:** audit complete — **STOP** (no Cut CX / no production migration)  
+**Inventory:** **105 / 138** (33 pending)  
+**Production gates:** **106** `[[rust.migrations]]` all `enabled = true` (103 unique `USE_RUST_*` names; Cut CU shares one gate across four blobs)  
+**Cut CW:** **COMPLETE** — do not reopen without a new reproducible regression  
+**Parent:** [`cut-cw-implementation.md`](cut-cw-implementation.md), [`stage4-ntfs-setfileinfo-oracle.md`](stage4-ntfs-setfileinfo-oracle.md)  
+**Evidence policy:** [`../_meta/evidence-policy.md`](../_meta/evidence-policy.md)
+
+> Fresh post-CW audit of all **33** pending symbols. Selects **exactly one**
+> next research/tooling frontier. Does **not** implement Cut CX, change
+> inventory/gates, or modify production code.
+
+---
+
+## 0. Verdict
+
+| Question | Answer |
+|----------|--------|
+| Is Cut CW still complete and gated ON? | **Yes** — `USE_RUST_NTFS_SET_FILE_INFO = 1` |
+| Did CV+CW unlock filesystem Path A? | **No** — two plugin metadata leaves ≠ FS ownership |
+| Did CW unlock a new Path A boundary anywhere? | **No** |
+| Does any pending Path B leaf clear the evidence bar **and** fit the pack? | **No** |
+| Binding new constraint? | REG-012 assert slack **~61 B** (`0x8DFC3 < 0x8E000`) |
+| PTE status changed since CW? | **No** — still blocked |
+| Decision | **TOOLING / EVIDENCE GAP** |
+| Next research task (one) | **REG-012 production-image headroom / historical ABI-smoke compaction inventory** — restore pack slack **before** any Cut CX |
+
+**STAGE-4 POST-CW AUDIT — COMPLETE — STOP**
+
+Do **not** start Cut CX. Do **not** migrate `ntfs_create_partition`, networking, PTE, or process/scheduler. Do **not** move `TMP_STACK_TOP` / `sys_proc` / `SLOT_BASE`.
+
+---
+
+## 1. Authoritative repository state
+
+Verified 2026-08-14 from the live tree (not conversation text).
+
+| Item | Value | Source |
+|------|--------|--------|
+| Completed symbols | **105** | [`migration-todo.md`](migration-todo.md) — 105 `[x]` |
+| Pending symbols | **33** | [`migration-todo.md`](migration-todo.md) — 33 `[ ]` |
+| Scoped total | **138** | 105 + 33 |
+| Migration registry rows | **106** | `project/build.toml` `[[rust.migrations]]` |
+| All registry rows enabled | **106 / 106** | no production `enabled = false` |
+| Unique `USE_RUST_*` macros | **103** | Cut CU: 4 blobs / 1 gate |
+| Cut CW gate | `USE_RUST_NTFS_SET_FILE_INFO = 1` | `kernel/fs/ntfs.inc` |
+| Cut CV gate | `USE_RUST_EXT_SET_FILE_INFO = 1` | `kernel/fs/ext.inc` |
+| Phys-bitmap gate | `USE_RUST_PHYS_BITMAP_OWNERSHIP = 1` | `kernel/core/memory.inc` |
+| Accidental disabled gate | **None** | live FASM assignments match registry |
+| Hidden post-CW production leaf | **None in this audit** | CW remains the newest production migration |
+| `dev_build/last_image.txt` | `dev_build/test/kernel-20260814-131226.img` | CW final image |
+| Soak-validated ON CoW | `dev_build/test/kernel-20260814-130700.img` | CW implementation |
+| Regression log | REG-001…019; **no REG-020** | [`regression-log.md`](regression-log.md) |
+
+### 1.1 Cut CW confirmation
+
+| Item | Value |
+|------|--------|
+| Status | **COMPLETE** |
+| Target | `ntfs_SetFileInfo` Path B |
+| Blob | **180 B**, 0 relocs |
+| SHA-256 | `91d143e331dedf992439d1115b7029bdb8a1cd66897c377938839994b77945b8` |
+| QEMU | OFF / ON / A/B / ON×3 + control PASS, RESET=0 |
+| Oracle | `$I30` atime/mtime PASS; SI/FN unchanged; USA PASS; MFT 19 / parent 5 |
+
+CW does **not** migrate `writeRecord`, USA write, `ntfs_find_lfn`, `ntfs_lock`, `ntfsDone`, Delete, SetFileEnd, or PTE.
+
+### 1.2 Memory pack (REG-012) — binding
+
+| Symbol | Value |
+|--------|--------|
+| `TMP_STACK_TOP` / `sys_proc` | `0x008E000` |
+| `SLOT_BASE` | `0x0090000` |
+| Post-CW end `.bss` | `OS_BASE+0x8CFC3` |
+| Assert | `$-OS_BASE+PAGE_SIZE < TMP_STACK_TOP` → `0x8DFC3 < 0x8E000` |
+| Raw headroom to `0x8E000` | **0x103D (4157 B ≈ 4.1 KiB)** |
+| **Assertion slack** | **0x3D (61 B)** |
+| `kernel.mnt` | 304872 B |
+| `PAGE_SIZE` | 4096 (`kernel/const.inc`) |
+
+CW itself had to put NSFI fixtures on the **stack** and drop the second kernel smoke vector to assemble. Linear FASM layout means **any** new `.text`/`.data` before `.bss` consumes this 61 B slack.
+
+Do **not** move `TMP_STACK_TOP`, `sys_proc`, or `SLOT_BASE` for a weak candidate.
+
+---
+
+## 2. Current ownership
+
+### 2.1 Rust-owned
+
+| Domain | Status |
+|--------|--------|
+| Physical bitmap (`sys_pgmap`, `pages_free`, `page_start`) | **Path A COMPLETE** (Cut CU / Slice E) |
+| `alloc_page` / `free_page` / `alloc_pages` | **COMPLETE** |
+| Mode-B release bitmap helper | **COMPLETE** |
+| EXT `ext_SetFileInfo` | **Path B COMPLETE** (Cut CV) |
+| NTFS `ntfs_SetFileInfo` | **Path B COMPLETE** (Cut CW) |
+| Many Path B footholds | Complete — injection ≠ subsystem ownership |
+
+### 2.2 FASM-owned major domains
+
+| Domain | Status |
+|--------|--------|
+| Virtual map / PTE / PDE / `invlpg` / `page_tabs` | FASM multi-writer — **blocked** |
+| Fault / CR3 / process address spaces | FASM |
+| `release_pages` orchestration | FASM (bitmap Rust) |
+| NTFS mount + remaining plugins (`Delete`, `SetFileEnd`, Create/Write, `writeRecord`) | FASM |
+| TCP/IP output (`tcp_output`, `ipv4_output*`) | FASM |
+| Scheduler / `create_process` | FASM (Stage 6–7) |
+| IRQ PIC/APIC policy | FASM |
+| GUI server (beyond foothold leaves) | FASM |
+
+---
+
+## 3. Complete pending inventory (33 symbols)
+
+`ntfs_SetFileInfo` is **no longer pending**. Classes from live `kernel/` (not memory).
+
+| # | Symbol | Primary class | Verdict |
+|---|--------|---------------|---------|
+| 1 | `strnlen` | thin / export-only | **REJECT** |
+| 2 | `strtoint_dec` | dead (`conf_lib.inc` unlinked) | **REJECT** |
+| 3 | `ntfs_create_partition` | mount orchestration | **DEFER** — §4 |
+| 4 | `ntfs_restore_usa_frs` | fallthrough to Cut J | **REJECT** |
+| 5 | `fs_execute` | Stage 6 process create | **DEFER** |
+| 6 | `disk_scan_gpt` | disk orchestration | **DEFER** |
+| 7 | `disk_scan_partitions` | disk orchestration | **DEFER** |
+| 8 | `ipv4_output` | protocol island | **oracle/soak + pack blocked** |
+| 9 | `ipv4_output_raw` | protocol island | **oracle/soak + pack blocked** |
+| 10 | `net_ptr_to_num` | thin wrapper over AY | **REJECT** |
+| 11 | `socket_check_owner` | thin PID compare | **REJECT** |
+| 12 | `socket_check_port` | anti-cluster + mutex | **REJECT** |
+| 13 | `socket_num_to_ptr` | anti-cluster + mutex | **REJECT** |
+| 14 | `socket_ptr_to_num` | anti-cluster | **REJECT** |
+| 15 | `tcp_mss` | 3-instruction 1420 clamp | **REJECT** |
+| 16 | `tcp_output` | protocol island (~753 lines) | **oracle/soak / blast + pack blocked** |
+| 17 | `get_phys_addr` | thin PE glue over AQ | **REJECT** |
+| 18 | `map_page` | PTE coupling | **ownership blocked** |
+| 19 | `mem_test` | hardware / E820 | **REJECT** |
+| 20 | `create_process` | Stage 6 orchestration | **DEFER** |
+| 21 | `pid_to_appdata` | dead sibling | **REJECT** |
+| 22 | `set_app_params` | Stage 6 | **DEFER** |
+| 23 | `mutex_init` | thin primitive, fan-out | **REJECT** |
+| 24 | `enable_irq` | hardware-I/O | **REJECT** |
+| 25 | `irq_eoi` | hardware-I/O | **REJECT** |
+| 26 | `i40` | architecture boundary | **REJECT** (Cut C0) |
+| 27 | `syscall_entry` | architecture boundary | **REJECT** (Cut C0) |
+| 28 | `sysenter_entry` | architecture boundary | **REJECT** (Cut C0) |
+| 29 | `sysfn_getfreemem` | thin façade | **REJECT** |
+| 30 | `sysfn_mouse_acceleration` | thin façade over Cut L | **REJECT** |
+| 31 | `change_task` | unsuitable/late | **REJECT** |
+| 32 | `do_change_task` | boundaries non-cut | **REJECT** |
+| 33 | `find_next_task` | Stage 6 scheduler | **DEFER** |
+
+No pending GUI/video/HID symbols remain in the scoped checklist.
+
+Do **not** inflate the inventory with `ntfs_Delete` / `ntfs_SetFileEnd` / `writeRecord` / `ntfs_find_lfn` even though they exist in `kernel/fs/ntfs.inc`.
+
+---
+
+## 4. Filesystem write-path reassessment
+
+Two successful metadata leaves (EXT CV, NTFS CW) share **syscall 70 subfn 6** and a CoW+guest-log+host-parser pattern. They do **not** share:
+
+- lock implementation (`extfsWritingInit` vs `ntfs_lock`)
+- on-disk object (inode vs parent `$I30`)
+- writeback (`writeInode`+SB vs `writeRecord`+USA)
+- time encoding (Unix+offset vs FILETIME)
+
+**Path A FS ownership is not implied by proximity.**
+
+### 4.1 Remaining NTFS / disk symbols **in** the 33
+
+| Symbol | Shared mutable state | Verdict |
+|--------|----------------------|---------|
+| `ntfs_create_partition` | Constructs the live `NTFS` object (lock, FRS, index bufs, bitmaps, MCB) used by **all** plugins | Mount orchestration — §4.3 |
+| `ntfs_restore_usa_frs` | 3-line fallthrough to Rust `ntfs_restore_usa` | **REJECT** |
+| `disk_scan_gpt` / `disk_scan_partitions` | MBR/EBR/GPT loop; already composed of Cuts Z/AD/CC | Disk orch — **DEFER**; not a metadata-write cluster |
+
+### 4.2 Out-of-inventory NTFS write siblings (do not count)
+
+`ntfs_Delete`, `ntfs_SetFileEnd`, `ntfs_CreateFile`, `ntfs_WriteFile`, `writeRecord` share `ntfs_lock` / `ntfs_find_lfn` / bitmap / USA writeback with CW. That would be an NTFS **runtime** Path A mega-slice, not a next Path B leaf. No independent Delete/SetFileEnd soak exists. **Do not start that cluster.**
+
+### 4.3 Targeted audit: `ntfs_create_partition`
+
+**LOCAL FACT** — `kernel/fs/ntfs.inc` ~294–540; sole caller `kernel/blkdev/disk.inc` `disk_scan_partitions` FS probe list (alongside FAT/exFAT/EXT/XFS/ISO).
+
+| Question | Answer |
+|----------|--------|
+| Role | Mount: validate bootsec, allocate `NTFS`, load `$MFT`, decode MCB, map `$Bitmap` / MFT bitmap |
+| Boot vs runtime | Disk attach / partition scan (boot and hot-plug) |
+| Superblock | Boot sector via `ntfs_test_bootsec` (Cut AG already Rust) |
+| MFT bootstrap | `fs_read64_sys` + `ntfs_restore_usa_frs` + unnamed `$DATA` scan + `ntfs_decode_mcb_entry` (Cut I) |
+| Locks | `mutex_init` on `NTFS.Lock` |
+| Caches | `frs_buffer`, two 4 KiB index buffers, `BitmapBuffer` via `alloc_kernel_space` + **`alloc_pages` + `commit_pages`** |
+| Disk sync | Reads only at mount; no `writeRecord` |
+| Error handling | Multi-stage `kernel_free` unwind; EAX=0 if not NTFS |
+| Leaf vs orch | **Orchestration** (~246 lines + helpers) |
+| Shared state | **Yes** — the object every NTFS plugin later mutates |
+
+Classification vs the requested A/B/C/D:
+
+- **Not A** (not a Path B leaf)
+- **B-shaped** internally (Stage-5 mount cluster) but **must remain C**: mount subsystem boundary, deferred
+- **D as next cut:** not useful — would pull allocator commit, mutex, attr read, USA, MCB, bitmap window; blob would blow REG-012 slack
+
+Uses Rust-owned `alloc_pages` only as a **consumer**. That does **not** make mount Rust-ready (PTE `commit_pages` still FASM).
+
+**Filesystem verdict:** keep remaining FS work Path B if ever authorized; **no** FS Path A; **no** Cut CX from NTFS adjacency.
+
+---
+
+## 5. Network reassessment
+
+Live QEMU config (`project/build.toml` `[qemu]`): `-boot a -m 256 -vga std` plus headless QMP. **No** `-netdev`, user-net, tap, or pcap/`filter-dump`. No `scripts/qmp_*net*.py`.
+
+| Symbol | Size / role | Oracle | Soak |
+|--------|-------------|--------|------|
+| `ipv4_output` | ~100 lines; route (Cut AC) + ARP + `eth_output` / loopback | **Missing** | **Missing** |
+| `ipv4_output_raw` | socket+copy variant; documented caller quirk | **Missing** | **Missing** |
+| `tcp_output` | `proc`, ~753 lines, socket mutex, window, `TCP_BIT_SENDALOT` | **Missing** | **Missing** |
+
+Smallest concrete unlock for **one** output-path candidate (`ipv4_output`, not TCP):
+
+1. QEMU `-netdev user,id=n0` + a guest NIC Kolibri already probes + `-object filter-dump,id=d0,netdev=n0,file=…pcap`
+2. Deterministic guest UDP (or ICMP) send stimulus
+3. Host pcap parser: IPv4 checksum (Cuts E/F), src/dst, proto, TTL, length
+4. Repeatable QMP soak with RESET=0
+
+Even then the leaf still calls FASM `arp_ip_to_mac` / `eth_output`, and **cannot assemble today** under 61 B slack.
+
+---
+
+## 6. PTE reassessment (delta only)
+
+No new `page_tabs` sole-writer, no PDE oracle, no fault soak, no mapping-boundary cleanup since CW. CW did not touch paging. Headroom **tightened** (61 B slack). **`map_page` remains rejected.** PTE OWNERSHIP STILL BLOCKED.
+
+---
+
+## 7. Process / scheduler
+
+`create_process`, `find_next_task`, `fs_execute`, `set_app_params` still require process-table / scheduler / CR3 / address-space lifecycle. Multiple callers do not create a small coherent state boundary. **DEFER Stage 6.**
+
+---
+
+## 8. GUI / HID / video
+
+Zero pending checklist symbols. Existing Rust leaves (`blit_clip`, `blit_32`, `drawChar`, `set_window_clientbox`, `set_mouse_data`, …) are footholds, not a Rust-owned graphics/input subsystem. **Reject further leaf inflation.**
+
+---
+
+## 9. Thin / dead / hardware
+
+Policy unchanged. Confirmed live:
+
+- `tcp_mss`: clamp to 1420, one caller
+- `socket_check_owner`: PID compare vs `current_slot`
+- `strnlen`: export-only
+- `mutex_init`: primitive without lock-subsystem ownership
+- `enable_irq` / `irq_eoi`: hardware I/O without deterministic oracle
+
+Do **not** pick a 20-byte wrapper merely because it might fit the 61 B slack.
+
+---
+
+## 10–11. Path A search and Rust-ownership leverage
+
+| Candidate grouping | Coherent shared state? | Oracle/soak? | Verdict |
+|--------------------|------------------------|--------------|---------|
+| EXT+NTFS SetFileInfo | **No** — different FS objects/locks/writeback | Each leaf already done | Not Path A |
+| NTFS mount + plugins | Yes (`NTFS` struct) | Mount+Delete+Write soaks missing; huge blast | Mega-slice — **not ready** |
+| Network output buffers | Partial (`net_device_list`, sockets) | pcap missing | Island — tooling then pack |
+| Allocator consumers (`commit_pages`, mount) | Still touch FASM PTE | — | Consumer ≠ owner |
+| Graphics/input | No remaining pending cluster | — | Footholds only |
+
+**No valid new Path A.** Using the Rust allocator does not make a consumer cut-ready.
+
+---
+
+## 12. Memory constraint (selection filter)
+
+| Next-cut class | Est. growth | Fits 61 B slack? |
+|----------------|-------------|------------------|
+| Thin wrapper | ~20–40 B | Maybe — **policy REJECT** |
+| CW-class Path B leaf | ~180 B blob + trampoline + smoke | **No** (CW needed stack smoke + dropped vector) |
+| `ipv4_output` | hundreds of B + ctx | **No** |
+| `ntfs_create_partition` / `tcp_output` | multi-KiB | **No** without pack move |
+
+Largest easy reclaim **without moving the pack:** historical ABI-smoke `iglobal` fixtures still in `.data` (example: Cut CV `esfi_smoke_inode rb 160` + bdfe/f70 ≈ **248 B**). CW already proved stack-local fixtures work. Compaction is **research/optional later authorized work**, not this turn.
+
+---
+
+## 13. Candidate scorecard
+
+| # | Candidate | ABI | Semantic oracle | Host oracle | Live callers | Subsystem soak | Ownership | Blast | Memory | Rollback | Payoff | Cut now? |
+|---|-----------|-----|-----------------|-------------|--------------|----------------|-----------|-------|--------|----------|--------|----------|
+| — | **Pack slack / smoke compaction** | n/a | n/a | measure `.bss` | n/a | assemble assert | REG-012 | Low if stack-only | **Unlocks future cuts** | n/a (docs first) | **High** | Research |
+| 1 | `ipv4_output` | Good | Header fields | **Missing pcap** | Yes | **Missing** | Path B island | Med (ARP/eth FASM) | **Fail slack** | Gate OK | Med | **No** |
+| 2 | `ipv4_output_raw` | Quirky | Same | **Missing** | Yes | **Missing** | Path B | Med | **Fail slack** | Gate OK | Low | **No** |
+| 3 | `disk_scan_partitions` | Loop orch | Partition list | Weak | Yes | Attach soak only | Orch | High | **Fail slack** | Hard | Low | **No** |
+| 4 | `ntfs_create_partition` | Mount orch | Volume object | Partial (bootsec AG) | 1 | Attach ≠ mount unit | Orch / future Path A | **Very high** | **Fail slack** | Hard | High later | **No** |
+| 5 | `tcp_output` | Complex | TCP segments | **Missing** | Yes | **Missing** | Island | **Very high** | **Fail slack** | Hard | High later | **No** |
+
+Do not rank by caller count. Thin/dead/IRQ/C0 symbols score zero and are omitted.
+
+---
+
+## 14. Selected next frontier
+
+**Type:** **TOOLING / EVIDENCE GAP**
+
+**One task:** produce a **REG-012 pack-headroom inventory** (documentation + measurements only unless a later turn explicitly authorizes compaction):
+
+1. List `kernel/rust/*.inc` `iglobal` smoke buffers still in `.data` (bytes each).
+2. Identify stack-local moves in the CW pattern that reclaim ≥512–1024 B assertion slack.
+3. Re-assemble after each candidate move (authorized later) and record `end of .bss`.
+4. **Do not** move `TMP_STACK_TOP` / `sys_proc` / `SLOT_BASE`.
+5. **Do not** delete production rollback FASM bodies.
+6. Only after slack is restored, re-open a Path B island (`ipv4_output` still needs pcap first).
+
+**Why this, not NTFS mount / TCP / PTE:** CW closed the FS metadata-write evidence program. Remaining 33 symbols are REJECT/DEFER/blocked. The **new** fact after CW is that the next substantive blob cannot assemble. That is the strongest unblocker.
+
+**Why not NEXT CUT READY:** nothing in the 33 meets evidence **and** pack.
+
+**Why not PATH A RESEARCH READY:** no new sole-writer cluster.
+
+**Why not STILL BLOCKED:** there is a concrete, bounded next research program (pack slack), not an empty stall.
+
+---
+
+## 15. Documentation touchpoints
+
+| Path | Action |
+|------|--------|
+| This file | **Created** |
+| [`migration-plan.md`](migration-plan.md) | Post-CW frontier pointer only |
+| Inventory / gates / production code | **Unchanged** |
+
+---
+
+## 16. Explicit non-goals (this audit)
+
+- No Rust source, no new gate, no Cut CX
+- No edits to `ntfs_create_partition`, networking, PTE, scheduler
+- No speculative memory-pack move
+- No inventory increment
+- No reopening Cut CW without a new reproducible regression

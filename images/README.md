@@ -15,7 +15,7 @@ Create or reuse images:
 ```bash
 python scripts/mkfs.py              # exfat + ntfs + xfs + ext (defaults)
 python scripts/mkfs.py exfat 128M
-python scripts/mkfs.py ntfs 128M    # Windows: needs Admin for --force recreate
+python scripts/mkfs.py ntfs 128M    # Windows: UAC prompt for diskpart if needed
 python scripts/mkfs.py xfs 1G       # Windows: Docker+xfsprogs; reuses existing SB unless --force
 python scripts/mkfs.py ext 64M      # Windows: Docker+e2fsprogs; plain EXT2 for Kolibri
 python scripts/run_qemu.py --disk xfs
@@ -24,8 +24,9 @@ python scripts/run_qemu.py --disk iso9660
 python scripts/regression.py
 ```
 
-On Windows, recreating NTFS (`--force`) requires an **Administrator** shell
-(diskpart). Reuse of an already-valid populated image does not.
+On Windows, recreating NTFS (`--force`) uses **diskpart** and will show a
+**UAC prompt** if the current shell is not already Administrator. Reuse of an
+already-valid populated image does not.
 
 XFS populate on Windows uses a privileged Docker container with `xfsprogs`
 (`tools/mkfs_utils/create_xfs_image.py`). Without `--force`, an existing

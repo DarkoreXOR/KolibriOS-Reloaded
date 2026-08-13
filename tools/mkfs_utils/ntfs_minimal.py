@@ -25,7 +25,8 @@ def _mft_lcn() -> int:
 
 
 def _mft_mirror_lcn() -> int:
-    return 5
+    # Must not overlap extended MFT clusters (MFT at LCN 4; records 4+ spill to LCN 5+).
+    return 32
 
 
 def _clusters_per_mft_record() -> int:
@@ -68,117 +69,292 @@ def _build_file_record(
     in_use: bool,
     real_size: int,
     attrs: list[bytes],
+    *,
+    is_dir: bool = False,
 ) -> bytes:
     rec = bytearray(MFT_RECORD_SIZE)
     rec[0:4] = FILE_SIGNATURE
-    rec[0x16:0x18] = struct.pack("<H", 0x0030)  # offset to first attribute
-    rec[0x1C:0x20] = struct.pack("<I", seq << 16 | (1 if in_use else 0))
-    rec[0x28:0x30] = struct.pack("<Q", real_size) * 1  # allocated size
-    struct.pack_into("<Q", rec, 0x28, real_size)
-    struct.pack_into("<Q", rec, 0x30, real_size)
+    # Windows/Kolibri layout: 48-byte FILE header, USA immediately after it,
+    # attributes after the USA. Putting the USA *after* the attributes used to
+    # overlay the 0xFFFFFFFF terminator whenever the attr list was 8-byte
+    # aligned; Kolibri ``ntfs_create_partition.scandata`` then sees
+    # sizeWithHeader=0 and infinite-loops (boot stall before firstapp).
+    num_sectors = MFT_RECORD_SIZE // BYTES_PER_SECTOR
+    usa_count = num_sectors + 1
+    usa_off = 0x30
+    first_attr = ((usa_off + usa_count * 2 + 7) // 8) * 8  # 0x38
+    struct.pack_into("<H", rec, 4, usa_off)
+    struct.pack_into("<H", rec, 6, usa_count)
+    struct.pack_into("<H", rec, 0x10, seq)  # sequence number
+    struct.pack_into("<H", rec, 0x12, 1)  # hard link count
+    struct.pack_into("<H", rec, 0x14, first_attr)
+    flags = 0x01 if in_use else 0x00
+    if is_dir:
+        flags |= 0x02
+    struct.pack_into("<H", rec, 0x16, flags)
+    struct.pack_into("<I", rec, 0x18, real_size)  # actual size
+    struct.pack_into("<I", rec, 0x1C, MFT_RECORD_SIZE)  # allocated size
+    struct.pack_into("<Q", rec, 0x20, 0)  # base FILE record reference (0 = this is the base)
 
-    off = 0x30
+    off = first_attr
     for attr in attrs:
         rec[off : off + len(attr)] = attr
         off += len(attr)
-    # End marker
+    if off + 4 > MFT_RECORD_SIZE:
+        raise ValueError(f"MFT record attrs too large ({off} bytes)")
     rec[off : off + 4] = struct.pack("<I", 0xFFFFFFFF)
-    # Fixup
-    fixup_off = 0x4
-    fixup_count = MFT_RECORD_SIZE // BYTES_PER_SECTOR
-    struct.pack_into("<H", rec, fixup_off, 1)
-    struct.pack_into("<H", rec, fixup_off + 2, fixup_count)
-    for i in range(fixup_count):
-        sector_start = (i + 1) * BYTES_PER_SECTOR - 2
-        struct.pack_into("<H", rec, fixup_off + 4 + i * 2, struct.unpack_from("<H", rec, sector_start)[0])
-        rec[sector_start : sector_start + 2] = struct.pack("<H", i + 1)
+
+    struct.pack_into("<H", rec, usa_off, 1)  # update sequence number
+    for i in range(1, usa_count):
+        sector_tail_off = i * BYTES_PER_SECTOR - 2
+        struct.pack_into(
+            "<H",
+            rec,
+            usa_off + i * 2,
+            struct.unpack_from("<H", rec, sector_tail_off)[0],
+        )
+        rec[sector_tail_off : sector_tail_off + 2] = struct.pack("<H", 1)
     return bytes(rec)
 
 
 def _attr_standard_information() -> bytes:
-    data = bytearray(72)
+    val_off = 0x18
+    val_len = 48
+    total = val_off + val_len
+    data = bytearray(total)
     struct.pack_into("<I", data, 0, 0x10)  # STANDARD_INFORMATION
-    struct.pack_into("<I", data, 4, 72)
+    struct.pack_into("<I", data, 4, total)
     struct.pack_into("<B", data, 8, 0)  # resident
+    struct.pack_into("<I", data, 0x10, val_len)
+    struct.pack_into("<H", data, 0x14, val_off)
     ft = _filetime_now()
-    for i, off in enumerate((0x18, 0x20, 0x28, 0x30, 0x38)):
-        struct.pack_into("<Q", data, off, ft + i)
-    struct.pack_into("<I", data, 0x40, 0x20)  # archive
+    struct.pack_into("<Q", data, 0x18, ft)
+    struct.pack_into("<Q", data, 0x20, ft + 1)
+    struct.pack_into("<Q", data, 0x28, ft + 2)
+    struct.pack_into("<Q", data, 0x30, ft + 3)
+    struct.pack_into("<I", data, 0x38, 0x20)  # FILE_ATTRIBUTE_ARCHIVE at SI+0x20
     return bytes(data)
 
 
 def _attr_file_name(name: str, parent_ref: int, is_dir: bool) -> bytes:
     name_utf16 = name.encode("utf-16le")
     name_len = len(name_utf16) // 2
-    content = bytearray(0x52 + len(name_utf16))
+    val_off = 0x18
+    val_len = 0x42 + len(name_utf16)
+    total = val_off + val_len
+    content = bytearray(total)
     struct.pack_into("<I", content, 0, 0x30)  # FILE_NAME
-    struct.pack_into("<I", content, 4, len(content))
+    struct.pack_into("<I", content, 4, total)
     struct.pack_into("<B", content, 8, 0)  # resident
-    struct.pack_into("<Q", content, 0x10, parent_ref)
+    struct.pack_into("<I", content, 0x10, val_len)
+    struct.pack_into("<H", content, 0x14, val_off)
+    struct.pack_into("<Q", content, val_off + 0x00, parent_ref)
     ft = _filetime_now()
-    struct.pack_into("<Q", content, 0x18, ft)
-    struct.pack_into("<Q", content, 0x20, ft)
-    struct.pack_into("<Q", content, 0x28, ft)
-    struct.pack_into("<Q", content, 0x30, ft)
-    struct.pack_into("<Q", content, 0x38, 0)
-    struct.pack_into("<I", content, 0x40, 0x20 if not is_dir else 0x10)
-    struct.pack_into("<I", content, 0x44, 0)
-    struct.pack_into("<Q", content, 0x48, 0)
-    content[0x50] = name_len
-    content[0x52 : 0x52 + len(name_utf16)] = name_utf16
+    struct.pack_into("<Q", content, val_off + 0x08, ft)
+    struct.pack_into("<Q", content, val_off + 0x10, ft)
+    struct.pack_into("<Q", content, val_off + 0x18, ft)
+    struct.pack_into("<Q", content, val_off + 0x20, ft)
+    struct.pack_into("<Q", content, val_off + 0x28, 0)
+    struct.pack_into("<Q", content, val_off + 0x30, 0)
+    struct.pack_into("<I", content, val_off + 0x38, 0x20 if not is_dir else 0x10)
+    struct.pack_into("<I", content, val_off + 0x3C, 0)
+    content[val_off + 0x40] = name_len
+    content[val_off + 0x41] = 0x01  # Win32 namespace
+    content[val_off + 0x42 : val_off + 0x42 + len(name_utf16)] = name_utf16
     return bytes(content)
+
+
+def _encode_mcb_single(length_clusters: int, lcn: int) -> bytes:
+    """One mapping pair: ``length_clusters`` consecutive clusters at ``lcn``."""
+    if length_clusters <= 0 or length_clusters >= 0x10000:
+        raise ValueError(f"unsupported MCB length {length_clusters}")
+    if lcn < 0 or lcn >= 0x10000:
+        raise ValueError(f"unsupported MCB LCN {lcn}")
+    return bytes([0x11, length_clusters & 0xFF, lcn & 0xFF, 0x00])
+
+
+def _attr_nonresident(
+    atype: int,
+    mcb: bytes,
+    *,
+    alloc: int,
+    real: int,
+    init: int | None = None,
+    name: str | None = None,
+) -> bytes:
+    """Build a minimal non-resident NTFS attribute (Kolibri ``ntfs.inc`` layout)."""
+    init = real if init is None else init
+    name_utf16 = name.encode("utf-16le") if name else b""
+    name_len = len(name_utf16) // 2
+    run_off = 0x40
+    if name_len:
+        run_off = max(run_off, 0x18 + len(name_utf16))
+        run_off = ((run_off + 7) // 8) * 8
+    total = run_off + len(mcb)
+    attr = bytearray(((total + 7) // 8) * 8)
+    struct.pack_into("<I", attr, 0, atype)
+    struct.pack_into("<I", attr, 4, total)
+    struct.pack_into("<B", attr, 8, 1)  # non-resident
+    if name_len:
+        struct.pack_into("<B", attr, 9, name_len)
+        struct.pack_into("<H", attr, 10, 0x18)
+        attr[0x18 : 0x18 + len(name_utf16)] = name_utf16
+    struct.pack_into("<Q", attr, 0x10, 0)  # starting VCN
+    last_vcn = max(0, (real - 1) // _cluster_size()) if real else 0
+    struct.pack_into("<Q", attr, 0x18, last_vcn)
+    struct.pack_into("<H", attr, 0x20, run_off)
+    struct.pack_into("<Q", attr, 0x28, alloc)
+    struct.pack_into("<Q", attr, 0x30, real)
+    struct.pack_into("<Q", attr, 0x38, init)
+    attr[run_off : run_off + len(mcb)] = mcb
+    return bytes(attr[:total])
+
+
+def _volume_bitmap_lcn() -> int:
+    return 34
+
+
+def _mft_bitmap_lcn() -> int:
+    return 33
+
+
+def _mark_clusters(bitmap: bytearray, *clusters: int) -> None:
+    for c in clusters:
+        bitmap[c >> 3] |= 1 << (c & 7)
+
+
+def _mark_mft_records(bitmap: bytearray, *records: int) -> None:
+    for r in records:
+        bitmap[r >> 3] |= 1 << (r & 7)
 
 
 def _attr_data_resident(data: bytes) -> bytes:
-    header_size = 24
+    val_off = 0x18
     if len(data) > 700:
         raise ValueError(f"resident DATA too large for minimal NTFS ({len(data)} bytes)")
-    content = bytearray(header_size + len(data))
+    total = val_off + len(data)
+    content = bytearray(total)
     struct.pack_into("<I", content, 0, 0x80)  # DATA
-    struct.pack_into("<I", content, 4, len(content))
+    struct.pack_into("<I", content, 4, total)
     struct.pack_into("<B", content, 8, 0)
-    struct.pack_into("<I", content, 0x14, len(data))
-    struct.pack_into("<H", content, 0x16, header_size)
-    content[header_size:] = data
+    struct.pack_into("<I", content, 0x10, len(data))
+    struct.pack_into("<H", content, 0x14, val_off)
+    content[val_off:] = data
     return bytes(content)
 
 
-def _attr_index_root(entries: list[tuple[str, int, bool]]) -> bytes:
-    # Minimal INDEX_ROOT for root directory.
-    idx = bytearray(4096)
-    struct.pack_into("<I", idx, 0, 0x90)  # INDEX_ROOT
-    struct.pack_into("<I", idx, 4, len(idx))
-    struct.pack_into("<B", idx, 8, 0)
-    idx[0x10:0x18] = b"$I30" + b"\x00" * 4
-    struct.pack_into("<I", idx, 0x18, 0x10)  # offset to index entries
-    struct.pack_into("<I", idx, 0x1C, 0x30)  # size of index entries
-    struct.pack_into("<I", idx, 0x20, 0x30)  # allocated
-    struct.pack_into("<B", idx, 0x24, 1)  # has subnodes = false
-    struct.pack_into("<H", idx, 0x30, 0x30)  # first entry offset
-    off = 0x30
-    for name, mft_ref, is_dir in entries:
-        name_utf16 = name.encode("utf-16le")
-        name_len = len(name_utf16) // 2
-        entry = bytearray(0x52 + len(name_utf16))
-        struct.pack_into("<Q", entry, 0x00, mft_ref)
-        struct.pack_into("<H", entry, 0x08, 0x30 + 0x52)
-        struct.pack_into("<I", entry, 0x0C, 0x30 + 0x52 + len(name_utf16))
-        struct.pack_into("<I", entry, 0x10, 0x30 + 0x52 + len(name_utf16))
-        struct.pack_into("<I", entry, 0x14, 0)
-        struct.pack_into("<B", entry, 0x18, 0x30)
-        struct.pack_into("<B", entry, 0x19, 0x03)
-        struct.pack_into("<H", entry, 0x40, 0x30)
-        struct.pack_into("<I", entry, 0x44, 0x20 if not is_dir else 0x10)
-        entry[0x50] = name_len
-        entry[0x52 : 0x52 + len(name_utf16)] = name_utf16
-        idx[off : off + len(entry)] = entry
-        off += len(entry)
-    struct.pack_into("<I", idx, off, 0xFFFFFFFF)  # end entry
-    return bytes(idx)
+def _make_index_entry(
+    name: str,
+    mft_ref: int,
+    is_dir: bool,
+    *,
+    data_size: int = 0,
+    filetimes: dict[str, int] | None = None,
+) -> bytes:
+    """Build a $I30 index entry matching ``kernel/fs/ntfs.inc`` offsets."""
+    name_utf16 = name.encode("utf-16le")
+    name_len = len(name_utf16) // 2
+    body_len = 0x52 + len(name_utf16)
+    alloc_len = ((body_len + 7) // 8) * 8
+    entry = bytearray(alloc_len)
+    struct.pack_into("<Q", entry, 0x00, mft_ref)
+    # Kolibri advances with WORD indexAllocatedSize — must be the padded stride.
+    struct.pack_into("<H", entry, 0x08, alloc_len)
+    struct.pack_into("<H", entry, 0x0A, body_len)  # indexRawSize
+    struct.pack_into("<H", entry, 0x0C, 0)  # indexFlags
+    struct.pack_into("<Q", entry, 0x10, (5 << 48) | 5)  # parent = record 5, seq 5
+    ft = _filetime_now()
+    times = filetimes or {}
+    struct.pack_into("<Q", entry, 0x18, times.get("created", ft))
+    struct.pack_into("<Q", entry, 0x20, times.get("modified", ft))
+    struct.pack_into("<Q", entry, 0x28, times.get("record_modified", ft))
+    struct.pack_into("<Q", entry, 0x30, times.get("accessed", ft))
+    struct.pack_into("<Q", entry, 0x38, max(data_size, 1))
+    struct.pack_into("<Q", entry, 0x40, data_size)
+    struct.pack_into("<I", entry, 0x48, 0x20 if not is_dir else 0x10)
+    entry[0x50] = name_len
+    entry[0x51] = 0x01  # Win32 namespace
+    entry[0x52 : 0x52 + len(name_utf16)] = name_utf16
+    return bytes(entry)
 
 
-def format_minimal_ntfs(path: Path, size_bytes: int, files: dict[str, bytes | str]) -> None:
-    """Create a whole-disk NTFS image with resident files under root."""
+def _attr_index_root(entries: list[tuple[str, int, bool, int]]) -> bytes:
+    """Minimal resident ``$INDEX_ROOT`` named ``$I30`` for the root directory."""
+    # Attribute header (resident)
+    attr = bytearray(4096)
+    struct.pack_into("<I", attr, 0, 0x90)  # INDEX_ROOT
+    struct.pack_into("<I", attr, 4, len(attr))
+    struct.pack_into("<B", attr, 8, 0)  # resident
+    struct.pack_into("<B", attr, 9, 4)  # name length
+    struct.pack_into("<H", attr, 10, 0x18)  # name offset
+    attr[0x18:0x20] = "$I30".encode("utf-16le")
+    struct.pack_into("<H", attr, 0x14, 0x30)  # value offset
+    # INDEX_ROOT value body
+    val_off = 0x30
+    struct.pack_into("<I", attr, val_off + 0x00, 0x30)  # indexed attr type $FILE_NAME
+    struct.pack_into("<I", attr, val_off + 0x04, 1)  # COLLATION_FILE_NAME
+    struct.pack_into("<I", attr, val_off + 0x08, 4096)  # index block size
+    struct.pack_into("<B", attr, val_off + 0x0C, 1)  # clusters per index block
+    hdr = val_off + 0x10  # INDEX_HEADER
+    ent_off = hdr + 0x10  # first entry (EntriesOffset = 0x10)
+    struct.pack_into("<I", attr, hdr + 0x00, 0x10)  # EntriesOffset
+    struct.pack_into("<I", attr, hdr + 0x04, 0)  # TotalSize (filled later)
+    struct.pack_into("<I", attr, hdr + 0x08, 0)  # AllocatedSize
+    struct.pack_into("<B", attr, hdr + 0x0C, 0)  # not leaf with subnodes
+    for name, mft_ref, is_dir, data_size in entries:
+        ent = _make_index_entry(name, mft_ref, is_dir, data_size=data_size)
+        attr[ent_off : ent_off + len(ent)] = ent
+        ent_off += len(ent)
+    end = bytearray(16)
+    struct.pack_into("<H", end, 0x08, 16)
+    struct.pack_into("<H", end, 0x0A, 16)
+    struct.pack_into("<H", end, 0x0C, 2)  # INDEX_ENTRY_END
+    attr[ent_off : ent_off + 16] = end
+    used = ent_off + 16
+    struct.pack_into("<I", attr, hdr + 0x04, used - hdr)
+    struct.pack_into("<I", attr, hdr + 0x08, used - hdr)
+    struct.pack_into("<I", attr, 4, used)  # shrink attribute size
+    struct.pack_into("<I", attr, 0x10, used - 0x30)  # value length
+    return bytes(attr[:used])
+
+
+def _attr_index_root_legacy(entries: list[tuple[str, int, bool]]) -> bytes:
+    """Deprecated alias — kept for callers passing 3-tuples."""
+    return _attr_index_root([(n, r, d, 0) for n, r, d in entries])
+
+
+def _write_mbr(path: Path, size_bytes: int, part_lba: int) -> None:
+    """Write a one-partition MBR; NTFS volume begins at ``part_lba``."""
+    part_sectors = (size_bytes // BYTES_PER_SECTOR) - part_lba
+    mbr = bytearray(BYTES_PER_SECTOR)
+    mbr[510:512] = b"\x55\xAA"
+    ent = 0x1BE
+    mbr[ent + 4] = 0x07  # NTFS
+    struct.pack_into("<I", mbr, ent + 8, part_lba)
+    struct.pack_into("<I", mbr, ent + 12, part_sectors)
+    with open(path, "r+b") as f:
+        f.seek(0)
+        f.write(mbr)
+
+
+def format_minimal_ntfs(
+    path: Path,
+    size_bytes: int,
+    files: dict[str, bytes | str],
+    *,
+    part_lba: int = 2048,
+) -> None:
+    """Create an NTFS image with resident files under root.
+
+    ``part_lba=2048`` (default) writes an MBR + one type-0x07 partition.
+    ``part_lba=0`` writes a whole-disk NTFS volume starting at LBA 0.
+    """
+    if part_lba < 0:
+        raise ValueError("part_lba must be >= 0")
+    vol_off = part_lba * BYTES_PER_SECTOR
+    vol_bytes = size_bytes - vol_off
+    if vol_bytes < 8 * 1024 * 1024:
+        raise ValueError("NTFS image too small after MBR/partition offset")
     cluster = _cluster_size()
     # Only embed files small enough for resident MFT DATA attributes.
     small_files: dict[str, bytes | str] = {}
@@ -199,57 +375,119 @@ def format_minimal_ntfs(path: Path, size_bytes: int, files: dict[str, bytes | st
     with open(path, "wb") as f:
         f.truncate(size_bytes)
 
-    boot = create_boot_sector(size_bytes)
+    boot = create_boot_sector(vol_bytes)
     with open(path, "r+b") as f:
-        f.seek(0)
+        f.seek(vol_off)
         f.write(boot)
-        f.seek(6 * BYTES_PER_SECTOR)
+        f.seek(vol_off + 6 * BYTES_PER_SECTOR)
         f.write(boot)
+    if part_lba > 0:
+        _write_mbr(path, size_bytes, part_lba)
 
-    # Build MFT records in memory.
-    records: list[bytes] = []
+    # Build MFT records in memory (sparse dict keyed by record number).
+    cluster = _cluster_size()
+    records: dict[int, bytes] = {}
+    file_records_start = 16  # Kolibri CreateFile denies iRecord < 16
 
-    # 0: $MFT (placeholder)
-    records.append(b"\x00" * MFT_RECORD_SIZE)
-    # 1: $MFTMirr placeholder
-    records.append(b"\x00" * MFT_RECORD_SIZE)
-    # 2: $LogFile placeholder
-    records.append(b"\x00" * MFT_RECORD_SIZE)
-    # 3: $Volume
+    def put_rec(num: int, data: bytes) -> None:
+        records[num] = data
+
+    names = sorted(files.keys())
+    user_record_nums = [file_records_start + i for i in range(len(names))]
+    live_records = list(range(16)) + user_record_nums
+    max_rec = max(live_records) + 8
+
+    mft_clusters = max(4, (max_rec + 2) * MFT_RECORD_SIZE // cluster + 1)
+    mft_bytes = mft_clusters * cluster
+    mft_mcb = _encode_mcb_single(mft_clusters, _mft_lcn())
+
+    mft_bitmap = bytearray(16)
+    _mark_mft_records(mft_bitmap, *live_records)
+    mft_bitmap_mcb = _encode_mcb_single(1, _mft_bitmap_lcn())
+
+    total_clusters = vol_bytes // cluster
+    vol_bitmap = bytearray((total_clusters + 7) // 8)
+    used_clusters = list(range(min(35, total_clusters)))
+    _mark_clusters(vol_bitmap, *used_clusters)
+    vol_bitmap_mcb = _encode_mcb_single(1, _volume_bitmap_lcn())
+
+    put_rec(
+        0,
+        _build_file_record(
+            1,
+            True,
+            MFT_RECORD_SIZE,
+            [
+                _attr_standard_information(),
+                _attr_nonresident(
+                    0x80,
+                    mft_mcb,
+                    alloc=mft_bytes,
+                    real=mft_bytes,
+                ),
+                _attr_nonresident(
+                    0xB0,
+                    mft_bitmap_mcb,
+                    alloc=cluster,
+                    real=len(mft_bitmap),
+                ),
+            ],
+        ),
+    )
     vol_data = b"\x00" * 8
-    records.append(
+    put_rec(
+        3,
         _build_file_record(
             3,
             True,
             MFT_RECORD_SIZE,
             [
                 _attr_standard_information(),
-                _attr_file_name("$Volume", 5, False),
+                _attr_file_name("$Volume", 5 | (5 << 48), False),
                 _attr_data_resident(vol_data),
             ],
-        )
+        ),
     )
-    # 4: $AttrDef placeholder
-    records.append(b"\x00" * MFT_RECORD_SIZE)
-    # 5: root directory .
-    root_entries: list[tuple[str, int, bool]] = []
-    file_records_start = 6
-    names = sorted(files.keys())
+    root_entries: list[tuple[str, int, bool, int]] = []
     for i, name in enumerate(names):
-        mft_ref = (file_records_start + i) << 48  # simplified reference
-        root_entries.append((name.split("/")[-1], mft_ref, False))
+        data = files[name]
+        if isinstance(data, str):
+            data = data.encode("ascii")
+        base = name.split("/")[-1]
+        mft_ref = user_record_nums[i] | (user_record_nums[i] << 48)
+        root_entries.append((base, mft_ref, False, len(data)))
 
-    records.append(
+    put_rec(
+        5,
         _build_file_record(
             5,
             True,
             MFT_RECORD_SIZE,
             [
                 _attr_standard_information(),
-                _attr_file_name(".", 5, True),
+                _attr_file_name(".", 5 | (5 << 48), True),
                 _attr_index_root(root_entries),
             ],
-        )
+            is_dir=True,
+        ),
+    )
+    put_rec(
+        6,
+        _build_file_record(
+            6,
+            True,
+            MFT_RECORD_SIZE,
+            [
+                _attr_standard_information(),
+                _attr_file_name("$Bitmap", 5 | (5 << 48), False),
+                _attr_nonresident(
+                    0x80,
+                    vol_bitmap_mcb,
+                    alloc=cluster,
+                    real=len(vol_bitmap),
+                ),
+            ],
+        ),
     )
 
     for i, name in enumerate(names):
@@ -257,28 +495,37 @@ def format_minimal_ntfs(path: Path, size_bytes: int, files: dict[str, bytes | st
         if isinstance(data, str):
             data = data.encode("ascii")
         base = name.split("/")[-1]
-        parent = 5
-        records.append(
+        rec_num = user_record_nums[i]
+        put_rec(
+            rec_num,
             _build_file_record(
-                file_records_start + i,
+                rec_num,
                 True,
                 MFT_RECORD_SIZE,
                 [
                     _attr_standard_information(),
-                    _attr_file_name(base, parent << 48, False),
+                    _attr_file_name(base, 5 | (5 << 48), False),
                     _attr_data_resident(data),
                 ],
-            )
+            ),
         )
 
-    # Pad to fill one cluster with MFT records.
-    while len(records) * MFT_RECORD_SIZE < cluster:
-        records.append(b"\x00" * MFT_RECORD_SIZE)
+    mft_records: list[bytes] = []
+    for n in range(max_rec + 1):
+        mft_records.append(records.get(n, b"\x00" * MFT_RECORD_SIZE))
 
-    mft_data = b"".join(records[: cluster // MFT_RECORD_SIZE])
+    # Pad MFT allocation to whole clusters.
+    while len(mft_records) * MFT_RECORD_SIZE < mft_bytes:
+        mft_records.append(b"\x00" * MFT_RECORD_SIZE)
+
+    mft_data = b"".join(mft_records)
 
     with open(path, "r+b") as f:
-        f.seek(_mft_lcn() * cluster)
+        f.seek(vol_off + _mft_lcn() * cluster)
         f.write(mft_data)
-        f.seek(_mft_mirror_lcn() * cluster)
+        f.seek(vol_off + _mft_mirror_lcn() * cluster)
         f.write(mft_data[:cluster])
+        f.seek(vol_off + _mft_bitmap_lcn() * cluster)
+        f.write(bytes(mft_bitmap).ljust(cluster, b"\x00"))
+        f.seek(vol_off + _volume_bitmap_lcn() * cluster)
+        f.write(bytes(vol_bitmap).ljust(cluster, b"\x00"))

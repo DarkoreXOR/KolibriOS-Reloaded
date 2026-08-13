@@ -54,6 +54,7 @@ mod crc;
 mod ext_read_all_times;
 mod ext_write_time;
 mod ext_set_file_info;
+mod ntfs_set_file_info;
 mod exfat_checksum;
 mod fat_name;
 mod font;
@@ -145,6 +146,10 @@ pub use ext_write_time::{
 pub use ext_set_file_info::{
     ext_set_file_info, ext_set_file_info_ptr, ExtSetFileInfoCtx, ExtSetFileInfoHooks,
     EXT_SET_FILE_INFO_CTX_SIZE, EXT_SET_FILE_INFO_PRNG_SEED,
+};
+pub use ntfs_set_file_info::{
+    apply_file_flags, ntfs_set_file_info, ntfs_set_file_info_ptr, NtfsSetFileInfoCtx,
+    NtfsSetFileInfoHooks, NTFS_SET_FILE_INFO_CTX_SIZE, NTFS_SET_FILE_INFO_PRNG_SEED,
 };
 pub use ntfs_get_time::{ntfs_get_time_pack, NTFS_GET_TIME_PRNG_SEED};
 pub use fs_get_time::{

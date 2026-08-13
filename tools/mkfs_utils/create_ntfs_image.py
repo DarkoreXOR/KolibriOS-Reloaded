@@ -12,7 +12,9 @@ Backends (tried in order):
     3. Pure-Python minimal NTFS (experimental; usually unmountable in Kolibri)
 
 On Windows, diskpart is the supported path. Pass ``--use-diskpart`` (scripts/mkfs.py
-does this automatically on Windows).
+does this automatically on Windows). If the current process is not elevated, the
+script requests Administrator via a UAC prompt rather than requiring an already-
+elevated shell.
 
 Minimum practical size is 8M (NTFS metadata overhead).
 """
@@ -131,6 +133,105 @@ def mft_ok(path: Path) -> bool:
     return off is not None and mft_ok_at(path, off)
 
 
+WINERROR_ELEVATION_REQUIRED = 740
+WINERROR_CANCELLED = 1223
+SEE_MASK_NOCLOSEPROCESS = 0x00000040
+SW_SHOWNORMAL = 1
+INFINITE = 0xFFFFFFFF
+
+
+def windows_is_admin() -> bool:
+    """True when this process already has Administrator rights."""
+    if platform.system() != "Windows":
+        return True
+    try:
+        import ctypes
+
+        return bool(ctypes.windll.shell32.IsUserAnAdmin())
+    except Exception:
+        return False
+
+
+def _win_quote_args(args: list[str]) -> str:
+    return subprocess.list2cmdline(args)
+
+
+def relaunch_self_elevated(*, extra_args: list[str] | None = None) -> int:
+    """Show a UAC prompt and re-run this script as Administrator. Wait for it."""
+    import ctypes
+    from ctypes import wintypes
+
+    class SHELLEXECUTEINFOW(ctypes.Structure):
+        _fields_ = (
+            ("cbSize", wintypes.DWORD),
+            ("fMask", ctypes.c_ulong),
+            ("hwnd", wintypes.HWND),
+            ("lpVerb", wintypes.LPCWSTR),
+            ("lpFile", wintypes.LPCWSTR),
+            ("lpParameters", wintypes.LPCWSTR),
+            ("lpDirectory", wintypes.LPCWSTR),
+            ("nShow", ctypes.c_int),
+            ("hInstApp", wintypes.HINSTANCE),
+            ("lpIDList", ctypes.c_void_p),
+            ("lpClass", wintypes.LPCWSTR),
+            ("hkeyClass", wintypes.HKEY),
+            ("dwHotKey", wintypes.DWORD),
+            ("hIconOrMonitor", wintypes.HANDLE),
+            ("hProcess", wintypes.HANDLE),
+        )
+
+    exe = sys.executable
+    params = [str(Path(__file__).resolve()), *sys.argv[1:]]
+    for extra in extra_args or []:
+        if extra not in params:
+            params.append(extra)
+    cwd = str(repo_root_from_script())
+
+    sei = SHELLEXECUTEINFOW()
+    sei.cbSize = ctypes.sizeof(SHELLEXECUTEINFOW)
+    sei.fMask = SEE_MASK_NOCLOSEPROCESS
+    sei.lpVerb = "runas"
+    sei.lpFile = exe
+    sei.lpParameters = _win_quote_args(params)
+    sei.lpDirectory = cwd
+    sei.nShow = SW_SHOWNORMAL
+
+    print(
+        "NTFS image creation needs Administrator (diskpart).\n"
+        "Requesting elevation — approve the UAC prompt.",
+        flush=True,
+    )
+    if not ctypes.windll.shell32.ShellExecuteExW(ctypes.byref(sei)):
+        err = ctypes.GetLastError()
+        if err == WINERROR_CANCELLED:
+            raise SystemExit(
+                "ERROR: NTFS creation cancelled (Administrator elevation denied)."
+            )
+        raise SystemExit(
+            f"ERROR: failed to request Administrator elevation (WinError {err})."
+        )
+    ctypes.windll.kernel32.WaitForSingleObject(sei.hProcess, INFINITE)
+    code = wintypes.DWORD()
+    ctypes.windll.kernel32.GetExitCodeProcess(sei.hProcess, ctypes.byref(code))
+    ctypes.windll.kernel32.CloseHandle(sei.hProcess)
+    return int(code.value)
+
+
+def request_ntfs_admin_if_needed(*, already_elevated: bool) -> None:
+    """Exit via elevated re-launch when diskpart cannot run in this process."""
+    if platform.system() != "Windows":
+        return
+    if windows_is_admin():
+        return
+    if already_elevated:
+        raise SystemExit(
+            "ERROR: still not Administrator after UAC. "
+            "Re-run from an elevated shell: python scripts/mkfs.py ntfs --force"
+        )
+    rc = relaunch_self_elevated(extra_args=["--elevated"])
+    raise SystemExit(rc)
+
+
 def find_mkfs_ntfs() -> str | None:
     for name in ("mkfs.ntfs", "mkntfs"):
         found = shutil.which(name)
@@ -220,11 +321,20 @@ def run_diskpart(script: str) -> None:
         f.write(script)
         script_path = f.name
     try:
-        proc = subprocess.run(
-            ["diskpart", "/s", script_path],
-            capture_output=True,
-            text=True,
-        )
+        try:
+            proc = subprocess.run(
+                ["diskpart", "/s", script_path],
+                capture_output=True,
+                text=True,
+            )
+        except OSError as e:
+            winerr = getattr(e, "winerror", None)
+            if winerr == WINERROR_ELEVATION_REQUIRED:
+                raise SystemExit(
+                    "ERROR: diskpart requires Administrator. "
+                    "Re-run python scripts/mkfs.py ntfs --force and approve UAC."
+                ) from e
+            raise
         if proc.returncode != 0:
             raise SystemExit(
                 f"ERROR: diskpart failed (exit {proc.returncode})\n"
@@ -293,6 +403,7 @@ def create_image(
     use_diskpart: bool,
     *,
     allow_minimal: bool = False,
+    already_elevated: bool = False,
 ) -> str:
     out = out.resolve()
     out.parent.mkdir(parents=True, exist_ok=True)
@@ -304,6 +415,9 @@ def create_image(
             print(f"reused: {out}")
             return "reused"
         print(f"Existing image invalid or empty; recreating: {out}")
+
+    if use_diskpart and platform.system() == "Windows":
+        request_ntfs_admin_if_needed(already_elevated=already_elevated)
 
     tmp = out.with_suffix(out.suffix + ".tmp")
     if tmp.exists():
@@ -357,7 +471,12 @@ def main() -> int:
     parser.add_argument(
         "--use-diskpart",
         action="store_true",
-        help="Windows: use diskpart (requires Administrator)",
+        help="Windows: use diskpart (UAC prompt if not already Administrator)",
+    )
+    parser.add_argument(
+        "--elevated",
+        action="store_true",
+        help=argparse.SUPPRESS,
     )
     parser.add_argument(
         "--allow-minimal",
@@ -378,6 +497,7 @@ def main() -> int:
         args.force,
         args.use_diskpart,
         allow_minimal=args.allow_minimal,
+        already_elevated=args.elevated,
     )
     print(f"outcome: {outcome}")
     print(f"  size: {out.stat().st_size} bytes")

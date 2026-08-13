@@ -4291,6 +4291,61 @@ ntfsCalculateTime:
 end if
 
 ;----------------------------------------------------------------
+; Cut CW: USE_RUST_NTFS_SET_FILE_INFO=1 routes through Rust after
+; ntfs_lock + ntfs_find_lfn + fragment check + INDX vs $INDEX_ROOT fixup.
+; Set USE_RUST_NTFS_SET_FILE_INFO=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–CV.
+; Critical ABI: stdcall rust_ntfs_set_file_info(ctx) ret 4 (REG-009);
+; ctx 32 bytes; callbacks ntfsCalculateTime/writeRecord/ntfsDone.
+; Marker NSFI. Production default ON after Cut CW gates.
+
+USE_RUST_NTFS_SET_FILE_INFO = 1
+
+if USE_RUST_NTFS_SET_FILE_INFO
+ntfs_SetFileInfo:
+        call    ntfs_lock
+        call    ntfs_find_lfn
+        jnc     .found
+        test    eax, eax
+        jz      ntfsFail
+        jmp     ntfsNotFound
+
+.found:
+        cmp     [ebp+NTFS.fragmentCount], 1
+        jnz     ntfsUnsupported     ; record fragmented
+        mov     esi, [ebp+NTFS.cur_index_buf]
+        cmp     dword [esi], 'INDX'
+        jz      .entry_ready
+        sub     eax, esi
+        mov     esi, [ebp+NTFS.indexRoot]
+        movzx   edx, byte [esi+attributeOffset]
+        add     eax, esi
+        add     eax, edx
+.entry_ready:
+        mov     edx, [ebp+NTFS.cur_index_buf]
+        cmp     dword [edx], 'INDX'
+        jz      .rec_ready
+        mov     edx, [ebp+NTFS.frs_buffer]
+.rec_ready:
+        ; Stack after sub: ctx[32]; return to plugin caller above.
+        ; REG-010: document every dword before stdcall.
+        cld
+        sub     esp, 32
+        mov     [esp+0], ebx                  ; f70
+        mov     [esp+4], ebp                  ; NTFS
+        mov     [esp+8], eax                  ; entry
+        mov     [esp+12], edx                 ; record
+        mov     eax, [ebp+NTFS.LastRead]
+        mov     [esp+16], eax                 ; last_read
+        mov     dword [esp+20], ntfsCalculateTime
+        mov     dword [esp+24], writeRecord
+        mov     dword [esp+28], ntfsDone
+        mov     eax, esp
+        stdcall rust_ntfs_set_file_info, eax  ; pops arg; ctx remains
+        mov     ebx, [esp+12]                 ; FASM success ebx = record
+        add     esp, 32
+        ret
+else
 ntfs_SetFileInfo:
         call    ntfs_lock
         call    ntfs_find_lfn
@@ -4337,6 +4392,7 @@ ntfs_SetFileInfo:
         mov     edx, [ebp+NTFS.LastRead]
         call    writeRecord
         jmp     ntfsDone
+end if
 
 ntfsUnsupported:
         push    ERROR_UNSUPPORTED_FS

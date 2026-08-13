@@ -29,15 +29,16 @@ regression tree. Verified by listing the root after create.
 | Linux | `losetup` + `mkfs.ntfs` (whole-disk), then populate |
 | Windows | **diskpart** (Administrator) — MBR + one NTFS partition, then populate |
 
-`scripts/mkfs.py ntfs` passes `--use-diskpart` on Windows automatically. Run the
-shell elevated when recreating with `--force`.
+`scripts/mkfs.py ntfs` passes `--use-diskpart` on Windows automatically. If the
+shell is not already elevated, a **UAC prompt** requests Administrator for
+diskpart (deny = cancel).
 
 The pure-Python `--allow-minimal` path is experimental and usually unmountable
 in Kolibri; do not use it for regression.
 
 ```bash
 python scripts/mkfs.py ntfs 128M
-python scripts/mkfs.py ntfs 128M --force   # needs Admin on Windows
+python scripts/mkfs.py ntfs 128M --force   # UAC on Windows
 ```
 
 ## XFS

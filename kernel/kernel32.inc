@@ -198,6 +198,8 @@ include "rust/ext_read_all_times.inc"
 include "rust/ext_write_time.inc"
 ; Cut CV: ext_SetFileInfo — Rust blob + smoke (USE_RUST_EXT_SET_FILE_INFO)
 include "rust/ext_set_file_info.inc"
+; Cut CW: ntfs_SetFileInfo — Rust blob + smoke (USE_RUST_NTFS_SET_FILE_INFO)
+include "rust/ntfs_set_file_info.inc"
 ; Cut AM: xfs._.get_before_by_hashval — Rust blob + smoke (USE_RUST_XFS_GET_BEFORE_BY_HASHVAL)
 include "rust/xfs_get_before_by_hashval.inc"
 ; Cut AN: ansi2uni_char — Rust blob + smoke (USE_RUST_ANSI2UNI_CHAR)

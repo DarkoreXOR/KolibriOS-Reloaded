@@ -4,12 +4,11 @@
 Rust hybrid migration scope. One-time project map; update when a Cut
 completes or the scoped candidate set changes.
 
-**Last inventory baseline:** post-Cut CV (2026-08-14).
-**Cut CS:** **BLOCKED** (historical). Inventory after CV: **104 / 138**.
+**Last inventory baseline:** post-Cut CW (2026-08-14).
+**Cut CS:** **BLOCKED** (historical). Inventory after CW: **105 / 138**.
 
 **Gates source of truth:** `project/build.toml` `[[rust.migrations]]`
-(104 production entries enabled after CU: prior 100 + 4 Cut CU blob
-registrations sharing `USE_RUST_PHYS_BITMAP_OWNERSHIP`; CT Mode-A blob retained).
+(106 production entries enabled after CW).
 
 ---
 
@@ -116,7 +115,7 @@ leaves. Path A rejections are recorded in cut plans, not as fake completions.
 - [x] `ntfsGetTime` — Cut BT
 - [ ] `ntfs_create_partition` — deferred: mount orchestration
 - [ ] `ntfs_restore_usa_frs` — deferred: J sibling
-- [ ] `ntfs_SetFileInfo` — deferred: FS write path
+- [x] `ntfs_SetFileInfo` — Cut CW
 
 ## fs/XFS
 
@@ -312,10 +311,10 @@ Documented across Cuts AO–AZ plans:
 
 **Functions completed / functions total**
 
-`104 / 138`
+`105 / 138`
 
-(Mechanically: `104` `[x]` + `34` `[ ]` = `138`. Cut CV migrated
-`ext_SetFileInfo` as one Path B plugin leaf.)
+(Mechanically: `105` `[x]` + `33` `[ ]` = `138`. Cut CW migrated
+`ntfs_SetFileInfo` as one Path B plugin leaf.)
 
 When a new Cut completes: mark its `[ ]` → `[x]`, move the note to the Cut id,
 and update this counter so it still matches the checklist.

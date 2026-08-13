@@ -37,6 +37,10 @@ def main(argv: list[str] | None = None) -> None:
     setup_logging(args.verbose)
 
     mode = "release" if args.release else args.mode
+    if args.disk:
+        from run_qemu import validate_named_disks
+
+        validate_named_disks(args.disk, create_ntfs_if_missing=True)
     build(mode=mode, skip_tests=args.skip_tests)
     prepare_image()
     run_qemu(

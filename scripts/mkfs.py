@@ -32,7 +32,8 @@ def mkfs_one(fs: str, size: str, *, force: bool = False) -> None:
     if fs == "ntfs" and platform.system() == "Windows":
         argv.append("--use-diskpart")
         log.info(
-            "NTFS on Windows uses diskpart (run this shell as Administrator if it fails)"
+            "NTFS on Windows uses diskpart "
+            "(UAC prompt if this shell is not already Administrator)"
         )
     # XFS / EXT on Windows use Docker + mkfs tools (create_*_image.py auto-selects).
     if fs == "xfs" and platform.system() == "Windows":
