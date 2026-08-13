@@ -22,6 +22,7 @@ use crate::fs_read_cmos::{fs_read_cmos_ptr, FsCmosRawReadFn};
 use crate::crc::crc32_update;
 use crate::exfat_checksum::{calculate_set_checksum_field_ptr, exfat_hash_calculate_ptr};
 use crate::fat_name::{fat_gen_short_name_ptr, fat_name_is_legal_ptr, fat_next_short_name_ptr};
+use crate::draw_char::{draw_char_ptr, DrawCharCtx};
 use crate::font::anti_aliasing;
 use crate::fs_operation_safe::file_system_is_operation_safe_ptr;
 use crate::blit_32::{blit_32_ptr, Blit32Ctx};
@@ -368,6 +369,22 @@ pub unsafe extern "stdcall" fn rust_exfat_get_sector(
 #[link_section = ".text.rust_exfat_find_lfn"]
 pub unsafe extern "stdcall" fn rust_exfat_find_lfn(ctx: *mut ExFatFindLfnCtx) -> u32 {
     unsafe { exfat_find_lfn_ptr(ctx) }
+}
+
+/// `stdcall` rust_draw_char(ctx); ret 4.
+///
+/// Cut CR: dedicated section for reloc-free extract + FASM `file` embed.
+/// Callee cleans 4 bytes (`ret 4`). Trampoline injects [`DrawCharCtx`]
+/// and must NOT `add esp` for this arg (REG-009). Snapshot dtext stack
+/// slots before stdcall (REG-010). No `cld`.
+///
+/// # Safety
+/// `ctx` must be a writable [`DrawCharCtx`] whose buffer/glyph extents
+/// cover the raster (including neighbor `bt` bytes).
+#[no_mangle]
+#[link_section = ".text.rust_draw_char"]
+pub unsafe extern "stdcall" fn rust_draw_char(ctx: *mut DrawCharCtx) {
+    unsafe { draw_char_ptr(ctx) }
 }
 
 /// `stdcall` rust_get_inode_location(inode, ipg, table_lo, table_hi, spb,

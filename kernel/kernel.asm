@@ -347,6 +347,10 @@ end if
 if USE_RUST_EXFAT_FIND_LFN
         call    exfat_find_lfn_rust_smoke_test
 end if
+        ; Cut CR: drawChar smoke (Rust when USE_RUST_DRAW_CHAR=1).
+if USE_RUST_DRAW_CHAR
+        call    draw_char_rust_smoke_test
+end if
         ; Cut CM: getInodeLocation smoke (Rust when USE_RUST_GET_INODE_LOCATION=1).
 if USE_RUST_GET_INODE_LOCATION
         call    get_inode_location_rust_smoke_test

@@ -103,6 +103,8 @@ include "rust/block_clip.inc"
 include "rust/blit_clip.inc"
 ; Cut CP: blit_32 — Rust blob + smoke (USE_RUST_BLIT_32)
 include "rust/blit_32.inc"
+; Cut CR: drawChar — Rust blob + smoke (USE_RUST_DRAW_CHAR)
+include "rust/draw_char.inc"
 ; Cut I: ntfs_decode_mcb_entry — Rust blob + smoke (see docs/migration/cut-i-plan.md)
 include "rust/ntfs_decode_mcb_entry.inc"
 ; Cut AX: createMcbEntry — Rust blob + smoke (USE_RUST_NTFS_CREATE_MCB_ENTRY)

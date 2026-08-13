@@ -37,6 +37,7 @@
 #![cfg_attr(target_os = "none", no_std)]
 
 mod blit_32;
+mod draw_char;
 mod ahci_find_cmdslot;
 mod ahci_is_sig_known;
 mod ahci_port_wait;
@@ -157,6 +158,10 @@ pub use fat_name::{
     FAT_GEN_SHORT_NAME_PRNG_SEED, FAT_NAME_LEN,
 };
 pub use font::{anti_aliasing, ANTI_ALIASING_PRNG_SEED};
+pub use draw_char::{
+    draw_char, draw_char_ptr, fasm_oracle_draw_char, DrawCharCtx, GetPixelFn,
+    DRAW_CHAR_CTX_SIZE, DRAW_CHAR_PRNG_SEED,
+};
 pub use fs_operation_safe::{
     file_system_is_operation_safe, file_system_is_operation_safe_ptr, fs_op_safe_buffer_len,
     fs_op_safe_buffer_len_ex, make_inf, BDVK_CP866, BDVK_HEADER, BDVK_UNICODE,

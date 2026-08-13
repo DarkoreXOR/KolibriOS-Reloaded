@@ -302,7 +302,68 @@ deltaToScreen = 28
         ret
 
 ; scaling/smoothing algorithm
+; Cut CR: USE_RUST_DRAW_CHAR=1 routes through Rust rust_draw_char
+; (see rust/draw_char.inc). Set USE_RUST_DRAW_CHAR=0 to restore the
+; original FASM body without deleting it. Independent of Cuts A–CQ.
+
+USE_RUST_DRAW_CHAR = 1
+
+if USE_RUST_DRAW_CHAR
+
+; Compatibility trampoline: register + dtext stack ABI → Rust stdcall.
+; `esi != 1` keeps the original FASM scaled diamond (REG-012: 1× blob only).
+; Snapshot [esp+4] rows / [esp+24] widthX / [esp+44] deltaToScreen / EDX
+; before stdcall (REG-010). No add esp for Rust args (REG-009).
+; add esp, 40 is local DrawCharCtx only. No cld.
+align 4
 drawChar:
+        cmp     esi, 1
+        jne     drawChar_fasm
+        push    ebx
+        push    esi
+        push    edi
+        push    ebp
+        sub     esp, 40
+        mov     [esp + 0], ebp          ; color
+        mov     [esp + 4], esi          ; multiplier
+        mov     [esp + 8], edi          ; buffer
+        mov     [esp + 12], ebx         ; glyph
+        mov     eax, [esp + 40 + 16 + 4]
+        mov     [esp + 16], eax         ; rows
+        mov     eax, [esp + 40 + 16 + 24]
+        mov     [esp + 20], eax         ; widthX
+        mov     eax, [esp + 40 + 16 + 44]
+        mov     [esp + 24], eax         ; deltaToScreen
+        movzx   eax, byte [fontSmoothing]
+        mov     [esp + 28], eax
+        mov     dword [esp + 32], drawchar_getpixel_thunk
+        mov     [esp + 36], edx         ; first-row EDX quirk
+        mov     eax, esp
+        stdcall rust_draw_char, eax
+        add     esp, 40
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     ebx
+        ret
+
+; Register ABI getpixel: EBX = pixel index, EAX = color, plain ret.
+; Fabricate a SYSCALL_STACK so syscall_getpixel's [esp+SYSCALL_STACK.eax]
+; lands in pushad EAX (same layout as a real i40 frame). Not stdcall —
+; a callee `ret 4` inside `call edx` is invisible to LLVM (ESP drift).
+align 4
+drawchar_getpixel_thunk:
+        pushad
+        call    syscall_getpixel
+        popad
+        ret
+
+end if
+
+if ~ USE_RUST_DRAW_CHAR
+drawChar:
+end if
+drawChar_fasm:
 ; ebp = font color
 ; esi = font multiplier
 ; edi -> buffer
@@ -840,7 +901,7 @@ drawChar:
         imul    eax, esi
         add     edi, eax
         dec     dword [esp+4]
-        jnz     drawChar
+        jnz     drawChar_fasm
         ret
 
 ; Cut N: USE_RUST_ANTI_ALIASING=1 routes through Rust
