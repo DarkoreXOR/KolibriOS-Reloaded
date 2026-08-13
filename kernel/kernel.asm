@@ -405,6 +405,10 @@ end if
         call    ext_read_all_times_rust_smoke_test
         ; Cut BS: ext_write_time smoke (Rust when USE_RUST_EXT_WRITE_TIME=1).
         call    ext_write_time_rust_smoke_test
+        ; Cut CV: ext_SetFileInfo smoke (Rust when USE_RUST_EXT_SET_FILE_INFO=1).
+if USE_RUST_EXT_SET_FILE_INFO
+        call    ext_set_file_info_rust_smoke_test
+end if
         ; Cut AM: xfs._.get_before_by_hashval smoke (Rust when USE_RUST_XFS_GET_BEFORE_BY_HASHVAL=1).
         call    xfs_get_before_by_hashval_rust_smoke_test
         ; Cut AN: ansi2uni_char smoke (Rust when USE_RUST_ANSI2UNI_CHAR=1).

@@ -53,6 +53,7 @@ mod cp866_to_utf8_string;
 mod crc;
 mod ext_read_all_times;
 mod ext_write_time;
+mod ext_set_file_info;
 mod exfat_checksum;
 mod fat_name;
 mod font;
@@ -140,6 +141,10 @@ pub use crc::crc32_update;
 pub use ext_read_all_times::{ext_read_all_times_ptr, EXT_READ_ALL_TIMES_PRNG_SEED};
 pub use ext_write_time::{
     ext_write_time_pack_ptr, EXT_WRITE_TIME_NO_EXTRA, EXT_WRITE_TIME_PRNG_SEED,
+};
+pub use ext_set_file_info::{
+    ext_set_file_info, ext_set_file_info_ptr, ExtSetFileInfoCtx, ExtSetFileInfoHooks,
+    EXT_SET_FILE_INFO_CTX_SIZE, EXT_SET_FILE_INFO_PRNG_SEED,
 };
 pub use ntfs_get_time::{ntfs_get_time_pack, NTFS_GET_TIME_PRNG_SEED};
 pub use fs_get_time::{
@@ -380,6 +385,10 @@ mod phase_c_magic_tests {
 /// Stage-4 host-only physical bitmap oracle (research + Cut CT differential).
 #[cfg(test)]
 pub(crate) mod pg_bitmap_oracle;
+
+/// Stage-4 host-only PTE / page_tabs oracle (research — not a production cut).
+#[cfg(test)]
+pub(crate) mod pte_oracle;
 
 #[cfg(target_os = "none")]
 #[panic_handler]

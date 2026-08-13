@@ -36,6 +36,7 @@ use crate::memmove::memmove_ptr;
 use crate::fat_get_sector::fat_get_sector;
 use crate::exfat_get_sector::exfat_get_sector;
 use crate::exfat_find_lfn::{exfat_find_lfn_ptr, ExFatFindLfnCtx};
+use crate::ext_set_file_info::{ext_set_file_info_ptr, ExtSetFileInfoCtx};
 use crate::get_inode_location::get_inode_location_ptr;
 use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_find_fragment_slot::ipv4_find_fragment_slot_ptr;
@@ -370,6 +371,22 @@ pub unsafe extern "stdcall" fn rust_exfat_get_sector(
 #[link_section = ".text.rust_exfat_find_lfn"]
 pub unsafe extern "stdcall" fn rust_exfat_find_lfn(ctx: *mut ExFatFindLfnCtx) -> u32 {
     unsafe { exfat_find_lfn_ptr(ctx) }
+}
+
+/// `stdcall` rust_ext_set_file_info(ctx) → EAX = Kolibri status.
+///
+/// Cut CV: dedicated section for reloc-free extract + FASM `file` embed.
+/// Callee cleans 4 bytes (`ret 4`). Trampoline must call `extfsWritingInit`
+/// first (RO non-local return), inject [`ExtSetFileInfoCtx`], and must NOT
+/// `add esp` for this arg (REG-009).
+///
+/// # Safety
+/// `ctx` must be a writable [`ExtSetFileInfoCtx`] whose pointers/callbacks
+/// are valid; lock must already be held by FASM `extfsWritingInit`.
+#[no_mangle]
+#[link_section = ".text.rust_ext_set_file_info"]
+pub unsafe extern "stdcall" fn rust_ext_set_file_info(ctx: *mut ExtSetFileInfoCtx) -> u32 {
+    unsafe { ext_set_file_info_ptr(ctx) }
 }
 
 /// `stdcall` rust_draw_char(ctx); ret 4.

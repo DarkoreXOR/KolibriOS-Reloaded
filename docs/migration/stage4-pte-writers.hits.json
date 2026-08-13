@@ -1,0 +1,2417 @@
+{
+  "schema": "stage4-pte-writers/v1",
+  "generated_by": "scripts/inventory_pte_writers.py",
+  "authority": "Hand-audited runtime writer list in audited_* sections is authoritative for ownership; raw_hits are heuristic and may include address LEAs / reads.",
+  "summary_heuristic": {
+    "raw_hits": 167,
+    "raw_write_hits": 117,
+    "raw_runtime_write_hits": 108,
+    "raw_boot_write_hits": 9,
+    "raw_diagnostic_write_hits": 0,
+    "raw_invlpg_hits": 21,
+    "raw_cr3_write_hits": 17,
+    "raw_suspicious_indirect": 0,
+    "write_hits_by_file": {
+      "kernel/core/heap.inc": 40,
+      "kernel/core/memory.inc": 23,
+      "kernel/core/v86.inc": 14,
+      "kernel/gui/background.inc": 9,
+      "kernel/init.inc": 7,
+      "kernel/kernel.asm": 7,
+      "kernel/core/dll.inc": 4,
+      "kernel/core/mtrr.inc": 3,
+      "kernel/core/sched.inc": 3,
+      "kernel/boot/shutdown.inc": 2,
+      "kernel/core/taskman.inc": 2,
+      "kernel/bus/pci/PCIe.inc": 1,
+      "kernel/core/sys32.inc": 1,
+      "kernel/video/framebuffer.inc": 1
+    },
+    "write_hits_by_symbol_guess": {
+      "user_realloc": 21,
+      "sys_ipc_send": 6,
+      "v86_create": 6,
+      "init_mem": 6,
+      "user_alloc_at": 5,
+      "nosb5": 5,
+      "load_library": 4,
+      "user_alloc": 4,
+      "user_free": 4,
+      "user_normalize": 4,
+      "create_ring_buffer": 4,
+      "nosb6": 4,
+      "new_mem_resize": 3,
+      "do_change_task": 3,
+      "v86_start": 3,
+      "v86_exc_c": 3,
+      "no_acpi": 2,
+      "map_page": 2,
+      "map_io_mem": 2,
+      "high_code": 2,
+      "sys_apm": 2,
+      "pci_ext_config": 1,
+      "init_heap": 1,
+      "user_unmap": 1,
+      "commit_pages": 1,
+      "release_pages": 1,
+      "unmap_pages": 1,
+      "map_page_table": 1,
+      "get_pg_addr": 1,
+      "page_fault_handler": 1,
+      "mtrr_begin_change": 1,
+      "mtrr_end_change": 1,
+      "mtrr_validate": 1,
+      "show_error_parameters": 1,
+      "create_process": 1,
+      "map_process_image": 1,
+      "v86_get_lin_addr": 1,
+      "v86_irq2": 1,
+      "init_page_map": 1,
+      "B32": 1
+    }
+  },
+  "raw_hits": [
+    {
+      "file": "kernel/boot/shutdown.inc",
+      "line": 208,
+      "symbol_guess": "no_acpi",
+      "phase": "boot",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    },
+    {
+      "file": "kernel/boot/shutdown.inc",
+      "line": 218,
+      "symbol_guess": "no_acpi",
+      "phase": "boot",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "mov     eax, cr3"
+    },
+    {
+      "file": "kernel/boot/shutdown.inc",
+      "line": 219,
+      "symbol_guess": "no_acpi",
+      "phase": "boot",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    },
+    {
+      "file": "kernel/bus/pci/PCIe.inc",
+      "line": 91,
+      "symbol_guess": "pci_ext_config",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [ecx]"
+    },
+    {
+      "file": "kernel/bus/usb/memory.inc",
+      "line": 42,
+      "symbol_guess": "usb_td_to_virt",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "stdcall rust_usb_td_to_virt, eax, ecx, page_tabs, OS_BASE"
+    },
+    {
+      "file": "kernel/const.inc",
+      "line": 194,
+      "symbol_guess": "?",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "_cr3        rd 1"
+    },
+    {
+      "file": "kernel/const.inc",
+      "line": 311,
+      "symbol_guess": "?",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "page_tabs           = 0xFDC00000"
+    },
+    {
+      "file": "kernel/const.inc",
+      "line": 312,
+      "symbol_guess": "?",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs",
+        "app_page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "app_page_tabs       = 0xFDC00000"
+    },
+    {
+      "file": "kernel/const.inc",
+      "line": 313,
+      "symbol_guess": "?",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "kernel_tabs         = page_tabs + (OS_BASE shr 10)"
+    },
+    {
+      "file": "kernel/const.inc",
+      "line": 314,
+      "symbol_guess": "?",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "master_tab          = page_tabs + (page_tabs shr 10)"
+    },
+    {
+      "file": "kernel/core/dll.inc",
+      "line": 563,
+      "symbol_guess": "load_file_umode",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "address_calc",
+      "must_move_behind_rust_api": false,
+      "code": "lea     edi, [page_tabs + eax]"
+    },
+    {
+      "file": "kernel/core/dll.inc",
+      "line": 625,
+      "symbol_guess": "load_file_umode",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "add     esi, page_tabs"
+    },
+    {
+      "file": "kernel/core/dll.inc",
+      "line": 627,
+      "symbol_guess": "load_file_umode",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "address_calc",
+      "must_move_behind_rust_api": false,
+      "code": "lea     edi, [page_tabs+eax]"
+    },
+    {
+      "file": "kernel/core/dll.inc",
+      "line": 1315,
+      "symbol_guess": "load_library",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "or",
+      "role": "pte_set_flags",
+      "must_move_behind_rust_api": true,
+      "code": "or      dword [page_tabs + (edx-1)*4], MEM_BLOCK_DONT_FREE"
+    },
+    {
+      "file": "kernel/core/dll.inc",
+      "line": 1322,
+      "symbol_guess": "load_library",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [page_tabs + ecx*4]"
+    },
+    {
+      "file": "kernel/core/dll.inc",
+      "line": 1325,
+      "symbol_guess": "load_library",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "xchg",
+      "role": "pte_clear_or_swap",
+      "must_move_behind_rust_api": true,
+      "code": "xchg    eax, [page_tabs + edx*4]"
+    },
+    {
+      "file": "kernel/core/dll.inc",
+      "line": 1330,
+      "symbol_guess": "load_library",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [ebx+edi]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 578,
+      "symbol_guess": "init_heap",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + esi], ecx"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 602,
+      "symbol_guess": "user_alloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [page_tabs + ebx*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 614,
+      "symbol_guess": "user_alloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + edx*4], eax"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 617,
+      "symbol_guess": "user_alloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + ebx*4], ecx"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 623,
+      "symbol_guess": "user_alloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     dword [page_tabs + ebx*4], MEM_BLOCK_RESERVED"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 689,
+      "symbol_guess": "user_alloc_at",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [page_tabs + ebx*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 726,
+      "symbol_guess": "user_alloc_at",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + ebx*4], eax"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 735,
+      "symbol_guess": "user_alloc_at",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + ebx*4], eax"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 741,
+      "symbol_guess": "user_alloc_at",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     dword [page_tabs + ebx*4], MEM_BLOCK_RESERVED"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 750,
+      "symbol_guess": "user_alloc_at",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + ebx*4], ecx"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 787,
+      "symbol_guess": "user_free",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [page_tabs + (esi-1)*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 796,
+      "symbol_guess": "user_free",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + (esi-1)*4], eax"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 803,
+      "symbol_guess": "user_free",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "xchg",
+      "role": "pte_clear_or_swap",
+      "must_move_behind_rust_api": true,
+      "code": "xchg    eax, [page_tabs + esi*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 811,
+      "symbol_guess": "user_free",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [eax]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 863,
+      "symbol_guess": "user_unmap",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "address_calc",
+      "must_move_behind_rust_api": false,
+      "code": "lea     ebx, [page_tabs + ebx*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 871,
+      "symbol_guess": "user_unmap",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "address_calc",
+      "must_move_behind_rust_api": false,
+      "code": "lea     edx, [page_tabs + edx*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 896,
+      "symbol_guess": "user_unmap",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [ebx]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 921,
+      "symbol_guess": "user_normalize",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [page_tabs + esi*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 936,
+      "symbol_guess": "user_normalize",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     ebx, [page_tabs + edx*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 947,
+      "symbol_guess": "user_normalize",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "and",
+      "role": "pte_mask_flags",
+      "must_move_behind_rust_api": true,
+      "code": "and     dword[page_tabs + edx*4], 0"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 951,
+      "symbol_guess": "user_normalize",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + esi*4], eax"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 981,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     edx, [page_tabs + ecx*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1010,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "xchg",
+      "role": "pte_clear_or_swap",
+      "must_move_behind_rust_api": true,
+      "code": "xchg    eax, [page_tabs + edx*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1016,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [eax]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1022,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [page_tabs + ecx*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1029,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + ecx*4], eax"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1041,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "xchg",
+      "role": "pte_clear_or_swap",
+      "must_move_behind_rust_api": true,
+      "code": "xchg    [page_tabs + ecx*4], ebx"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1065,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [page_tabs + edx*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1068,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "and",
+      "role": "pte_mask_flags",
+      "must_move_behind_rust_api": true,
+      "code": "and     dword [page_tabs + edx*4], 0"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1077,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + ecx*4], ebx"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1092,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [page_tabs + edx*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1102,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + ebx*4], eax"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1108,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + ecx*4], eax"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1113,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "address_calc",
+      "must_move_behind_rust_api": false,
+      "code": "lea     edi, [page_tabs + edx*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1141,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [page_tabs + esi*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1163,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + esi*4], eax"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1169,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + esi*4], eax"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1174,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [page_tabs + ecx*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1178,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + ecx*4], eax"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1185,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "xchg",
+      "role": "pte_clear_or_swap",
+      "must_move_behind_rust_api": true,
+      "code": "xchg    eax, [page_tabs + ecx*4]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1186,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + esi*4], eax"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1189,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [eax]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1202,
+      "symbol_guess": "user_realloc",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     dword [page_tabs + esi*4], MEM_BLOCK_RESERVED"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1430,
+      "symbol_guess": "shmem_open",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "address_calc",
+      "must_move_behind_rust_api": false,
+      "code": "lea     edi, [page_tabs + eax]"
+    },
+    {
+      "file": "kernel/core/heap.inc",
+      "line": 1431,
+      "symbol_guess": "shmem_open",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "add     esi, page_tabs"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 267,
+      "symbol_guess": "map_page",
+      "phase": "runtime",
+      "tokens": [
+        "pte_valid_mask"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "mask_read",
+      "must_move_behind_rust_api": false,
+      "code": "and     eax, [pte_valid_mask]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 270,
+      "symbol_guess": "map_page",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + ebx*4], eax"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 273,
+      "symbol_guess": "map_page",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [eax]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 308,
+      "symbol_guess": "map_io_mem",
+      "phase": "runtime",
+      "tokens": [
+        "pte_valid_mask"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "mask_read",
+      "must_move_behind_rust_api": false,
+      "code": "and     edx, [pte_valid_mask]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 310,
+      "symbol_guess": "map_io_mem",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + eax*4], edx"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 311,
+      "symbol_guess": "map_io_mem",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [ebx]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 345,
+      "symbol_guess": "commit_pages",
+      "phase": "runtime",
+      "tokens": [
+        "pte_valid_mask"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "mask_read",
+      "must_move_behind_rust_api": false,
+      "code": "and     eax, [pte_valid_mask ]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 348,
+      "symbol_guess": "commit_pages",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "address_calc",
+      "must_move_behind_rust_api": false,
+      "code": "lea     edi, [page_tabs + edi*4]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 351,
+      "symbol_guess": "commit_pages",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [ebx]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 385,
+      "symbol_guess": "release_pages",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "address_calc",
+      "must_move_behind_rust_api": false,
+      "code": "lea     esi, [page_tabs + esi*4]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 399,
+      "symbol_guess": "release_pages",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [edi]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 507,
+      "symbol_guess": "unmap_pages",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "add     edi, page_tabs"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 512,
+      "symbol_guess": "unmap_pages",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [edx]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 531,
+      "symbol_guess": "map_page_table",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "add     eax, page_tabs"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 532,
+      "symbol_guess": "map_page_table",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [eax]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 623,
+      "symbol_guess": "new_mem_resize",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs",
+        "app_page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [app_page_tabs + edi*4]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 627,
+      "symbol_guess": "new_mem_resize",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs",
+        "app_page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     dword [app_page_tabs + edi*4], 0"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 628,
+      "symbol_guess": "new_mem_resize",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [ebx]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 678,
+      "symbol_guess": "new_mem_resize",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "add     edi, page_tabs"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 698,
+      "symbol_guess": "new_mem_resize",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs",
+        "app_page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "add     edi, app_page_tabs"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 748,
+      "symbol_guess": "get_pg_addr",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "stdcall rust_get_pg_addr, eax, page_tabs, OS_BASE"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 765,
+      "symbol_guess": "get_pg_addr",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [page_tabs + (eax+(OS_BASE shr 12))*4]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 790,
+      "symbol_guess": "page_fault_handler",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "cmp     ebx, page_tabs"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 815,
+      "symbol_guess": "page_fault_handler",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [page_tabs + ebx*4]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 1245,
+      "symbol_guess": "sys_ipc_send",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + ebx*4], eax"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 1246,
+      "symbol_guess": "sys_ipc_send",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [edx]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 1252,
+      "symbol_guess": "sys_ipc_send",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + ebx*4], eax"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 1253,
+      "symbol_guess": "sys_ipc_send",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [edx]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 1259,
+      "symbol_guess": "sys_ipc_send",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + ebx*4], eax"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 1260,
+      "symbol_guess": "sys_ipc_send",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [edx]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 1623,
+      "symbol_guess": "create_ring_buffer",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + edi], eax"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 1624,
+      "symbol_guess": "create_ring_buffer",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs + edi + edx], eax"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 1625,
+      "symbol_guess": "create_ring_buffer",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [ebx]"
+    },
+    {
+      "file": "kernel/core/memory.inc",
+      "line": 1626,
+      "symbol_guess": "create_ring_buffer",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [ebx+0x10000]"
+    },
+    {
+      "file": "kernel/core/mtrr.inc",
+      "line": 49,
+      "symbol_guess": "mtrr_begin_change",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "jnc     .cr3_flush"
+    },
+    {
+      "file": "kernel/core/mtrr.inc",
+      "line": 56,
+      "symbol_guess": "mtrr_begin_change",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": ".cr3_flush:"
+    },
+    {
+      "file": "kernel/core/mtrr.inc",
+      "line": 57,
+      "symbol_guess": "mtrr_begin_change",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "mov     eax, cr3"
+    },
+    {
+      "file": "kernel/core/mtrr.inc",
+      "line": 58,
+      "symbol_guess": "mtrr_begin_change",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    },
+    {
+      "file": "kernel/core/mtrr.inc",
+      "line": 86,
+      "symbol_guess": "mtrr_end_change",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "mov     eax, cr3"
+    },
+    {
+      "file": "kernel/core/mtrr.inc",
+      "line": 87,
+      "symbol_guess": "mtrr_end_change",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    },
+    {
+      "file": "kernel/core/mtrr.inc",
+      "line": 902,
+      "symbol_guess": "mtrr_validate",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     ebx, [page_tabs+(LFB_BASE shr 10)]"
+    },
+    {
+      "file": "kernel/core/sched.inc",
+      "line": 105,
+      "symbol_guess": "do_change_task",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "and",
+      "role": "pte_mask_flags",
+      "must_move_behind_rust_api": true,
+      "code": "mov     dword [page_tabs + ((tss._io_map_0 and -4096) shr 10)], eax"
+    },
+    {
+      "file": "kernel/core/sched.inc",
+      "line": 107,
+      "symbol_guess": "do_change_task",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "and",
+      "role": "pte_mask_flags",
+      "must_move_behind_rust_api": true,
+      "code": "mov     dword [page_tabs + ((tss._io_map_1 and -4096) shr 10)], eax"
+    },
+    {
+      "file": "kernel/core/sched.inc",
+      "line": 114,
+      "symbol_guess": "do_change_task",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    },
+    {
+      "file": "kernel/core/sys32.inc",
+      "line": 375,
+      "symbol_guess": "show_error_parameters",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [page_tabs + ebx*4]"
+    },
+    {
+      "file": "kernel/core/taskman.inc",
+      "line": 365,
+      "symbol_guess": "create_process",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [edi - PAGE_SIZE + (page_tabs shr 20)], eax"
+    },
+    {
+      "file": "kernel/core/taskman.inc",
+      "line": 832,
+      "symbol_guess": "map_process_image",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     edi, page_tabs"
+    },
+    {
+      "file": "kernel/core/v86.inc",
+      "line": 65,
+      "symbol_guess": "v86_create",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    },
+    {
+      "file": "kernel/core/v86.inc",
+      "line": 79,
+      "symbol_guess": "v86_create",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs], eax"
+    },
+    {
+      "file": "kernel/core/v86.inc",
+      "line": 80,
+      "symbol_guess": "v86_create",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [eax]"
+    },
+    {
+      "file": "kernel/core/v86.inc",
+      "line": 90,
+      "symbol_guess": "v86_create",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     edi, page_tabs+0x98*4"
+    },
+    {
+      "file": "kernel/core/v86.inc",
+      "line": 102,
+      "symbol_guess": "v86_create",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     edi, page_tabs+0xC0*4"
+    },
+    {
+      "file": "kernel/core/v86.inc",
+      "line": 110,
+      "symbol_guess": "v86_create",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    },
+    {
+      "file": "kernel/core/v86.inc",
+      "line": 163,
+      "symbol_guess": "v86_get_lin_addr",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "stdcall rust_v86_get_lin_addr, eax, page_tabs"
+    },
+    {
+      "file": "kernel/core/v86.inc",
+      "line": 179,
+      "symbol_guess": "v86_get_lin_addr",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     edx, [page_tabs + ecx*4]"
+    },
+    {
+      "file": "kernel/core/v86.inc",
+      "line": 308,
+      "symbol_guess": "v86_start",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     dword [page_tabs + (tss._io_map_0 shr 10)], eax"
+    },
+    {
+      "file": "kernel/core/v86.inc",
+      "line": 315,
+      "symbol_guess": "v86_start",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     dword [page_tabs + (tss._io_map_1 shr 10)], eax"
+    },
+    {
+      "file": "kernel/core/v86.inc",
+      "line": 321,
+      "symbol_guess": "v86_start",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    },
+    {
+      "file": "kernel/core/v86.inc",
+      "line": 812,
+      "symbol_guess": "v86_exc_c",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     dword [page_tabs + (tss._io_map_1 shr 10)], ebx"
+    },
+    {
+      "file": "kernel/core/v86.inc",
+      "line": 815,
+      "symbol_guess": "v86_exc_c",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     dword [page_tabs + (tss._io_map_0 shr 10)], ebx"
+    },
+    {
+      "file": "kernel/core/v86.inc",
+      "line": 817,
+      "symbol_guess": "v86_exc_c",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    },
+    {
+      "file": "kernel/core/v86.inc",
+      "line": 916,
+      "symbol_guess": "v86_irq2",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    },
+    {
+      "file": "kernel/data32.inc",
+      "line": 378,
+      "symbol_guess": "fpu_data",
+      "phase": "runtime",
+      "tokens": [
+        "pte_valid_mask"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "mask_read",
+      "must_move_behind_rust_api": false,
+      "code": "pte_valid_mask      dd  ?"
+    },
+    {
+      "file": "kernel/gui/background.inc",
+      "line": 206,
+      "symbol_guess": "nosb5",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "or",
+      "role": "pte_set_flags",
+      "must_move_behind_rust_api": true,
+      "code": "or      dword [page_tabs+(ebx-1)*4], MEM_BLOCK_DONT_FREE"
+    },
+    {
+      "file": "kernel/gui/background.inc",
+      "line": 215,
+      "symbol_guess": "nosb5",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [page_tabs+ebx*4]"
+    },
+    {
+      "file": "kernel/gui/background.inc",
+      "line": 222,
+      "symbol_guess": "nosb5",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     eax, [page_tabs+esi*4]"
+    },
+    {
+      "file": "kernel/gui/background.inc",
+      "line": 224,
+      "symbol_guess": "nosb5",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     [page_tabs+ebx*4], eax"
+    },
+    {
+      "file": "kernel/gui/background.inc",
+      "line": 227,
+      "symbol_guess": "nosb5",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [eax]"
+    },
+    {
+      "file": "kernel/gui/background.inc",
+      "line": 250,
+      "symbol_guess": "nosb6",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": true,
+      "code": "mov     ecx, [page_tabs+(eax-1)*4]"
+    },
+    {
+      "file": "kernel/gui/background.inc",
+      "line": 260,
+      "symbol_guess": "nosb6",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "and",
+      "role": "pte_mask_flags",
+      "must_move_behind_rust_api": true,
+      "code": "and     dword [page_tabs+eax*4], 0"
+    },
+    {
+      "file": "kernel/gui/background.inc",
+      "line": 264,
+      "symbol_guess": "nosb6",
+      "phase": "runtime",
+      "tokens": [
+        "invlpg"
+      ],
+      "is_write": true,
+      "write_kind": "invlpg",
+      "role": "tlb_invalidate",
+      "must_move_behind_rust_api": true,
+      "code": "invlpg  [edx]"
+    },
+    {
+      "file": "kernel/gui/background.inc",
+      "line": 269,
+      "symbol_guess": "nosb6",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "and",
+      "role": "pte_mask_flags",
+      "must_move_behind_rust_api": true,
+      "code": "and     dword [page_tabs+(eax-1)*4], not MEM_BLOCK_DONT_FREE"
+    },
+    {
+      "file": "kernel/init.inc",
+      "line": 107,
+      "symbol_guess": "init_mem",
+      "phase": "boot",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": false,
+      "code": "mov     [tmp_page_tabs], edx"
+    },
+    {
+      "file": "kernel/init.inc",
+      "line": 143,
+      "symbol_guess": "init_mem",
+      "phase": "boot",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": false,
+      "code": "mov     edi, [tmp_page_tabs]"
+    },
+    {
+      "file": "kernel/init.inc",
+      "line": 147,
+      "symbol_guess": "init_mem",
+      "phase": "boot",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": false,
+      "code": "mov     ecx, [tmp_page_tabs]"
+    },
+    {
+      "file": "kernel/init.inc",
+      "line": 150,
+      "symbol_guess": "init_mem",
+      "phase": "boot",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": false,
+      "code": "mov     edi, [tmp_page_tabs]"
+    },
+    {
+      "file": "kernel/init.inc",
+      "line": 164,
+      "symbol_guess": "init_mem",
+      "phase": "boot",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": false,
+      "code": "mov     eax, [tmp_page_tabs]"
+    },
+    {
+      "file": "kernel/init.inc",
+      "line": 174,
+      "symbol_guess": "init_mem",
+      "phase": "boot",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": false,
+      "code": "mov     dword [sys_proc-OS_BASE+PROC.pdt_0+(page_tabs shr 20)], sys_proc+PROC.pdt_0+PG_SWR-OS_BASE"
+    },
+    {
+      "file": "kernel/init.inc",
+      "line": 246,
+      "symbol_guess": "init_page_map",
+      "phase": "boot",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "pte_store",
+      "must_move_behind_rust_api": false,
+      "code": "mov     ecx, [tmp_page_tabs]"
+    },
+    {
+      "file": "kernel/kernel.asm",
+      "line": 148,
+      "symbol_guess": "B32",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    },
+    {
+      "file": "kernel/kernel.asm",
+      "line": 159,
+      "symbol_guess": "B32",
+      "phase": "runtime",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "tmp_page_tabs   dd ?"
+    },
+    {
+      "file": "kernel/kernel.asm",
+      "line": 164,
+      "symbol_guess": "ap_init16",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "mov     eax, [cs:cr3_ap - ap_init16]"
+    },
+    {
+      "file": "kernel/kernel.asm",
+      "line": 165,
+      "symbol_guess": "ap_init16",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    },
+    {
+      "file": "kernel/kernel.asm",
+      "line": 176,
+      "symbol_guess": "gdts_ap",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "cr3_ap  dd     ?"
+    },
+    {
+      "file": "kernel/kernel.asm",
+      "line": 220,
+      "symbol_guess": "high_code",
+      "phase": "runtime",
+      "tokens": [
+        "pte_valid_mask"
+      ],
+      "is_write": true,
+      "write_kind": "mov",
+      "role": "mask_init",
+      "must_move_behind_rust_api": false,
+      "code": "mov     [pte_valid_mask], ebx"
+    },
+    {
+      "file": "kernel/kernel.asm",
+      "line": 226,
+      "symbol_guess": "high_code",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "mov     eax, cr3"
+    },
+    {
+      "file": "kernel/kernel.asm",
+      "line": 227,
+      "symbol_guess": "high_code",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    },
+    {
+      "file": "kernel/kernel.asm",
+      "line": 816,
+      "symbol_guess": "high_code",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "mov     [cr3_ap + OS_BASE], eax"
+    },
+    {
+      "file": "kernel/kernel.asm",
+      "line": 865,
+      "symbol_guess": "high_code",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "mov     eax, [cr3_ap + OS_BASE]"
+    },
+    {
+      "file": "kernel/kernel.asm",
+      "line": 1307,
+      "symbol_guess": "ap_init_high",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    },
+    {
+      "file": "kernel/kernel.asm",
+      "line": 4785,
+      "symbol_guess": "sys_apm",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "mov     edi, cr3"
+    },
+    {
+      "file": "kernel/kernel.asm",
+      "line": 4786,
+      "symbol_guess": "sys_apm",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, edi"
+    },
+    {
+      "file": "kernel/kernel.asm",
+      "line": 4792,
+      "symbol_guess": "sys_apm",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "mov     eax, cr3"
+    },
+    {
+      "file": "kernel/kernel.asm",
+      "line": 4793,
+      "symbol_guess": "sys_apm",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    },
+    {
+      "file": "kernel/rust/usb_td_to_virt.inc",
+      "line": 64,
+      "symbol_guess": "usb_td_to_virt_rust_smoke_test",
+      "phase": "diagnostic",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "stdcall rust_usb_td_to_virt, esi, 0xDEAD0000, page_tabs, OS_BASE"
+    },
+    {
+      "file": "kernel/rust/usb_td_to_virt.inc",
+      "line": 70,
+      "symbol_guess": "usb_td_to_virt_rust_smoke_test",
+      "phase": "diagnostic",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "stdcall rust_usb_td_to_virt, esi, eax, page_tabs, OS_BASE"
+    },
+    {
+      "file": "kernel/rust/usb_td_to_virt.inc",
+      "line": 77,
+      "symbol_guess": "usb_td_to_virt_rust_smoke_test",
+      "phase": "diagnostic",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "stdcall rust_usb_td_to_virt, esi, eax, page_tabs, OS_BASE"
+    },
+    {
+      "file": "kernel/rust/usb_td_to_virt.inc",
+      "line": 86,
+      "symbol_guess": "usb_td_to_virt_rust_smoke_test",
+      "phase": "diagnostic",
+      "tokens": [
+        "page_tabs"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "stdcall rust_usb_td_to_virt, esi, eax, page_tabs, OS_BASE"
+    },
+    {
+      "file": "kernel/video/framebuffer.inc",
+      "line": 133,
+      "symbol_guess": "init_video",
+      "phase": "runtime",
+      "tokens": [
+        "pte_valid_mask"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "mask_read",
+      "must_move_behind_rust_api": false,
+      "code": "and     esi, [pte_valid_mask]"
+    },
+    {
+      "file": "kernel/video/framebuffer.inc",
+      "line": 155,
+      "symbol_guess": "init_video",
+      "phase": "runtime",
+      "tokens": [
+        "pte_valid_mask"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "mask_read",
+      "must_move_behind_rust_api": false,
+      "code": "and     esi, [pte_valid_mask]"
+    },
+    {
+      "file": "kernel/video/framebuffer.inc",
+      "line": 200,
+      "symbol_guess": "init_video",
+      "phase": "runtime",
+      "tokens": [
+        "pte_valid_mask"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "mask_read",
+      "must_move_behind_rust_api": false,
+      "code": "and     eax, [pte_valid_mask]"
+    },
+    {
+      "file": "kernel/video/framebuffer.inc",
+      "line": 231,
+      "symbol_guess": "set_framebuffer",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "jnc     .cr3_flush"
+    },
+    {
+      "file": "kernel/video/framebuffer.inc",
+      "line": 244,
+      "symbol_guess": "set_framebuffer",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": ".cr3_flush:"
+    },
+    {
+      "file": "kernel/video/framebuffer.inc",
+      "line": 245,
+      "symbol_guess": "set_framebuffer",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": false,
+      "write_kind": "none",
+      "role": "read_or_address",
+      "must_move_behind_rust_api": false,
+      "code": "mov     eax, cr3"
+    },
+    {
+      "file": "kernel/video/framebuffer.inc",
+      "line": 246,
+      "symbol_guess": "set_framebuffer",
+      "phase": "runtime",
+      "tokens": [
+        "cr3"
+      ],
+      "is_write": true,
+      "write_kind": "mov_cr3",
+      "role": "cr3_switch",
+      "must_move_behind_rust_api": false,
+      "code": "mov     cr3, eax"
+    }
+  ]
+}

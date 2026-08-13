@@ -208,6 +208,13 @@ out = "rust_ntfs_get_time_pack.bin"
 
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_ext_set_file_info"
+symbol = "rust_ext_set_file_info"
+expect_ret_imm = 4
+out = "rust_ext_set_file_info.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_ext_write_time_pack"
 symbol = "rust_ext_write_time_pack"
 expect_ret_imm = 12
@@ -1044,6 +1051,15 @@ symbol = "rust_ntfs_get_time_pack"
 gate = "USE_RUST_NTFS_GET_TIME"
 include = "kernel/rust/ntfs_get_time.inc"
 gate_file = "kernel/fs/ntfs.inc"
+enabled = true
+
+[[rust.migrations]]
+cut = "CV"
+blob = "rust_ext_set_file_info.bin"
+symbol = "rust_ext_set_file_info"
+gate = "USE_RUST_EXT_SET_FILE_INFO"
+include = "kernel/rust/ext_set_file_info.inc"
+gate_file = "kernel/fs/ext.inc"
 enabled = true
 
 [[rust.migrations]]

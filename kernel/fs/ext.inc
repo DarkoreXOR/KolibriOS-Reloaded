@@ -3108,6 +3108,41 @@ endp
 end if
 
 ;----------------------------------------------------------------
+; Cut CV: USE_RUST_EXT_SET_FILE_INFO=1 routes through Rust after
+; extfsWritingInit (lock + RO non-local return stay FASM).
+; Set USE_RUST_EXT_SET_FILE_INFO=0 to restore the original FASM body
+; without deleting it. Independent of Cuts A–CU.
+; Critical ABI: stdcall rust_ext_set_file_info(ctx) ret 4 (REG-009);
+; ctx 44 bytes; callbacks findInode/fsCalculateTime/writeInode/
+; writeSuperblock/disk_sync/ext_unlock. Marker ESFI.
+; Production default ON after Cut CV gates.
+
+USE_RUST_EXT_SET_FILE_INFO = 1
+
+if USE_RUST_EXT_SET_FILE_INFO
+ext_SetFileInfo:
+        call    extfsWritingInit
+        ; Stack layout after sub: ctx[44]; return to plugin caller above.
+        ; REG-010: document every dword before stdcall.
+        sub     esp, 44
+        mov     [esp+0], ebx                  ; f70
+        mov     [esp+4], ebp                  ; EXTFS
+        mov     [esp+8], esi                  ; UTF-8 path
+        lea     eax, [ebp+EXTFS.inodeBuffer]
+        mov     [esp+12], eax
+        mov     eax, [ebp+PARTITION.Disk]
+        mov     [esp+16], eax
+        mov     dword [esp+20], findInode
+        mov     dword [esp+24], fsCalculateTime
+        mov     dword [esp+28], writeInode
+        mov     dword [esp+32], writeSuperblock
+        mov     dword [esp+36], disk_sync
+        mov     dword [esp+40], ext_unlock
+        mov     eax, esp
+        stdcall rust_ext_set_file_info, eax   ; pops arg; ctx remains
+        add     esp, 44
+        ret
+else
 ext_SetFileInfo:
         call    extfsWritingInit
         call    findInode
@@ -3147,6 +3182,7 @@ ext_SetFileInfo:
         call    ext_unlock
         pop     eax
         ret
+end if
 
 ;----------------------------------------------------------------
 ext_Delete:
