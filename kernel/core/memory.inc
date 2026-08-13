@@ -5,6 +5,120 @@
 ;;                                                              ;;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
+;=======================================================================
+; Cut CU / Slice E — physical bitmap ownership master gate
+;
+; USE_RUST_PHYS_BITMAP_OWNERSHIP=1:
+;   Rust sole runtime writer of sys_pgmap / pages_free / page_start
+;   via alloc_page + free_page + alloc_pages + Mode-B release helper.
+;   release_pages orchestration stays FASM (no Mode-A counter store).
+;
+; =0: full pre-Slice-E FASM ownership + CT Mode-A helper path.
+; Never enable partial Rust ownership of these three state domains.
+;=======================================================================
+USE_RUST_PHYS_BITMAP_OWNERSHIP = 1
+; Retained for Slice-E-OFF / Cut CT Mode-A path and build.toml gate validation.
+USE_RUST_RELEASE_BITMAP_PAGE_WITHOUT_CURSOR_UPDATE = 1
+
+uglobal
+align 4
+; Temporaries: absolute page_start/page_end ↔ byte offsets from sys_pgmap
+slce_off_start  dd ?
+slce_off_end    dd ?
+endg
+
+if USE_RUST_PHYS_BITMAP_OWNERSHIP
+
+; --- alloc_page (Rust) ---
+align 4
+proc alloc_page
+        pushfd
+        cli
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    edi
+        push    ebp
+        mov     eax, [page_start]
+        sub     eax, sys_pgmap
+        mov     [slce_off_start], eax
+        mov     eax, [page_end]
+        sub     eax, sys_pgmap
+        mov     [slce_off_end], eax
+        stdcall rust_alloc_page, sys_pgmap, slce_off_start, slce_off_end, pg_data.pages_free
+        mov     ebx, [slce_off_start]
+        add     ebx, sys_pgmap
+        mov     [page_start], ebx
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        popfd
+        ret
+endp
+
+; --- alloc_pages (Rust) ---
+align 4
+proc alloc_pages stdcall, count:dword
+        pushfd
+        push    ebx
+        push    edi
+        push    esi
+        push    ecx
+        push    edx
+        push    ebp
+        cli
+        mov     eax, [page_start]
+        sub     eax, sys_pgmap
+        mov     [slce_off_start], eax
+        mov     eax, [page_end]
+        sub     eax, sys_pgmap
+        mov     [slce_off_end], eax
+        stdcall rust_alloc_pages, [count], sys_pgmap, slce_off_start, slce_off_end, pg_data.pages_free
+        ; page_start unchanged (alloc_pages must not write cursor)
+        pop     ebp
+        pop     edx
+        pop     ecx
+        pop     esi
+        pop     edi
+        pop     ebx
+        popfd
+        ret
+endp
+
+; --- free_page (Rust) ---
+align 4
+proc free_page
+;arg:  eax  page address
+        pushfd
+        cli
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    edi
+        push    ebp
+        mov     ebx, [page_start]
+        sub     ebx, sys_pgmap
+        mov     [slce_off_start], ebx
+        stdcall rust_free_page, eax, sys_pgmap, slce_off_start, pg_data.pages_free
+        mov     ebx, [slce_off_start]
+        add     ebx, sys_pgmap
+        mov     [page_start], ebx
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        popfd
+        ret
+endp
+
+else
 
 align 4
 proc alloc_page
@@ -121,28 +235,6 @@ proc alloc_pages stdcall, count:dword
 endp
 
 align 4
-;proc map_page stdcall,lin_addr:dword,phis_addr:dword,flags:dword
-map_page:
-        push    ebx
-        mov     eax, [esp+12]              ; phis_addr
-        or      eax, [esp+16]              ; flags
-        and     eax, [pte_valid_mask]
-        mov     ebx, [esp+8]               ; lin_addr
-        shr     ebx, 12
-        mov     [page_tabs + ebx*4], eax
-        mov     eax, [esp+8]               ; lin_addr
-        pop     ebx
-        invlpg  [eax]
-        ret     12
-
-align 4
-map_space:    ;not implemented
-
-
-        ret
-
-
-align 4
 proc free_page
 ;arg:  eax  page address
         pushfd
@@ -163,6 +255,29 @@ proc free_page
         popfd
         ret
 endp
+
+end if
+
+align 4
+;proc map_page stdcall,lin_addr:dword,phis_addr:dword,flags:dword
+map_page:
+        push    ebx
+        mov     eax, [esp+12]              ; phis_addr
+        or      eax, [esp+16]              ; flags
+        and     eax, [pte_valid_mask]
+        mov     ebx, [esp+8]               ; lin_addr
+        shr     ebx, 12
+        mov     [page_tabs + ebx*4], eax
+        mov     eax, [esp+8]               ; lin_addr
+        pop     ebx
+        invlpg  [eax]
+        ret     12
+
+align 4
+map_space:    ;not implemented
+
+
+        ret
 
 align 4
 proc map_io_mem stdcall, base:dword, size:dword, flags:dword
@@ -250,8 +365,9 @@ commit_pages:
 ;  eax= base
 ;  ecx= count
 ;
-; Bitmap BTS + pages_free accounting is delegated to
-; release_bitmap_page_without_cursor_update (Mode A: local EBP batching).
+; Bitmap BTS + pages_free accounting:
+;   Slice E ON  → Mode B Rust helper updates pages_free; no FASM Mode-A store
+;   Slice E OFF → Mode A: CT/FASM helper returns delta; FASM batches into EBP
 ; MUST NOT call free_page — that path may lower page_start.
 
 align 4
@@ -273,8 +389,10 @@ release_pages:
         call    mutex_lock
         pop     ecx
 
+if USE_RUST_PHYS_BITMAP_OWNERSHIP = 0
         mov     ebp, [pg_data.pages_free]
         ; Local page_start candidate (legacy EBX) omitted: FASM never stored it.
+end if
 @@:
         xor     eax, eax
         xchg    eax, [esi]
@@ -285,13 +403,18 @@ release_pages:
 
         shr     eax, 12
         call    release_bitmap_page_without_cursor_update
+if USE_RUST_PHYS_BITMAP_OWNERSHIP = 0
         add     ebp, eax                ; Mode A: batch; was adc ebp,0 via CF
+end if
+        ; Mode B: helper already updated pages_free; EAX delta ignored
 .next:
         add     edi, PAGE_SIZE
         add     esi, 4
         loop    @B
 
+if USE_RUST_PHYS_BITMAP_OWNERSHIP = 0
         mov     [pg_data.pages_free], ebp
+end if
         mov     ecx, pg_data.mutex
         call    mutex_unlock
 
@@ -302,31 +425,41 @@ release_pages:
         ret
 
 ;=======================================================================
-; release_bitmap_page_without_cursor_update — Cut CT bitmap release helper
+; release_bitmap_page_without_cursor_update
 ;
-; Mechanical extract of release_pages bitmap half. NOT free_page.
-; Does NOT write page_start. Does NOT clear PTEs / invlpg / mutex.
-; Does NOT write [pages_free] (caller batches via returned delta).
+; Slice E ON:  Mode B Rust (BTS + pages_free += delta; no page_start)
+; Slice E OFF: Cut CT Mode A (BTS + delta only) or FASM body
 ;
 ; IN:  EAX = page index (phys >> 12)
-; OUT: EAX = delta ∈ {0,1}  (1 iff OLD bit was 0 / allocated)
+; OUT: EAX = delta ∈ {0,1}
 ; Preserves: EBX, ECX, EDX, ESI, EDI, EBP
-; Clobbers: EAX, EFLAGS
-; DF: unchanged
-; Stack: plain call / ret (0) — no stdcall
-;
-; Cut CT: USE_RUST_RELEASE_BITMAP_PAGE_WITHOUT_CURSOR_UPDATE=1 routes through
-; Rust (see rust/release_bitmap_page_without_cursor_update.inc).
-; Set =0 to restore the extracted FASM body without deleting it.
 ;=======================================================================
 
-USE_RUST_RELEASE_BITMAP_PAGE_WITHOUT_CURSOR_UPDATE = 1
+if USE_RUST_PHYS_BITMAP_OWNERSHIP
+
+align 4
+release_bitmap_page_without_cursor_update:
+        push    ebx
+        push    ecx
+        push    edx
+        push    esi
+        push    edi
+        push    ebp
+        stdcall rust_release_bitmap_page_mode_b, eax, sys_pgmap, pg_data.pages_free
+        pop     ebp
+        pop     edi
+        pop     esi
+        pop     edx
+        pop     ecx
+        pop     ebx
+        ret
+
+else
+
+; Pre-Slice-E: Cut CT Mode A gate (symbol already set at file top)
 
 if USE_RUST_RELEASE_BITMAP_PAGE_WITHOUT_CURSOR_UPDATE
 
-; Compatibility trampoline: register ABI → Rust stdcall → EAX.
-; Injects sys_pgmap so the Rust blob stays reloc-free (Cut AA class).
-; Preserves EBX/ECX/EDX/ESI/EDI/EBP. No CF public contract (REG-018).
 align 4
 release_bitmap_page_without_cursor_update:
         push    ebx
@@ -353,6 +486,8 @@ release_bitmap_page_without_cursor_update:
         mov     eax, 0
         adc     eax, 0                  ; EAX = delta ∈ {0,1}
         ret
+
+end if
 
 end if
 

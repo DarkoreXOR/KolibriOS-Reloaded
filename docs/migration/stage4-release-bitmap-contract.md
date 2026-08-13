@@ -7,7 +7,9 @@
 **Inventory after CT:** **100 / 136**  
 **Decisions:**
 - **RELEASE BITMAP CONTRACT — READY** (host + disposable smoke)
-- **Cut CT COMPLETE** — Rust owns the extracted helper; `release_pages` Mode A remains FASM
+- **Cut CT COMPLETE** — Rust owns the extracted helper; historical Mode A
+- **Cut CU / Slice E COMPLETE** — Mode B: helper also owns `pages_free += delta`;
+  `release_pages` no longer Mode-A batches — see [`cut-cu-implementation.md`](cut-cu-implementation.md)
 
 ---
 

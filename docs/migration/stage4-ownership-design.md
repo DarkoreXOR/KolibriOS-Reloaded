@@ -1,38 +1,43 @@
 # Stage-4 Ownership Design (Physical Allocator)
 
-**Date:** 2026-08-13 (research); Cut CT 2026-08-14  
-**Status:** research complete; **Cut CT** migrated the §19 helper only — Stage-4
-allocator ownership is **not** complete  
-**Parent blocked state:** [`cut-cs-plan.md`](cut-cs-plan.md) (historical); next cut is **CU** (do not start)  
-**Inventory after CT:** **100 / 136**  
-**Live A/B:** [`stage4-release-pages-ab.md`](stage4-release-pages-ab.md)  
-  (**RELEASE/FREE PAGE_START DIFFERENCE PROVEN**)  
-**Call-out ABI / Cut CT:** §19 /
+**Date:** 2026-08-13 (research); Cut CT 2026-08-14; Slice E / Cut CU 2026-08-14  
+**Status:** **Slice E / Cut CU COMPLETE** — Rust sole runtime owner of
+`sys_pgmap` / `pages_free` / `page_start`; PTE/`map_page`/fault/CR3/mutex/`invlpg`
+and `release_pages` orchestration remain FASM  
+**Implementation:** [`cut-cu-implementation.md`](cut-cu-implementation.md)  
+**Cut plan:** [`cut-cu-plan.md`](cut-cu-plan.md) /
+  [`stage4-bitmap-ownership-cut-plan.md`](stage4-bitmap-ownership-cut-plan.md)  
+**Post-CT audit (historical):** [`stage4-next-ownership-audit.md`](stage4-next-ownership-audit.md)  
+**Parent blocked state:** [`cut-cs-plan.md`](cut-cs-plan.md) (historical)  
+**Inventory after CU:** **103 / 138**  
+**Live A/B:** [`stage4-release-pages-ab.md`](stage4-release-pages-ab.md)
+  (**RELEASE/FREE PAGE_START DIFFERENCE PROVEN** — revalidated under Slice E ON)  
+**Call-out ABI:** §19 /
   [`stage4-release-bitmap-contract.md`](stage4-release-bitmap-contract.md) /
-  [`cut-ct-implementation.md`](cut-ct-implementation.md)  
-  (**Cut CT COMPLETE** — helper Rust-owned; `release_pages` Mode A still FASM)  
+  Mode B under Cut CU  
 **Evidence policy:** [`../_meta/evidence-policy.md`](../_meta/evidence-policy.md)
 
-> This document answers whether `alloc_page` / `map_page` can become a
-> legitimate **Rust-owned** Stage-4 subsystem. Cut CT is a Path B helper leaf
-> only — it does **not** transfer full allocator ownership.
+> Cut CU / Slice E transferred sole **runtime** ownership of the physical
+> bitmap allocator state to Rust. This is **not** general paging ownership:
+> `release_pages` remains FASM orchestration; PTE/CR3/fault/mutex/`invlpg` stay FASM.
 
 ---
 
-## 1. Verified baseline (2026-08-13)
+## 1. Verified baseline (post–Cut CU / Slice E)
 
 | Item | Value |
 |------|-------|
-| Inventory | **100 / 136** (post–Cut CT) |
-| Production gates | **100** enabled |
+| Inventory | **103 / 138** (post–Cut CU) |
+| Production gates | **104** enabled (`[[rust.migrations]]`) |
 | Cut CS | **BLOCKED** (historical) |
-| Cut CT | **COMPLETE** — [`cut-ct-implementation.md`](cut-ct-implementation.md) |
+| Cut CT | **COMPLETE** — Mode A leaf; superseded for `pages_free` by Mode B when CU ON |
+| Cut CU / Slice E | **COMPLETE** — [`cut-cu-implementation.md`](cut-cu-implementation.md) |
 | `TMP_STACK_TOP` / `sys_proc` / `SLOT_BASE` | **`0x8E000` / `0x8E000` / `0x90000`** (REG-012) |
-| Cut CR ON end `.bss` | `OS_BASE+0x8C3C3` (~4.9 KiB headroom to TMP) |
-| Cut CO `unpack` | **COMPLETE** — not a Stage-4 blocker |
+| Cut CU ON end `.bss` | `OS_BASE+0x8C7C3` (assert `0x8D7C3 < 0x8E000` PASS) |
+| Combined Slice E blobs | **546 B**, 0 relocs |
 
-Path A remains **REJECTED** for opportunistic leaf bundling. This design
-proposes a *future* Path A candidate only after the prerequisites below land.
+Path A is **accepted for Slice E** as one coherent multi-symbol ownership cut
+(not four Path B leaves). Opportunistic leaf bundling remains rejected.
 
 ---
 
@@ -79,26 +84,25 @@ PE exports (`exports.inc`): `AllocPage`, `AllocPages`, `FreePage`, `ReleasePages
 
 ### 2.1a CURRENT vs FUTURE ownership (summary)
 
-**CURRENT IMPLEMENTATION (authoritative today — all FASM):**
+**CURRENT IMPLEMENTATION (authoritative today — post–Cut CT):**
 
 | Domain | Owner | Notes |
 |--------|-------|-------|
-| `sys_pgmap` | **FASM** | Runtime writers: `alloc_page`, `alloc_pages`, `free_page`, `release_pages` |
-| `pages_free` | **FASM** | Same writers (+ OOM quirk on `alloc_page`) |
-| `page_start` | **FASM** | Written by `alloc_page` / `free_page` / boot; **not** by `release_pages` store |
-| `alloc_page` / `alloc_pages` / `free_page` | **FASM** | Full bodies |
-| `release_pages` orchestration + FASM bitmap helper | **FASM** | Helper: `release_bitmap_page_without_cursor_update`; no Rust |
+| `sys_pgmap` | **Rust** (sole runtime writer) | Boot `init_page_map` still FASM; RO FASM consumers OK |
+| `pages_free` | **Rust** (sole runtime writer) | Mode B helper; no FASM Mode-A store in `release_pages` |
+| `page_start` | **Rust** (sole runtime writer) | Only `alloc_page` / `free_page`; never release / `alloc_pages` |
+| `alloc_page` / `alloc_pages` / `free_page` | **Rust** (Cut CU) | Distinct public ABIs; shared internal primitives OK |
+| `release_bitmap_page_without_cursor_update` | **Rust Mode B** | BTS + `pages_free += delta`; no `page_start` |
+| `release_pages` orchestration | **FASM** | mutex / PTE / `invlpg` / loop; no Mode-A counter |
 | Boot `init_page_map` / `page_end` | **FASM** | Boot-only writers |
 
-**FUTURE PROPOSED ownership (design only — NOT implemented; NOT authorized):**
+**Slice E is COMPLETE** — see [`cut-cu-implementation.md`](cut-cu-implementation.md).
+Historical dual-ownership (post-CT Mode A) is rollback-only when
+`USE_RUST_PHYS_BITMAP_OWNERSHIP = 0`.
 
-| Domain | Future owner | Notes |
-|--------|--------------|-------|
-| `sys_pgmap` / `pages_free` / `page_start` | **Rust** (sole runtime writer) | After boot handoff |
-| `alloc_page` / `alloc_pages` / `free_page` | **Rust** | Preserve legacy quirks |
-| Bitmap half of `release_pages` | **Rust** dedicated call-out (§19) | **≠ `free_page`** — EAX=page_index; no `page_start` |
-| PTE clear / `invlpg` / mutex / lin→PTE loop | **FASM** | Remains outside first bitmap slice |
-| Boot `init_page_map` | **FASM** | Then transfer write ownership |
+**Rejected intermediate slices** (post-CT audit; still valid policy): `alloc_page`
+alone; alloc+free without `alloc_pages`+Mode B; Mode-B-only helper cut — all leave
+dual ownership. Details: [`stage4-next-ownership-audit.md`](stage4-next-ownership-audit.md) §3.
 
 Semantic difference between `free_page` and the release bitmap path is a
 **HARD ABI constraint** — proven live; see §15.
@@ -136,17 +140,18 @@ flowchart TB
     init_page_map[init_page_map]
   end
 
-  subgraph phys [Physical allocator state — FASM owned]
-    sys_pgmap[sys_pgmap]
-    pages_free[pg_data.pages_free]
-    page_start[page_start / page_end]
+  subgraph phys [Physical allocator state — mostly FASM]
+    sys_pgmap[sys_pgmap split writers]
+    pages_free[pg_data.pages_free FASM]
+    page_start[page_start / page_end FASM]
   end
 
   subgraph phys_api [Bitmap writers]
-    alloc_page[alloc_page]
-    alloc_pages[alloc_pages]
-    free_page[free_page]
-    release_pages[release_pages inline BTS no page_start store]
+    alloc_page[alloc_page FASM]
+    alloc_pages[alloc_pages FASM]
+    free_page[free_page FASM]
+    release_pages[release_pages orch FASM]
+    ct_helper[CT release_bitmap helper Rust]
   end
 
   subgraph virt [Virtual map — FASM owned]
@@ -168,7 +173,13 @@ flowchart TB
   end
 
   init_mem --> init_page_map --> phys
-  phys_api --> phys
+  alloc_page --> phys
+  alloc_pages --> phys
+  free_page --> phys
+  release_pages --> ct_helper
+  ct_helper --> sys_pgmap
+  release_pages --> pages_free
+  release_pages --> page_tabs
   map_page --> page_tabs
   other_pte --> page_tabs
   map_page --> invlpg
@@ -179,11 +190,9 @@ flowchart TB
   AQ --> page_tabs
   BL --> page_tabs
   CI --> page_tabs
-  release_pages --> phys
-  release_pages --> page_tabs
 ```
 
-**Key inference:** Physical bitmap and virtual PTE space are **coupled in call graphs** (fault, heap, process create) but are **separate ownership domains**. Claiming Path A for both at once is a flag-day. Claiming Path A for `map_page` alone is false ownership.
+**Key inference:** Physical bitmap and virtual PTE space are **coupled in call graphs** (fault, heap, process create) but are **separate ownership domains**. Cut CT inserts one Rust map writer on the release path only — dual ownership of the bitmap domain remains. Claiming Path A for both domains at once is a flag-day. Claiming Path A for `map_page` or CT alone is false ownership.
 
 ---
 
@@ -213,7 +222,11 @@ flowchart TB
 | `alloc_page` | Single-page allocate; may advance `page_start` |
 | `free_page` | Single-page free; **may lower `page_start`** (legacy) |
 | `alloc_pages` | Multi-page allocate (same bitmap); does not move `page_start` |
-| Bitmap half of `release_pages` | Dedicated Rust call-out (§19): EAX=page_index → BTS + delta/`pages_free`; **MUST NOT** update `page_start`; **MUST NOT** be `free_page` |
+| Bitmap half of `release_pages` | Dedicated Rust call-out (§19 / CT); **Mode B** for sole `pages_free` ownership: EAX=page_index → BTS + `pages_free += delta`; **MUST NOT** update `page_start`; **MUST NOT** be `free_page` |
+
+**Post-CT audit name:** this set is **Slice E**
+([`stage4-next-ownership-audit.md`](stage4-next-ownership-audit.md)).
+`alloc_page` alone / without Mode B remains rejected (§4.1 + audit §3).
 
 **Forbidden convergence:** Replacing `release_pages` bitmap work with a loop of
 `free_page` (or a Rust API that aliases `free_page`) would **change** live
@@ -383,13 +396,20 @@ Do **not** treat disposable soak tooling as production Rust ownership.
 - [x] Disposable ABI smoke (RBPB) for contract shape — same doc.
 - [x] Production FASM `release_pages` calls named bitmap helper (not `free_page`).
 - [x] Rust replacement of helper body + `USE_RUST_*` — **Cut CT** ([`cut-ct-implementation.md`](cut-ct-implementation.md)).
-- [ ] Explicit ownership acceptance recorded (Rust sole runtime bitmap writer) — **not** claimed; alloc/free/alloc_pages still FASM.
-- [ ] Production soak plan beyond disposable PE / desktop (pressure + fault growth + FS/AHCI + A/B) — partial (CT used pressure/recovery soak; full allocator ownership soak open).
-- [ ] Minimal observability agreed for production gate (full allocator).
-- [ ] `map_page` explicitly **out of** the first ownership cut (or separate Path B proposal with no Path A claim).
+- [x] Post-CT ownership audit — next coherent slice defined (**Slice E**) —
+  [`stage4-next-ownership-audit.md`](stage4-next-ownership-audit.md).
+- [x] Slice E multi-symbol ownership cut plan (research) —
+  [`stage4-bitmap-ownership-cut-plan.md`](stage4-bitmap-ownership-cut-plan.md).
+- [x] Explicit ownership acceptance recorded (Rust sole runtime bitmap writer) —
+  Cut CU / Slice E ([`cut-cu-implementation.md`](cut-cu-implementation.md)).
+- [x] Explicit authorization + production implementation of Slice E — **Cut CU COMPLETE**.
+- [x] Production soak (pressure + recovery + FS/GUI + A/B + ON×3) — Cut CU evidence.
+- [x] Observability / gate — `USE_RUST_PHYS_BITMAP_OWNERSHIP = 1`.
+- [x] `map_page` explicitly **out of** Slice E — affirmed; remains FASM.
 
-Helper leaf Cut CT is complete. Full Stage-4 allocator ownership remains **open**.
-Do not start Cut CU from this document alone.
+Helper leaf Cut CT + Slice E / Cut CU are complete for phys-bitmap **runtime**
+ownership. PTE/`map_page`/fault/CR3 remain open Stage-4 work — do **not** start
+Cut CV from this document alone.
 
 ---
 
@@ -417,8 +437,20 @@ Do not start Cut CU from this document alone.
 [`cut-ct-implementation.md`](cut-ct-implementation.md)
 (`USE_RUST_RELEASE_BITMAP_PAGE_WITHOUT_CURSOR_UPDATE = 1`).
 
-**Next:** further Stage-4 research / authorized Cut CU only — do **not** migrate
-`alloc_page` / `free_page` / `release_pages` without a new ownership cut plan.
+~~Post-CT fresh ownership audit~~ — **DONE**:
+[`stage4-next-ownership-audit.md`](stage4-next-ownership-audit.md)
+(**NEXT OWNERSHIP SLICE READY** — Slice E).
+
+~~Slice E ownership cut plan~~ — **DONE**:
+[`stage4-bitmap-ownership-cut-plan.md`](stage4-bitmap-ownership-cut-plan.md)
+(**SLICE E READY FOR AUTHORIZATION** — historical; later implemented).
+
+~~Slice E / Cut CU production~~ — **DONE**:
+[`cut-cu-implementation.md`](cut-cu-implementation.md)
+(`USE_RUST_PHYS_BITMAP_OWNERSHIP = 1`).
+
+**Next:** PTE/`map_page`/fault/CR3 ownership remains open — only after a fresh
+audit and explicit authorization. Do **not** start Cut CV from this document.
 
 ---
 
@@ -426,26 +458,32 @@ Do not start Cut CU from this document alone.
 
 **STAGE-4 UNBLOCK DESIGN READY** — for the **physical allocator bitmap domain**
 only (`alloc_page` + `free_page` + `alloc_pages` + dedicated release-bitmap
-call-out), with boot init and virtual/`map_page`/fault/CR3/`release_pages`
+call-out with **Mode B** `pages_free`), with boot init and virtual/`map_page`/fault/CR3/`release_pages`
 orchestration remaining FASM.
 
-**Semantic difference proven. Call-out ABI designed (§19). FASM helper extracted.
-Cut CT helper migration complete. Full allocator ownership still blocked.**
+**Post-CT:** semantic split proven; call-out live in Rust (Mode A); Slice E
+defined as next coherent ownership boundary
+([`stage4-next-ownership-audit.md`](stage4-next-ownership-audit.md)).
+**Full allocator ownership still blocked pending authorized multi-symbol cut.**
 
-Interpretation of the live A/B + ABI audit + FASM extract + Cut CT:
+Interpretation of the live A/B + ABI audit + FASM extract + Cut CT + post-CT audit:
 
 | Claim | Status |
 |-------|--------|
 | “Semantic difference proven” | **Yes** |
 | “Call-out ABI design ready” | **Yes** (§19) |
 | “FASM bitmap helper extracted” | **Yes** |
-| “Rust helper leaf (Cut CT)” | **Yes** — bitmap release only |
+| “Rust helper leaf (Cut CT)” | **Yes** — bitmap release only (Mode A) |
+| “Next coherent ownership slice defined” | **Yes** — Slice E |
+| “Slice E cut plan complete” | **Yes** — [`stage4-bitmap-ownership-cut-plan.md`](stage4-bitmap-ownership-cut-plan.md) |
 | “Rust allocator ready” | **No** |
 | “`release_pages` ready to migrate to Rust” | **No** |
 | “`alloc_page`/`free_page` ownership complete” | **No** |
+| “Path A justified today” | **No** (live) |
+| “Path A cut kind for Slice E when authorized” | **Yes** — see cut plan §17 |
 
-Path A remains rejected for full allocator ownership. Inventory after Cut CT:
-**100 / 136**. Helper leaf is Rust; allocator policy is not.
+Path A remains rejected for opportunistic bundling and for CT-as-subsystem.
+Inventory after Cut CT: **100 / 136**. Helper leaf is Rust; allocator policy is not.
 
 ---
 
@@ -558,8 +596,10 @@ Memory baseline unchanged: `TMP_STACK_TOP` / `sys_proc` / `SLOT_BASE` =
 
 ## 17. FASM `release_pages` bitmap helper split
 
-**Status:** FASM helper **extracted** — Rust ownership / gate **NOT** enabled.  
-**Details:** [`stage4-release-bitmap-contract.md`](stage4-release-bitmap-contract.md)  
+**Status:** FASM helper **extracted**; Rust ownership of helper body **ON** (Cut CT,
+Mode A). Mode B / sole `pages_free` ownership **NOT** enabled.  
+**Details:** [`stage4-release-bitmap-contract.md`](stage4-release-bitmap-contract.md),
+[`cut-ct-implementation.md`](cut-ct-implementation.md)  
 **Source:** `kernel/core/memory.inc`
 
 ### 17.1 Sequence after extract (LOCAL FACT)
@@ -571,18 +611,18 @@ Memory baseline unchanged: `TMP_STACK_TOP` / `sys_proc` / `SLOT_BASE` =
 
 Dead local `page_start` candidate omitted (never stored).
 
-### 17.2 Responsibility split
+### 17.2 Responsibility split (post-CT)
 
 ```text
 release_pages(lin_base, count)
     ├── FASM: mutex, lin→PTE, xchg-clear, invlpg, present test, loop, unlock
-    └── FASM helper release_bitmap_page_without_cursor_update:
-          BTS + delta; no page_start; no PTE/invlpg/mutex
+    ├── Rust CT: release_bitmap_page_without_cursor_update
+    │     BTS + delta; no page_start; no PTE/invlpg/mutex; no pages_free store
+    └── FASM Mode A: add ebp,eax; final mov [pages_free],ebp
 ```
 
-Rust may later replace **only** the helper body behind a gate. Not today.
-
-Full ABI: **§19**.
+Future Slice E upgrades the helper to **Mode B** (helper owns `pages_free += delta`)
+in the same cut that migrates alloc/free/alloc_pages — see audit §9.
 
 ---
 
@@ -606,30 +646,35 @@ They do **not** authorize Rust ownership migration.
 
 **Future implementation work (not done):**
 
-- Rust blob / trampoline / `USE_RUST_*` gate replacing the FASM helper body.
-- In-kernel smoke through a gated production Rust entry.
-- Stronger production soak beyond disposable PE.
+- Authorized Slice E production migration per
+  [`stage4-bitmap-ownership-cut-plan.md`](stage4-bitmap-ownership-cut-plan.md)
+  (Mode B + `alloc_page` / `free_page` / `alloc_pages`).
+- Extended PGBM combined oracle + measured blob/REG-012 checks at implementation time.
+- Full allocator ownership soak (§13 of cut plan).
 
-**Actual blockers before full Rust allocator ownership:**
+**Actual blockers before full Rust allocator ownership:** *(historical — Cleared by Cut CU)*
 
-- No production Rust ownership of `alloc_page` / `free_page` / `alloc_pages`.
-- Cut CT owns **only** the release bitmap helper (not sole runtime bitmap writer).
-- Stronger production soak than disposable PE / desktop still required for ownership.
-- Live `pages_free<=1` early-OOM is **not** a mandatory soak gate.
-- Path A rejected for opportunistic bundling.
+- ~~No production Rust ownership of `alloc_page` / `free_page` / `alloc_pages`.~~ **DONE (CU)**
+- ~~Cut CT Mode A only.~~ **DONE — Mode B under CU ON**
+- ~~Slice E not implemented.~~ **DONE**
+- Live `pages_free<=1` early-OOM is **not** a mandatory soak gate (oracle covers).
 - Memory pack REG-012 unchanged — do not move TMP/sys_proc/SLOT_BASE.
+- Remaining Stage-4: PTE/`map_page`/fault/CR3 — **out of Slice E**.
 
-**Decision (historical extract):** FASM boundary prepared; **Cut CT COMPLETE** for
-the helper. Full Stage-4 allocator ownership remains **open**.
+**Decision:** Cut CU / Slice E **COMPLETE**. Rust owns phys-bitmap runtime state.
+PTE orchestration remains FASM. Do not start Cut CV.
 
 ---
 
 ## 19. `release_pages` bitmap call-out ABI (§19)
 
-**Status:** FASM helper live in `memory.inc`; Rust replacement **not** implemented.  
-**Cross-ref:** [`stage4-release-pages-ab.md`](stage4-release-pages-ab.md),
-[`stage4-release-bitmap-contract.md`](stage4-release-bitmap-contract.md)  
-**REG lessons:** REG-001 (EDX/ECX), REG-009 (stdcall double cleanup), REG-018 (CF lost across pop).
+**Status:** Mode B under Cut CU ON (`USE_RUST_PHYS_BITMAP_OWNERSHIP = 1`).
+Mode A CT path retained for OFF rollback.  
+**Cross-ref:** [`cut-cu-implementation.md`](cut-cu-implementation.md),
+[`stage4-release-pages-ab.md`](stage4-release-pages-ab.md),
+[`stage4-release-bitmap-contract.md`](stage4-release-bitmap-contract.md),
+[`cut-ct-implementation.md`](cut-ct-implementation.md)  
+**REG lessons:** REG-001 (EDX/ECX), REG-009 (stdcall double cleanup), REG-012 (memory pack), REG-018 (CF lost across pop).
 
 ### 19.1 Verified instruction sequence and insertion point
 
@@ -886,3 +931,6 @@ across a pop-heavy trampoline.
 | 2026-08-13 | **FASM BITMAP BOUNDARY READY — RUST MIGRATION STILL BLOCKED** (helper extract) |
 | 2026-08-13 | **FUTURE RUST REPLACEMENT PLAN READY — MIGRATION STILL BLOCKED** ([`stage4-release-bitmap-rust-plan.md`](stage4-release-bitmap-rust-plan.md)) |
 | 2026-08-14 | **Cut CT COMPLETE** — `release_bitmap_page_without_cursor_update` Rust Path B leaf ([`cut-ct-implementation.md`](cut-ct-implementation.md)); Stage-4 allocator ownership still open |
+| 2026-08-14 | **Post-CT ownership audit** — [`stage4-next-ownership-audit.md`](stage4-next-ownership-audit.md); **NEXT OWNERSHIP SLICE READY** (Slice E); Path A rejected today; production migration NONE |
+| 2026-08-14 | **Slice E ownership cut plan** — [`stage4-bitmap-ownership-cut-plan.md`](stage4-bitmap-ownership-cut-plan.md); **SLICE E READY FOR AUTHORIZATION**; production migration NONE |
+| 2026-08-14 | **Cut CU / Slice E COMPLETE** — sole Rust runtime ownership of `sys_pgmap`/`pages_free`/`page_start`; Mode B release; inventory **103 / 138**; [`cut-cu-implementation.md`](cut-cu-implementation.md) |

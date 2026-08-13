@@ -4,12 +4,12 @@
 Rust hybrid migration scope. One-time project map; update when a Cut
 completes or the scoped candidate set changes.
 
-**Last inventory baseline:** post-Cut CT (2026-08-14).
-**Cut CS:** **BLOCKED** (historical) — superseded as next-cut blocker by Stage-4
-research + Cut CT authorization. Inventory after CT: **100 / 136**.
+**Last inventory baseline:** post-Cut CU / Slice E (2026-08-14).
+**Cut CS:** **BLOCKED** (historical). Inventory after CU: **103 / 138**.
 
 **Gates source of truth:** `project/build.toml` `[[rust.migrations]]`
-(100 production entries, all `enabled = true` after CT).
+(104 production entries enabled after CU: prior 100 + 4 Cut CU blob
+registrations sharing `USE_RUST_PHYS_BITMAP_OWNERSHIP`; CT Mode-A blob retained).
 
 ---
 
@@ -197,10 +197,12 @@ leaves. Path A rejections are recorded in cut plans, not as fake completions.
 ## core/memory
 
 - [x] `get_pg_addr` — Cut AQ
-- [x] `release_bitmap_page_without_cursor_update` — Cut CT (Stage-4 bitmap release helper; not `release_pages` / not `free_page`)
-- [ ] `alloc_page` — deferred: Stage 4 / boundaries allocator Cut B; ownership design: [`stage4-ownership-design.md`](stage4-ownership-design.md)
+- [x] `release_bitmap_page_without_cursor_update` — Cut CT (Mode A leaf); Mode B under Cut CU / Slice E
+- [x] `alloc_page` — Cut CU / Slice E (Path A phys-bitmap ownership)
+- [x] `free_page` — Cut CU / Slice E (inventory expanded)
+- [x] `alloc_pages` — Cut CU / Slice E (inventory expanded)
 - [ ] `get_phys_addr` — deferred: Stage 4 after AQ
-- [ ] `map_page` — deferred: Stage 4 paging; **not** in first phys-allocator ownership slice (see stage4 design)
+- [ ] `map_page` — deferred: Stage 4 paging; **not** in phys-allocator ownership slice
 - [ ] `mem_test` — deferred: boot/memory test
 - [x] `v86_get_lin_addr` — Cut BL
 
@@ -310,10 +312,11 @@ Documented across Cuts AO–AZ plans:
 
 **Functions completed / functions total**
 
-`100 / 136`
+`103 / 138`
 
-(Mechanically: `100` `[x]` + `36` `[ ]` = `136`. Cut CT added one new Stage-4
-helper leaf that was not previously on the pending checklist.)
+(Mechanically: `103` `[x]` + `35` `[ ]` = `138`. Cut CU / Slice E completed
+`alloc_page` and expanded the scoped set with `free_page` + `alloc_pages` as
+one Path A ownership cut; Mode-B upgrades the CT release helper in place.)
 
 When a new Cut completes: mark its `[ ]` → `[x]`, move the note to the Cut id,
 and update this counter so it still matches the checklist.

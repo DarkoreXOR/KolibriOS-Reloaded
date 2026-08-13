@@ -1615,11 +1615,11 @@ pub unsafe extern "stdcall" fn rust_pid_to_slot(
 
 /// `stdcall` rust_release_bitmap_page_without_cursor_update(page_index, map) -> EAX.
 ///
-/// Cut CT: dedicated section for reloc-free extract + FASM `file` embed.
+/// Cut CT Mode A: dedicated section for reloc-free extract + FASM `file` embed.
 /// Must remain free of GOT/rodata/external calls (verified by extractor).
 /// Callee cleans 8 bytes (`ret 8`). Returns delta ∈ {0,1}.
 /// FASM trampoline injects `sys_pgmap` and preserves EBX/ECX/EDX/ESI/EDI/EBP.
-/// Does **not** write `pages_free` or `page_start`.
+/// Does **not** write `pages_free` or `page_start` (Mode A — Slice E OFF).
 ///
 /// # Safety
 /// `map` must be writable at byte `page_index >> 3` (production: `sys_pgmap`).
@@ -1631,6 +1631,78 @@ pub unsafe extern "stdcall" fn rust_release_bitmap_page_without_cursor_update(
 ) -> u32 {
     // SAFETY: kernel trampoline passes live sys_pgmap + page index.
     unsafe { release_bitmap_page_without_cursor_update_ptr(page_index, map) }
+}
+
+/// `stdcall` rust_release_bitmap_page_mode_b(page_index, map, pages_free) -> EAX.
+///
+/// Cut CU / Slice E Mode B: BTS + wrapping `pages_free += delta`; no `page_start`.
+/// Callee cleans 12 bytes (`ret 12`). Returns delta ∈ {0,1}.
+///
+/// # Safety
+/// `map` and `pages_free` must be valid writable pointers.
+#[no_mangle]
+#[link_section = ".text.rust_release_bitmap_page_mode_b"]
+pub unsafe extern "stdcall" fn rust_release_bitmap_page_mode_b(
+    page_index: u32,
+    map: *mut u8,
+    pages_free: *mut u32,
+) -> u32 {
+    unsafe { crate::release_bitmap_page_mode_b_ptr(page_index, map, pages_free) }
+}
+
+/// `stdcall` rust_alloc_page(map, page_start, page_end, pages_free) -> EAX.
+///
+/// Cut CU / Slice E. Callee cleans 16 bytes (`ret 16`). Returns phys or 0.
+/// Caller trampoline owns `pushfd; cli` / EBX preserve / `popfd`.
+///
+/// # Safety
+/// Pointers must reference live allocator state; `page_start`/`page_end` absolute.
+#[no_mangle]
+#[link_section = ".text.rust_alloc_page"]
+pub unsafe extern "stdcall" fn rust_alloc_page(
+    map: *mut u8,
+    page_start: *mut u32,
+    page_end: *const u32,
+    pages_free: *mut u32,
+) -> u32 {
+    unsafe { crate::alloc_page_ptr(map, page_start, page_end, pages_free) }
+}
+
+/// `stdcall` rust_free_page(phys, map, page_start, pages_free).
+///
+/// Cut CU / Slice E. Callee cleans 16 bytes (`ret 16`). Void.
+/// May lower `page_start`. Caller trampoline owns `cli` / `popfd`.
+///
+/// # Safety
+/// Pointers must reference live allocator state.
+#[no_mangle]
+#[link_section = ".text.rust_free_page"]
+pub unsafe extern "stdcall" fn rust_free_page(
+    phys: u32,
+    map: *mut u8,
+    page_start: *mut u32,
+    pages_free: *mut u32,
+) {
+    unsafe { crate::free_page_ptr(phys, map, page_start, pages_free) }
+}
+
+/// `stdcall` rust_alloc_pages(count, map, page_start, page_end, pages_free) -> EAX.
+///
+/// Cut CU / Slice E. Callee cleans 20 bytes (`ret 20`). Returns phys or 0.
+/// Does **not** write `page_start`. Caller owns `cli` / DF restore.
+///
+/// # Safety
+/// Pointers must reference live allocator state.
+#[no_mangle]
+#[link_section = ".text.rust_alloc_pages"]
+pub unsafe extern "stdcall" fn rust_alloc_pages(
+    count: u32,
+    map: *mut u8,
+    page_start: *const u32,
+    page_end: *const u32,
+    pages_free: *mut u32,
+) -> u32 {
+    unsafe { crate::alloc_pages_ptr(count, map, page_start, page_end, pages_free) }
 }
 
 /// `stdcall` rust_utf8to16(esi_inout, initial_eax) -> EAX.

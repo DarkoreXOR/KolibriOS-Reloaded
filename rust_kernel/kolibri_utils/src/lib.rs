@@ -84,6 +84,7 @@ mod partition;
 mod pci_make_config_cmd;
 mod pid_to_slot;
 mod release_bitmap_page;
+mod phys_bitmap;
 mod port_area;
 mod net_ptr_to_num4;
 mod socket_check;
@@ -276,6 +277,10 @@ pub use pid_to_slot::{
 pub use release_bitmap_page::{
     release_bitmap_page_without_cursor_update, release_bitmap_page_without_cursor_update_ptr,
     RELEASE_BITMAP_PAGE_PRNG_SEED,
+};
+pub use phys_bitmap::{
+    alloc_page, alloc_page_ptr, alloc_pages, alloc_pages_ptr, free_page, free_page_ptr,
+    release_bitmap_page_mode_b, release_bitmap_page_mode_b_ptr, PHYS_BITMAP_PRNG_SEED,
 };
 pub use port_area::{
     r_f_port_area, r_f_port_area_ptr, ENTRY_SIZE as PORT_AREA_ENTRY_SIZE, MAX_RESERVED,

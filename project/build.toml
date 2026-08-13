@@ -537,6 +537,34 @@ out = "rust_release_bitmap_page_without_cursor_update.bin"
 
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_release_bitmap_page_mode_b"
+symbol = "rust_release_bitmap_page_mode_b"
+expect_ret_imm = 12
+out = "rust_release_bitmap_page_mode_b.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_alloc_page"
+symbol = "rust_alloc_page"
+expect_ret_imm = 16
+out = "rust_alloc_page.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_free_page"
+symbol = "rust_free_page"
+expect_ret_imm = 16
+out = "rust_free_page.bin"
+
+[[rust.blobs]]
+kind = "generic"
+section = ".text.rust_alloc_pages"
+symbol = "rust_alloc_pages"
+expect_ret_imm = 20
+out = "rust_alloc_pages.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_is_partition_table_entry"
 symbol = "rust_is_partition_table_entry"
 expect_ret_imm = 16
@@ -748,6 +776,42 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "CU"
+blob = "rust_alloc_page.bin"
+symbol = "rust_alloc_page"
+gate = "USE_RUST_PHYS_BITMAP_OWNERSHIP"
+include = "kernel/rust/phys_bitmap.inc"
+gate_file = "kernel/core/memory.inc"
+enabled = true
+
+[[rust.migrations]]
+cut = "CU"
+blob = "rust_free_page.bin"
+symbol = "rust_free_page"
+gate = "USE_RUST_PHYS_BITMAP_OWNERSHIP"
+include = "kernel/rust/phys_bitmap.inc"
+gate_file = "kernel/core/memory.inc"
+enabled = true
+
+[[rust.migrations]]
+cut = "CU"
+blob = "rust_alloc_pages.bin"
+symbol = "rust_alloc_pages"
+gate = "USE_RUST_PHYS_BITMAP_OWNERSHIP"
+include = "kernel/rust/phys_bitmap.inc"
+gate_file = "kernel/core/memory.inc"
+enabled = true
+
+[[rust.migrations]]
+cut = "CU"
+blob = "rust_release_bitmap_page_mode_b.bin"
+symbol = "rust_release_bitmap_page_mode_b"
+gate = "USE_RUST_PHYS_BITMAP_OWNERSHIP"
+include = "kernel/rust/phys_bitmap.inc"
+gate_file = "kernel/core/memory.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "CT"
 blob = "rust_release_bitmap_page_without_cursor_update.bin"
