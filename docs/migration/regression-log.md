@@ -157,6 +157,20 @@ Use this before enabling a migration gate and when debugging a live FS bug.
     Kolibri is one linear org through `.bss`. Moving uninitialized LUTs after
     `sys_pgmap` (still first-4MiB PSE, B32-wiped) can reclaim space without
     touching `SLOT_BASE` (Cut CO / REG-012).
+26. **Never use `in("esi")` (or `inout("esi")`) in i686 LLVM inline asm** —
+    ESI is an LLVM internal. Pin the logical ESI value to EDX/ECX and
+    `mov esi, …` in the template (REG-017).
+27. **`setc r8` then `pop` of that register discards CF.** Capture CF with
+    `sbb dest, dest` into a dedicated lateout **before** pops. Never `setc al`
+    when EAX is a live callback result (REG-018).
+28. **Host tests do not cover `cfg(target_os = "none")` invoke asm.** In-kernel
+    smoke must exercise CF=0 callback paths, not only the `fn_ptr==0` skip.
+29. **A `call` inside inline asm clobbers ECX/EDX (and ESI unless saved).**
+    `in("ecx")` / `in("edx")` without `lateout` lets LLVM reuse those regs on
+    the next loop iteration. Templates that `mov esi, …` must `push esi` /
+    `pop esi` — ESI is an LLVM internal (cannot be a lateout operand)
+    (REG-019). One-shot smoke (`next` always STC) does not catch this.
+    Desktop non-black is not an Eolite/`load_file` oracle.
 
 ---
 
@@ -180,6 +194,9 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | [REG-014](#reg-014--ext-eolite-names-ok-all-file-sizes-0-2026-08-13) | 2026-08-13 | EXT Eolite names OK, all file sizes 0 | Fixed |
 | [REG-015](#reg-015--splash-only-desktop-cut-co-lzma-match-literal-planes-2026-08-13) | 2026-08-13 | Splash-only desktop (Cut CO LZMA match-literal planes) | Fixed |
 | [REG-016](#reg-016--splash-only-desktop-cut-co-e8-not-bswap-2026-08-13) | 2026-08-13 | Splash-only desktop (Cut CO E8 not-bswap) | Fixed |
+| [REG-017](#reg-017--black-desktop-cut-cq-get_name-ebp--utf-8-path-2026-08-13) | 2026-08-13 | Black desktop (Cut CQ get_name EBP = UTF-8 path) | Fixed |
+| [REG-018](#reg-018--black-desktop-cut-cq-setc-pop-discarded-first-cf-2026-08-13) | 2026-08-13 | Black desktop (Cut CQ setc/pop discarded first CF) | Fixed |
+| [REG-019](#reg-019--eolite-and-apps-hang-on-exfat-cut-cq-callback-clobbers-2026-08-13) | 2026-08-13 | Eolite / apps hang on exFAT (Cut CQ callback clobbers) | Fixed |
 
 ---
 
@@ -438,6 +455,54 @@ Use this before enabling a migration gate and when debugging a live FS bug.
 | Avoid next time | Emulate the exact FASM byte-swap sequence. Do not widen AL flag tests. Compare **all** dest bytes of **all** boot KPCK, not header magic / not only `LAUNCHER`. |
 
 **Class:** ISA-literal translation / E8 filter (hidden by count=0 fixtures).
+
+---
+
+### REG-017 — black desktop (Cut CQ get_name EBP = UTF-8 path) (2026-08-13)
+
+| Field | Value |
+|-------|-------|
+| Symptom | Cut CQ gate ON: QEMU `running`, `resets=0`, **non-black=0** (black framebuffer). Smoke hang marker `DEAD0C71`. |
+| Suspected | Trampoline stdcall / UTF-8 fill / live `exFAT_get_name`. |
+| Cleared by A/B | Gate OFF desktop **779380**. Smoke skipped (production trampoline not on floppy desktop path) also **779380** — hang is smoke/`get_name` invoke, not blit/unpack. |
+| Root cause | `invoke_kernel_get_name` did `mov esi, esi_in` **before** `mov ebp, fs`. LLVM kept `fs` in ESI, so EBP became the UTF-8 path pointer. FASM `exFAT_get_name` then used a garbage `exFAT*`. `in("esi")` is forbidden (LLVM internal). |
+| Fix | Pin `f`/`fs`/`esi_in` to EBX/ECX/EDX; `mov ebp, ecx` then `mov esi, edx`; result ESI via a non-ESI lateout. |
+| Verify | Combined with REG-018: ON `kernel-20260813-142651.img` **779380**, `resets=0`; OFF `kernel-20260813-143457.img` **779380**; A/B; ON×3; `--disk exfat`. Host `flfn_*` 16/16, suite 790/790. |
+| Avoid next time | Never `in("esi")`. Always `mov ebp, fs` **before** clobbering the register that might still hold `fs`. |
+
+**Class:** LLVM inline-asm register aliasing / callback ABI (get_name EBP).
+
+---
+
+### REG-018 — black desktop (Cut CQ setc/pop discarded first CF) (2026-08-13)
+
+| Field | Value |
+|-------|-------|
+| Symptom | After REG-017 pin: `first=0` smoke vector PASS (desktop **779380**); `first` CLC vector **black non-black=0**, `resets=0`, `DEAD0C71`. UTF-8 cap / mini-fs pointers did not unhang. |
+| Suspected | Unbounded UTF-8 write; NULL `LFN_reserve_place`/`path_in_utf8` stores. |
+| Cleared by A/B | `first=0` (no callback) boots; hang is specifically post-CLC `first`. |
+| Root cause | `invoke_kernel_dir_fn` emitted `setc cl` then `pop ecx`. CF=0 from a successful `first` was overwritten by the function-pointer low byte (nonzero). Rust took the CF=1 path and returned the pair pointer in EAX. Smoke `cmp eax,5` failed → `jmp @b`. Host tests never execute `cfg(target_os = "none")` invoke asm. |
+| Fix | Capture CF with `sbb ebx, ebx` (dir) / `sbb eax, eax` (get_name) **before** pops. Do not `setc al` when EAX is the callback error code. |
+| Verify | ON `kernel-20260813-142651.img` vector0+vector1 smoke, desktop **779380**, `resets=0`; OFF **779380**; A/B; ON×3; `--disk exfat`. Blob **1301 B / 0 reloc**. |
+| Avoid next time | After `call` + `push`/`pop` of argument registers, capture CF into a dedicated lateout that is not subsequently popped. In-kernel smoke must include a CF=0 callback vector. |
+
+**Class:** LLVM inline-asm CF capture / callback ABI.
+
+---
+
+### REG-019 — Eolite and apps hang on exFAT (Cut CQ callback clobbers) (2026-08-13)
+
+| Field | Value |
+|-------|-------|
+| Symptom | Desktop and **WebView** OK; **Eolite / KFAR / other apps that open `/hd0/1` (testdisk exFAT)** hang or never finish. FAT LFN launch of Eolite itself (`/sys/FILE MANAGERS/EOLITE`) still works. |
+| Suspected | Cut CQ `exFAT_find_lfn` production path (desktop smoke never opened Eolite or `load_file` on exFAT). |
+| Cleared by A/B | Gate OFF: `load_file` of `/hd0/1/README.TXT`, `FILES WITH SPACES/HELLO WORLD.TXT`, `NESTED/A/FILE_A1.TXT` returns the fixture sizes (0x7F / 0x41 / 0x2E); desktop **779380**. Gate ON before the fix: same `load_file` never returned (partial desktop, boot log left on screen). |
+| Root cause | `invoke_kernel_dir_fn` / `invoke_kernel_get_name` `call` clobber ECX/EDX. Missing `lateout` let LLVM keep FS/fn_ptr in those regs across the directory-walk loop. `get_name` also did `mov esi, edx` without saving ESI (LLVM internal). One-shot ABI smoke called `next` once (always STC) so it passed. Host `flfn_*` inject hooks, not the kernel invoke asm. |
+| Fix | `exfat_find_lfn.rs`: `lateout("ecx")` / `lateout("edx")` on dir callbacks; `push`/`pop ebx/ebp/esi` around both `call`s; `lateout("ecx")` on get_name. Smoke vector 1: `next` CLC once then STC (two get_name/next pairs). |
+| Verify | Host `flfn_*` 16/16 + suite **790/790**. ON `load_file` sizes match OFF; desktop **779380**, `resets=0`. Two-callback smoke PASS. Blob **1324 B / 0 reloc**. |
+| Avoid next time | Any leaf that `call`s a kernel callback in a loop must lateout every cdecl/stdcall clobber and preserve ESI around `mov esi`. Smoke must iterate the callback at least twice. Attach testdisk and `load_file` a non-empty exFAT path — desktop attach-only is not enough (REG-001/013). |
+
+**Class:** LLVM inline-asm clobber / callback loop (REG-017/018 family).
 
 ---
 

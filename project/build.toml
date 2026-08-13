@@ -40,6 +40,13 @@ probe_script = "rust_kernel/kolibri_utils/scripts/extract_phase_c_probe.py"
 # extracted — `[[rust.migrations]]` `enabled` only documents/validates gates.
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_exfat_find_lfn"
+symbol = "rust_exfat_find_lfn"
+expect_ret_imm = 4
+out = "rust_exfat_find_lfn.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_blit_32"
 symbol = "rust_blit_32"
 expect_ret_imm = 12
@@ -727,6 +734,15 @@ out = "rust_phase_c_probe.bin"
 # per-cut). Production defaults are all `true`. Set `enabled = false` for a
 # legacy or mixed kernel without hand-editing FASM. Doctor verifies live values.
 # Newest-first; must stay 1:1 with generic `[[rust.blobs]]` (probe excluded).
+[[rust.migrations]]
+cut = "CQ"
+blob = "rust_exfat_find_lfn.bin"
+symbol = "rust_exfat_find_lfn"
+gate = "USE_RUST_EXFAT_FIND_LFN"
+include = "kernel/rust/exfat_find_lfn.inc"
+gate_file = "kernel/fs/exfat.inc"
+enabled = true
+
 [[rust.migrations]]
 cut = "CP"
 blob = "rust_blit_32.bin"

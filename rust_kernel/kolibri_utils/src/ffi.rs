@@ -34,6 +34,7 @@ use crate::usb_td_to_virt::usb_td_to_virt_ptr;
 use crate::memmove::memmove_ptr;
 use crate::fat_get_sector::fat_get_sector;
 use crate::exfat_get_sector::exfat_get_sector;
+use crate::exfat_find_lfn::{exfat_find_lfn_ptr, ExFatFindLfnCtx};
 use crate::get_inode_location::get_inode_location_ptr;
 use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_find_fragment_slot::ipv4_find_fragment_slot_ptr;
@@ -350,6 +351,23 @@ pub unsafe extern "stdcall" fn rust_exfat_get_sector(
     cluster_heap_start: u32,
 ) -> u32 {
     exfat_get_sector(cluster, sector_ofs, sectors_per_cluster, cluster_heap_start)
+}
+
+/// `stdcall` rust_exfat_find_lfn(ctx) → EAX = 0 success / error.
+///
+/// Cut CQ: dedicated section for reloc-free extract + FASM `file` embed.
+/// Callee cleans 4 bytes (`ret 4`). Trampoline injects [`ExFatFindLfnCtx`]
+/// and must NOT `add esp` for this arg (REG-009). Snapshot stack callbacks
+/// before stdcall (REG-010). EAX=0 → `clc`; EAX≠0 → `stc`. ESI/EDI from
+/// `ctx.esi_out` / `ctx.edi_out`.
+///
+/// # Safety
+/// `ctx` must be a writable [`ExFatFindLfnCtx`] whose field pointers and
+/// callbacks are valid for the lookup.
+#[no_mangle]
+#[link_section = ".text.rust_exfat_find_lfn"]
+pub unsafe extern "stdcall" fn rust_exfat_find_lfn(ctx: *mut ExFatFindLfnCtx) -> u32 {
+    unsafe { exfat_find_lfn_ptr(ctx) }
 }
 
 /// `stdcall` rust_get_inode_location(inode, ipg, table_lo, table_hi, spb,

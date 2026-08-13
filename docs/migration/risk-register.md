@@ -28,6 +28,8 @@ Updated after adversarial ABI audit.
 | Rust stdcall clobbers EDX/ECX vs legacy FASM leaves | unicode / string / any trampoline | High | High | Live FS browse + ABI canaries | Preserve at trampoline or caller (`uses`); see REG-001 / Cut D | Gate OFF + A/B |
 | FS missing empty-path `.volume` / unterminated `bdfe.name` | filesystem | Med | Med | Eolite volume name junk | Parity with EXT/FAT/NTFS; NUL-terminate | [`regression-log.md`](regression-log.md) REG-002 |
 | Blame latest cut without A/B | process | High | Med | Wasted rewrites | Gate OFF + prior `cut-*-final.img` first | |
+| LLVM `setc` + `pop` of that register / `in("esi")` | trampoline callbacks | High | High | In-kernel CF=0 smoke (not host tests) | `sbb dest,dest` before pops; pin ESI via EDX (REG-017/018) | Gate OFF |
+| LLVM reuses ECX/EDX/ESI across `call` in a lookup loop | trampoline callbacks | High | High | Two-iteration smoke + live `load_file` on testdisk | `lateout` cdecl clobbers; `push`/`pop esi` around `mov esi` (REG-019) | Gate OFF |
 
 ## Highest priority watchlist
 

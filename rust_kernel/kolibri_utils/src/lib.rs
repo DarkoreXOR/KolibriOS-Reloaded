@@ -65,6 +65,7 @@ mod usb_td_to_virt;
 mod memmove;
 mod fat_get_sector;
 mod exfat_get_sector;
+mod exfat_find_lfn;
 mod get_inode_location;
 mod io_access;
 mod ipv4_find_fragment_slot;
@@ -194,6 +195,11 @@ pub use fat_get_sector::{
 };
 pub use exfat_get_sector::{
     exfat_get_sector, exfat_get_sector_ptr, EXFAT_GET_SECTOR_PRNG_SEED,
+};
+pub use exfat_find_lfn::{
+    exfat_find_lfn, exfat_find_lfn_ptr, utf16_to_upper_eax, CallbackOut, ExFatFindLfnCtx,
+    ExFatFindLfnHooks, ERROR_FILE_NOT_FOUND as EXFAT_FIND_LFN_ERROR_NOT_FOUND,
+    EXFAT_FIND_LFN_CTX_SIZE, EXFAT_FIND_LFN_PRNG_SEED, LFN_UTF16_UNITS,
 };
 pub use get_inode_location::{
     get_inode_location, get_inode_location_math, get_inode_location_ptr,

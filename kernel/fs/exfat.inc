@@ -856,6 +856,71 @@ exFAT_hd_find_lfn:
         pop     esi
         ret
 ;------------------------------------------------------------------------------
+; Cut CQ: USE_RUST_EXFAT_FIND_LFN=1 routes through Rust
+; rust_exfat_find_lfn (see rust/exfat_find_lfn.inc).
+; Set USE_RUST_EXFAT_FIND_LFN=0 to restore the original FASM body
+; without deleting it. Independent of Cuts AH/AI/CL.
+; Critical ABI: ESI=path, EBP=exFAT*, [esp+4]=next, [esp+8]=first,
+; [esp+12]=pair; CF/EAX/ESI/EDI out; EBX/EBP preserved; ret 0.
+; rust_exfat_find_lfn stdcall(ctx); ret 4. Trampoline must NOT add esp
+; for Rust args (REG-009). Snapshot callbacks before stdcall (REG-010).
+
+USE_RUST_EXFAT_FIND_LFN = 1
+
+if USE_RUST_EXFAT_FIND_LFN
+
+align 4
+exFAT_find_lfn:
+        push    ebx
+        push    esi
+        push    edi
+        push    ebp
+        ; [esp+16]=ret, +20=next, +24=first, +28=pair
+        mov     ecx, [esp+20]           ; next
+        mov     edx, [esp+24]           ; first
+        lea     eax, [esp+28]           ; pair
+        sub     esp, 52
+        mov     ebx, [esp+52]           ; saved ebp → exFAT*
+        mov     [esp+0], ebx            ; ctx.fs
+        lea     esi, [ebx+exFAT.secondary_dir_entry]
+        mov     [esp+4], esi
+        lea     esi, [ebx+exFAT.need_hash]
+        mov     [esp+8], esi
+        lea     esi, [ebx+exFAT.LFN_reserve_place]
+        mov     [esp+12], esi
+        lea     esi, [ebx+exFAT.path_in_UTF8]
+        mov     [esp+16], esi
+        lea     esi, [ebx+exFAT.current_hash]
+        mov     [esp+20], esi
+        lea     esi, [ebx+exFAT.valid_data_length]
+        mov     [esp+24], esi
+        mov     [esp+28], edx           ; first
+        mov     [esp+32], ecx           ; next
+        mov     dword [esp+36], exFAT_get_name
+        mov     [esp+40], eax           ; pair
+        mov     eax, [esp+60]           ; original ESI
+        mov     [esp+44], eax           ; esi_out in
+        mov     eax, [esp+56]           ; original EDI
+        mov     [esp+48], eax           ; edi_out in
+        ; Snapshot ESP into EAX first. Sole stdcall arg; pin against REG-010.
+        mov     eax, esp
+        stdcall rust_exfat_find_lfn, eax
+        mov     esi, [esp+44]
+        mov     edi, [esp+48]
+        add     esp, 52
+        pop     ebp
+        add     esp, 8                  ; drop saved edi/esi
+        pop     ebx
+        test    eax, eax
+        jnz     .cq_fail
+        clc
+        ret
+.cq_fail:
+        stc
+        ret
+
+else
+
 exFAT_find_lfn:
 ; DEBUGF  1, "K : exFAT_find_lfn \n"
 ;   in:
@@ -1001,6 +1066,8 @@ align 4
 .error:
         movi    eax, ERROR_FILE_NOT_FOUND
         jmp     @b
+
+end if
 ;------------------------------------------------------------------------------
 exFAT_ReadFile:
 ; DEBUGF  1, "K : exFAT_ReadFile \n"

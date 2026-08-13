@@ -343,6 +343,10 @@ end if
 if USE_RUST_EXFAT_GET_SECTOR
         call    exfat_get_sector_rust_smoke_test
 end if
+        ; Cut CQ: exFAT_find_lfn smoke (Rust when USE_RUST_EXFAT_FIND_LFN=1).
+if USE_RUST_EXFAT_FIND_LFN
+        call    exfat_find_lfn_rust_smoke_test
+end if
         ; Cut CM: getInodeLocation smoke (Rust when USE_RUST_GET_INODE_LOCATION=1).
 if USE_RUST_GET_INODE_LOCATION
         call    get_inode_location_rust_smoke_test

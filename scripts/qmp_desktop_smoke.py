@@ -115,6 +115,18 @@ def main() -> None:
         default=20000,
         help="non-black at or below this is classified as splash-only (FAIL)",
     )
+    ap.add_argument(
+        "--xp",
+        default=None,
+        metavar="PHYS",
+        help="Physical address to dump as dwords after desktop (hex, e.g. 0x8B000)",
+    )
+    ap.add_argument(
+        "--xp-dwords",
+        type=int,
+        default=4,
+        help="Number of dwords to dump with --xp (default 4)",
+    )
     args = ap.parse_args()
 
     cfg = load_config()
@@ -164,12 +176,25 @@ def main() -> None:
         status = qmp_exec(sock, {"execute": "query-status"})
         st = status.get("return", {}).get("status")
         print(f"query-status: {st}")
+        qmp_exec(sock, {"execute": "screendump", "arguments": {"filename": str(ppm)}})
+        time.sleep(0.5)
+        if args.xp:
+            try:
+                addr = int(args.xp, 0)
+                n = max(1, args.xp_dwords)
+                cmd = f"xp /{n}xw {addr:#x}"
+                dump = qmp_exec(
+                    sock,
+                    {
+                        "execute": "human-monitor-command",
+                        "arguments": {"command-line": cmd},
+                    },
+                )
+                print(f"xp {addr:#x}: {dump.get('return', '').strip()}")
+            except SystemExit as e:
+                print(f"xp failed: {e}")
         if st != "running":
             raise SystemExit(f"expected running, got {st}")
-        # screendump
-        qmp_exec(sock, {"execute": "screendump", "arguments": {"filename": str(ppm)}})
-        # give filesystem a moment
-        time.sleep(0.5)
         w, h, nb = count_non_black_ppm(ppm)
         print(f"screendump: {ppm} {w}x{h} non-black={nb} resets={resets}")
         if nb <= args.splash_max:
