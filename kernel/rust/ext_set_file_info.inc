@@ -8,16 +8,16 @@
 ;; call for the stdcall arg (REG-009). Snapshot callbacks before stdcall
 ;; (REG-010). Production trampoline calls extfsWritingInit BEFORE Rust.
 ;; Marker 'ESFI' / fail DEAD0C56.
+;;
+;; Smoke fixtures live on the stack (REG-012 memory pack). Result/seq/
+;; calc_count stay iglobal so callbacks and the boot marker remain stable.
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
 iglobal
 rust_ext_set_file_info_smoke_result dd 0
 esfi_smoke_seq dd 0
-esfi_smoke_inode rb 160
-esfi_smoke_bdfe rb 32
-esfi_smoke_f70 rb 32
-esfi_smoke_disk dd 0
-esfi_smoke_extfs rb 16
+esfi_smoke_calc_count dd 0
+esfi_smoke_path db 'ROOT.TXT', 0
 endg
 
 align 4
@@ -37,9 +37,6 @@ esfi_smoke_find_miss:
         movi    eax, ERROR_FILE_NOT_FOUND
         stc
         ret
-
-align 4
-esfi_smoke_calc_count dd 0
 
 align 4
 esfi_smoke_calc:
@@ -83,15 +80,18 @@ esfi_smoke_unlock:
         or      dword [esfi_smoke_seq], 16
         ret
 
-; Fill ctx at EDI from current smoke globals. ECX = find, EDX = write.
+; Fill ctx at EDI from stack fixtures. ESI = inode base, ECX = find, EDX = write.
+; Layout from ESI: inode160, bdfe32, f70 32, disk 4, extfs 16.
 align 4
 esfi_smoke_fill_ctx:
-        mov     dword [edi+0], esfi_smoke_f70
-        mov     dword [edi+4], esfi_smoke_extfs
+        lea     eax, [esi+192]
+        mov     dword [edi+0], eax            ; f70
+        lea     eax, [esi+228]
+        mov     dword [edi+4], eax            ; extfs
         mov     dword [edi+8], esfi_smoke_path
-        mov     dword [edi+12], esfi_smoke_inode
-        mov     eax, esfi_smoke_disk
-        mov     [edi+16], eax
+        mov     dword [edi+12], esi           ; inode
+        lea     eax, [esi+224]
+        mov     [edi+16], eax                 ; disk
         mov     [edi+20], ecx                 ; find_inode
         mov     dword [edi+24], esfi_smoke_calc
         mov     [edi+28], edx                 ; write_inode
@@ -99,10 +99,6 @@ esfi_smoke_fill_ctx:
         mov     dword [edi+36], esfi_smoke_sync
         mov     dword [edi+40], esfi_smoke_unlock
         ret
-
-iglobal
-esfi_smoke_path db 'ROOT.TXT', 0
-endg
 
 align 4
 ext_set_file_info_rust_smoke_test:
@@ -115,39 +111,34 @@ end if
         push    ebp
         cld
 
-        ; Clear inode + bdfe + f70
-        mov     edi, esfi_smoke_inode
-        mov     ecx, 160/4
+        ; ctx44 + inode160 + bdfe32 + f70 32 + disk4 + extfs16 = 288
+        sub     esp, 288
+        lea     edi, [esp+44]
+        mov     ecx, (288-44)/4
         xor     eax, eax
         rep stosd
-        mov     edi, esfi_smoke_bdfe
-        mov     ecx, 32/4
-        rep stosd
-        mov     edi, esfi_smoke_f70
-        mov     ecx, 32/4
-        rep stosd
-        mov     dword [esfi_smoke_f70+16], esfi_smoke_bdfe
+        lea     eax, [esp+44+160]
+        mov     dword [esp+44+192+16], eax    ; f70.bdfe
 
         ; Fixture atime 2012-07-04 14:22:11 / mtime 2018-11-23 09:05:30
-        mov     byte [esfi_smoke_bdfe+16], 11
-        mov     byte [esfi_smoke_bdfe+17], 22
-        mov     byte [esfi_smoke_bdfe+18], 14
-        mov     byte [esfi_smoke_bdfe+20], 4
-        mov     byte [esfi_smoke_bdfe+21], 7
-        mov     word [esfi_smoke_bdfe+22], 2012
-        mov     byte [esfi_smoke_bdfe+24], 30
-        mov     byte [esfi_smoke_bdfe+25], 5
-        mov     byte [esfi_smoke_bdfe+26], 9
-        mov     byte [esfi_smoke_bdfe+28], 23
-        mov     byte [esfi_smoke_bdfe+29], 11
-        mov     word [esfi_smoke_bdfe+30], 2018
-
-        sub     esp, 44
+        mov     byte [esp+44+160+16], 11
+        mov     byte [esp+44+160+17], 22
+        mov     byte [esp+44+160+18], 14
+        mov     byte [esp+44+160+20], 4
+        mov     byte [esp+44+160+21], 7
+        mov     word [esp+44+160+22], 2012
+        mov     byte [esp+44+160+24], 30
+        mov     byte [esp+44+160+25], 5
+        mov     byte [esp+44+160+26], 9
+        mov     byte [esp+44+160+28], 23
+        mov     byte [esp+44+160+29], 11
+        mov     word [esp+44+160+30], 2018
 
         ; Vector 0: success path
         and     dword [esfi_smoke_seq], 0
         and     dword [esfi_smoke_calc_count], 0
         lea     edi, [esp]
+        lea     esi, [esp+44]
         mov     ecx, esfi_smoke_find_ok
         mov     edx, esfi_smoke_write_ok
         call    esfi_smoke_fill_ctx
@@ -166,14 +157,15 @@ end if
         jnz     .fail
         cmp     dword [esfi_smoke_seq], 1+4+8+16
         jne     .fail
-        cmp     dword [esfi_smoke_inode+8], 1341411731
+        cmp     dword [esp+44+8], 1341411731
         jne     .fail
-        cmp     dword [esfi_smoke_inode+16], 1542963930
+        cmp     dword [esp+44+16], 1542963930
         jne     .fail
 
         ; Vector 1: missing path — unlock only
         and     dword [esfi_smoke_seq], 0
         lea     edi, [esp]
+        lea     esi, [esp+44]
         mov     ecx, esfi_smoke_find_miss
         mov     edx, esfi_smoke_write_ok
         call    esfi_smoke_fill_ctx
@@ -186,8 +178,9 @@ end if
 
         ; Vector 2: immutable — unlock, no SB/sync
         and     dword [esfi_smoke_seq], 0
-        mov     dword [esfi_smoke_inode+32], EXT4_IMMUTABLE_FL
+        mov     dword [esp+44+32], EXT4_IMMUTABLE_FL
         lea     edi, [esp]
+        lea     esi, [esp+44]
         mov     ecx, esfi_smoke_find_ok
         mov     edx, esfi_smoke_write_ok
         call    esfi_smoke_fill_ctx
@@ -197,12 +190,13 @@ end if
         jne     .fail
         cmp     dword [esfi_smoke_seq], 16
         jne     .fail
-        and     dword [esfi_smoke_inode+32], 0
+        and     dword [esp+44+32], 0
 
         ; Vector 3: writeInode fail — unlock, no SB/sync
         and     dword [esfi_smoke_seq], 0
         and     dword [esfi_smoke_calc_count], 0
         lea     edi, [esp]
+        lea     esi, [esp+44]
         mov     ecx, esfi_smoke_find_ok
         mov     edx, esfi_smoke_write_fail
         call    esfi_smoke_fill_ctx
@@ -214,7 +208,7 @@ end if
         jne     .fail
 
         mov     [rust_ext_set_file_info_smoke_result], 'ESFI'
-        add     esp, 44
+        add     esp, 288
         pop     ebp
         pop     edi
         pop     esi

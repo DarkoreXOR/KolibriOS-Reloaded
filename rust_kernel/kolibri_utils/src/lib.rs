@@ -55,6 +55,7 @@ mod ext_read_all_times;
 mod ext_write_time;
 mod ext_set_file_info;
 mod ntfs_set_file_info;
+mod ipv4_output;
 mod exfat_checksum;
 mod fat_name;
 mod font;
@@ -394,6 +395,10 @@ pub(crate) mod pg_bitmap_oracle;
 /// Stage-4 host-only PTE / page_tabs oracle (research — not a production cut).
 #[cfg(test)]
 pub(crate) mod pte_oracle;
+
+/// Stage-4 host-only IPv4 output packet oracle (research — not a production cut).
+#[cfg(test)]
+pub(crate) mod ipv4_output_oracle;
 
 #[cfg(target_os = "none")]
 #[panic_handler]

@@ -1,12 +1,12 @@
 # Post-Cut CW Migration Frontier Audit
 
 **Date:** 2026-08-14  
-**Status:** audit complete — **STOP** (no Cut CX / no production migration)  
+**Status:** audit complete — **amended** after REG-012 compaction + `ipv4_output` evidence program  
 **Inventory:** **105 / 138** (33 pending)  
-**Production gates:** **106** `[[rust.migrations]]` all `enabled = true` (103 unique `USE_RUST_*` names; Cut CU shares one gate across four blobs)  
+**Production gates:** **106** `[[rust.migrations]]` all `enabled = true`  
 **Cut CW:** **COMPLETE** — do not reopen without a new reproducible regression  
-**Parent:** [`cut-cw-implementation.md`](cut-cw-implementation.md), [`stage4-ntfs-setfileinfo-oracle.md`](stage4-ntfs-setfileinfo-oracle.md)  
-**Evidence policy:** [`../_meta/evidence-policy.md`](../_meta/evidence-policy.md)
+**REG-012 compaction:** **COMPLETE** — slack **2365 B** (see [`reg012-headroom-audit.md`](reg012-headroom-audit.md))  
+**IPv4 output evidence:** **COMPLETE** — [`stage4-ipv4-output-oracle.md`](stage4-ipv4-output-oracle.md) (**IPV4_OUTPUT EVIDENCE READY**). Do **not** start Cut CX.
 
 > Fresh post-CW audit of all **33** pending symbols. Selects **exactly one**
 > next research/tooling frontier. Does **not** implement Cut CX, change
@@ -22,10 +22,10 @@
 | Did CV+CW unlock filesystem Path A? | **No** — two plugin metadata leaves ≠ FS ownership |
 | Did CW unlock a new Path A boundary anywhere? | **No** |
 | Does any pending Path B leaf clear the evidence bar **and** fit the pack? | **No** |
-| Binding new constraint? | REG-012 assert slack **~61 B** (`0x8DFC3 < 0x8E000`) |
+| Binding new constraint? | REG-012 slack restored (**2365 B**); memory no longer blocks a ~180–900 B Path B class |
 | PTE status changed since CW? | **No** — still blocked |
-| Decision | **TOOLING / EVIDENCE GAP** |
-| Next research task (one) | **REG-012 production-image headroom / historical ABI-smoke compaction inventory** — restore pack slack **before** any Cut CX |
+| Decision | **IPV4_OUTPUT EVIDENCE READY** (research). Next *cut* still unauthorized. |
+| Next research task (one) | Future Cut CX **plan** for `ipv4_output` Path B (trampoline + ARP/`eth_output` mocks) — **do not implement in this audit** |
 
 **STAGE-4 POST-CW AUDIT — COMPLETE — STOP**
 
@@ -67,20 +67,21 @@ Verified 2026-08-14 from the live tree (not conversation text).
 
 CW does **not** migrate `writeRecord`, USA write, `ntfs_find_lfn`, `ntfs_lock`, `ntfsDone`, Delete, SetFileEnd, or PTE.
 
-### 1.2 Memory pack (REG-012) — binding
+### 1.2 Memory pack (REG-012) — **compacted**
 
-| Symbol | Value |
-|--------|--------|
-| `TMP_STACK_TOP` / `sys_proc` | `0x008E000` |
-| `SLOT_BASE` | `0x0090000` |
-| Post-CW end `.bss` | `OS_BASE+0x8CFC3` |
-| Assert | `$-OS_BASE+PAGE_SIZE < TMP_STACK_TOP` → `0x8DFC3 < 0x8E000` |
-| Raw headroom to `0x8E000` | **0x103D (4157 B ≈ 4.1 KiB)** |
-| **Assertion slack** | **0x3D (61 B)** |
-| `kernel.mnt` | 304872 B |
-| `PAGE_SIZE` | 4096 (`kernel/const.inc`) |
+See [`reg012-headroom-audit.md`](reg012-headroom-audit.md). Pack addresses **unchanged**.
 
-CW itself had to put NSFI fixtures on the **stack** and drop the second kernel smoke vector to assemble. Linear FASM layout means **any** new `.text`/`.data` before `.bss` consumes this 61 B slack.
+| Symbol | Post-CW (before compaction) | After REG-012 |
+|--------|----------------------------|---------------|
+| `TMP_STACK_TOP` / `sys_proc` | `0x008E000` | **unchanged** |
+| `SLOT_BASE` | `0x0090000` | **unchanged** |
+| end `.bss` | `OS_BASE+0x8CFC3` | **`OS_BASE+0x8C6C3`** |
+| **Assertion slack** | **61 B** | **2365 B** |
+| `kernel.mnt` | 304872 B | 304632 B |
+
+Memory is **no longer** the primary blocker for a ~180–900 B Path B class.
+
+CW itself had to put NSFI fixtures on the **stack** and drop the second kernel smoke vector to assemble. Linear FASM layout still means new `.text`/`.data` before `.bss` consumes assertion slack — measure any future blob.
 
 Do **not** move `TMP_STACK_TOP`, `sys_proc`, or `SLOT_BASE` for a weak candidate.
 
@@ -214,22 +215,17 @@ Uses Rust-owned `alloc_pages` only as a **consumer**. That does **not** make mou
 
 ## 5. Network reassessment
 
-Live QEMU config (`project/build.toml` `[qemu]`): `-boot a -m 256 -vga std` plus headless QMP. **No** `-netdev`, user-net, tap, or pcap/`filter-dump`. No `scripts/qmp_*net*.py`.
+**Amendment:** user-net + `filter-dump` harness now exists (`scripts/qmp_ipv4_output_soak.py`). Default `[qemu].args` still have no NIC (desktop-only). Do not treat default `run_qemu.py` as a net soak.
 
 | Symbol | Size / role | Oracle | Soak |
 |--------|-------------|--------|------|
-| `ipv4_output` | ~100 lines; route (Cut AC) + ARP + `eth_output` / loopback | **Missing** | **Missing** |
-| `ipv4_output_raw` | socket+copy variant; documented caller quirk | **Missing** | **Missing** |
+| `ipv4_output` | ~100 lines; route (Cut AC) + ARP + `eth_output` / loopback | **Ready** (RFC 791/1071, 50k) | **Ready** (DHCP/UDP ×3, RESET=0) |
+| `ipv4_output_raw` | socket+copy variant; documented caller quirk | Not this program | Missing |
 | `tcp_output` | `proc`, ~753 lines, socket mutex, window, `TCP_BIT_SENDALOT` | **Missing** | **Missing** |
 
-Smallest concrete unlock for **one** output-path candidate (`ipv4_output`, not TCP):
+Live capture (guest MAC `52:54:00:12:34:56`): TTL 128, ID 0, IHL `0x45`, TOS 0, flags 0, proto 17, checksum OK — matches FASM `ipv4_output` constants. QEMU slirp replies (TTL 64, ID≠0) excluded.
 
-1. QEMU `-netdev user,id=n0` + a guest NIC Kolibri already probes + `-object filter-dump,id=d0,netdev=n0,file=…pcap`
-2. Deterministic guest UDP (or ICMP) send stimulus
-3. Host pcap parser: IPv4 checksum (Cuts E/F), src/dst, proto, TTL, length
-4. Repeatable QMP soak with RESET=0
-
-Even then the leaf still calls FASM `arp_ip_to_mac` / `eth_output`, and **cannot assemble today** under 61 B slack.
+Memory fit is no longer the blocker (2365 B slack). **Do not start Cut CX from this audit.**
 
 ---
 
@@ -271,7 +267,7 @@ Do **not** pick a 20-byte wrapper merely because it might fit the 61 B slack.
 |--------------------|------------------------|--------------|---------|
 | EXT+NTFS SetFileInfo | **No** — different FS objects/locks/writeback | Each leaf already done | Not Path A |
 | NTFS mount + plugins | Yes (`NTFS` struct) | Mount+Delete+Write soaks missing; huge blast | Mega-slice — **not ready** |
-| Network output buffers | Partial (`net_device_list`, sockets) | pcap missing | Island — tooling then pack |
+| Network output buffers | Partial (`net_device_list`, sockets) | pcap + packet oracle ready for `ipv4_output` | Island — Path B leaf evidence done; no gate |
 | Allocator consumers (`commit_pages`, mount) | Still touch FASM PTE | — | Consumer ≠ owner |
 | Graphics/input | No remaining pending cluster | — | Footholds only |
 
@@ -281,14 +277,14 @@ Do **not** pick a 20-byte wrapper merely because it might fit the 61 B slack.
 
 ## 12. Memory constraint (selection filter)
 
-| Next-cut class | Est. growth | Fits 61 B slack? |
-|----------------|-------------|------------------|
-| Thin wrapper | ~20–40 B | Maybe — **policy REJECT** |
-| CW-class Path B leaf | ~180 B blob + trampoline + smoke | **No** (CW needed stack smoke + dropped vector) |
-| `ipv4_output` | hundreds of B + ctx | **No** |
+| Next-cut class | Est. growth | Fits 2365 B slack? |
+|----------------|-------------|---------------------|
+| Thin wrapper | ~20–40 B | Physically yes — **policy REJECT** |
+| CW-class Path B leaf | ~180 B blob + trampoline + smoke | **Yes** |
+| `ipv4_output` | hundreds of B + ctx | **Likely yes — still measure blob** |
 | `ntfs_create_partition` / `tcp_output` | multi-KiB | **No** without pack move |
 
-Largest easy reclaim **without moving the pack:** historical ABI-smoke `iglobal` fixtures still in `.data` (example: Cut CV `esfi_smoke_inode rb 160` + bdfe/f70 ≈ **248 B**). CW already proved stack-local fixtures work. Compaction is **research/optional later authorized work**, not this turn.
+REG-012 compaction is **complete**. Do not move the pack.
 
 ---
 
@@ -296,12 +292,11 @@ Largest easy reclaim **without moving the pack:** historical ABI-smoke `iglobal`
 
 | # | Candidate | ABI | Semantic oracle | Host oracle | Live callers | Subsystem soak | Ownership | Blast | Memory | Rollback | Payoff | Cut now? |
 |---|-----------|-----|-----------------|-------------|--------------|----------------|-----------|-------|--------|----------|--------|----------|
-| — | **Pack slack / smoke compaction** | n/a | n/a | measure `.bss` | n/a | assemble assert | REG-012 | Low if stack-only | **Unlocks future cuts** | n/a (docs first) | **High** | Research |
-| 1 | `ipv4_output` | Good | Header fields | **Missing pcap** | Yes | **Missing** | Path B island | Med (ARP/eth FASM) | **Fail slack** | Gate OK | Med | **No** |
-| 2 | `ipv4_output_raw` | Quirky | Same | **Missing** | Yes | **Missing** | Path B | Med | **Fail slack** | Gate OK | Low | **No** |
-| 3 | `disk_scan_partitions` | Loop orch | Partition list | Weak | Yes | Attach soak only | Orch | High | **Fail slack** | Hard | Low | **No** |
-| 4 | `ntfs_create_partition` | Mount orch | Volume object | Partial (bootsec AG) | 1 | Attach ≠ mount unit | Orch / future Path A | **Very high** | **Fail slack** | Hard | High later | **No** |
-| 5 | `tcp_output` | Complex | TCP segments | **Missing** | Yes | **Missing** | Island | **Very high** | **Fail slack** | Hard | High later | **No** |
+| 1 | `ipv4_output` | Good (TTL in `AL`) | Header fields | **50k RFC 791/1071** | Yes | **user-net + filter-dump ×3** | Path B island | Med (ARP/eth FASM) | Slack 2365 B | Gate OK later | Med | **No this turn** |
+| 2 | `ipv4_output_raw` | Quirky | Same | Not this program | Yes | Missing | Path B | Med | Slack OK | Gate OK | Low | **No** |
+| 3 | `disk_scan_partitions` | Loop orch | Partition list | Weak | Yes | Attach soak only | Orch | High | Fail size | Hard | Low | **No** |
+| 4 | `ntfs_create_partition` | Mount orch | Volume object | Partial (bootsec AG) | 1 | Attach ≠ mount unit | Orch / future Path A | **Very high** | Fail size | Hard | High later | **No** |
+| 5 | `tcp_output` | Complex | TCP segments | **Missing** | Yes | **Missing** | Island | **Very high** | Fail size | Hard | High later | **No** |
 
 Do not rank by caller count. Thin/dead/IRQ/C0 symbols score zero and are omitted.
 
@@ -309,24 +304,17 @@ Do not rank by caller count. Thin/dead/IRQ/C0 symbols score zero and are omitted
 
 ## 14. Selected next frontier
 
-**Type:** **TOOLING / EVIDENCE GAP**
+**Type:** **IPV4_OUTPUT EVIDENCE** (this program) — then a future Cut CX **plan** only.
 
-**One task:** produce a **REG-012 pack-headroom inventory** (documentation + measurements only unless a later turn explicitly authorizes compaction):
+Completed this turn: independent packet oracle, host parser, QEMU user-net/`filter-dump`, guest firstapp stimulus, FASM capture. See [`stage4-ipv4-output-oracle.md`](stage4-ipv4-output-oracle.md).
 
-1. List `kernel/rust/*.inc` `iglobal` smoke buffers still in `.data` (bytes each).
-2. Identify stack-local moves in the CW pattern that reclaim ≥512–1024 B assertion slack.
-3. Re-assemble after each candidate move (authorized later) and record `end of .bss`.
-4. **Do not** move `TMP_STACK_TOP` / `sys_proc` / `SLOT_BASE`.
-5. **Do not** delete production rollback FASM bodies.
-6. Only after slack is restored, re-open a Path B island (`ipv4_output` still needs pcap first).
+**Do not start Cut CX. Do not add `USE_RUST_IPV4_OUTPUT`.**
 
-**Why this, not NTFS mount / TCP / PTE:** CW closed the FS metadata-write evidence program. Remaining 33 symbols are REJECT/DEFER/blocked. The **new** fact after CW is that the next substantive blob cannot assemble. That is the strongest unblocker.
-
-**Why not NEXT CUT READY:** nothing in the 33 meets evidence **and** pack.
+**Why not NEXT CUT READY:** evidence ≠ authorized migration. Trampoline, blob fit measurement, and rollback gate are still a *plan*.
 
 **Why not PATH A RESEARCH READY:** no new sole-writer cluster.
 
-**Why not STILL BLOCKED:** there is a concrete, bounded next research program (pack slack), not an empty stall.
+**Why not STILL BLOCKED (memory):** REG-012 restored 2365 B slack.
 
 ---
 
@@ -334,9 +322,10 @@ Do not rank by caller count. Thin/dead/IRQ/C0 symbols score zero and are omitted
 
 | Path | Action |
 |------|--------|
-| This file | **Created** |
-| [`migration-plan.md`](migration-plan.md) | Post-CW frontier pointer only |
-| Inventory / gates / production code | **Unchanged** |
+| This file | Amended after REG-012 + ipv4_output evidence |
+| [`stage4-ipv4-output-oracle.md`](stage4-ipv4-output-oracle.md) | **Created** |
+| [`migration-plan.md`](migration-plan.md) | Frontier pointer |
+| Inventory / gates / production networking | **Unchanged** |
 
 ---
 

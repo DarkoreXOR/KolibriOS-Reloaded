@@ -222,6 +222,13 @@ out = "rust_ntfs_set_file_info.bin"
 
 [[rust.blobs]]
 kind = "generic"
+section = ".text.rust_ipv4_output"
+symbol = "rust_ipv4_output"
+expect_ret_imm = 4
+out = "rust_ipv4_output.bin"
+
+[[rust.blobs]]
+kind = "generic"
 section = ".text.rust_ext_write_time_pack"
 symbol = "rust_ext_write_time_pack"
 expect_ret_imm = 12
@@ -1076,6 +1083,15 @@ symbol = "rust_ntfs_set_file_info"
 gate = "USE_RUST_NTFS_SET_FILE_INFO"
 include = "kernel/rust/ntfs_set_file_info.inc"
 gate_file = "kernel/fs/ntfs.inc"
+enabled = true
+
+[[rust.migrations]]
+cut = "CX"
+blob = "rust_ipv4_output.bin"
+symbol = "rust_ipv4_output"
+gate = "USE_RUST_IPV4_OUTPUT"
+include = "kernel/rust/ipv4_output.inc"
+gate_file = "kernel/network/IPv4.inc"
 enabled = true
 
 [[rust.migrations]]

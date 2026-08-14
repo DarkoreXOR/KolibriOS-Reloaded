@@ -38,6 +38,7 @@ use crate::exfat_get_sector::exfat_get_sector;
 use crate::exfat_find_lfn::{exfat_find_lfn_ptr, ExFatFindLfnCtx};
 use crate::ext_set_file_info::{ext_set_file_info_ptr, ExtSetFileInfoCtx};
 use crate::ntfs_set_file_info::{ntfs_set_file_info_ptr, NtfsSetFileInfoCtx};
+use crate::ipv4_output::{ipv4_output_ptr, Ipv4OutputCtx};
 use crate::get_inode_location::get_inode_location_ptr;
 use crate::io_access::set_io_access_rights_ptr;
 use crate::ipv4_find_fragment_slot::ipv4_find_fragment_slot_ptr;
@@ -405,6 +406,24 @@ pub unsafe extern "stdcall" fn rust_ext_set_file_info(ctx: *mut ExtSetFileInfoCt
 #[link_section = ".text.rust_ntfs_set_file_info"]
 pub unsafe extern "stdcall" fn rust_ntfs_set_file_info(ctx: *mut NtfsSetFileInfoCtx) -> u32 {
     unsafe { ntfs_set_file_info_ptr(ctx) }
+}
+
+/// `stdcall` rust_ipv4_output(ctx) → EAX buffer/0; ret 4.
+///
+/// Cut CX: dedicated section for reloc-free extract + FASM `file` embed.
+/// Callee cleans 4 bytes (`ret 4`). Trampoline injects [`Ipv4OutputCtx`]
+/// and must NOT `add esp` for this arg (REG-009). Snapshot AX/EBX/ECX/EDX/EDI
+/// before building the stack ctx (REG-010). Capture `eth_output` ZF inside
+/// the blob immediately after `call` (REG-018). Public ZF reconstructed by
+/// the FASM trampoline (`test eax,eax` / loopback-OOM continue).
+///
+/// # Safety
+/// `ctx` must be a writable [`Ipv4OutputCtx`] with valid callback labels and
+/// table bases; callbacks use the public FASM register ABIs.
+#[no_mangle]
+#[link_section = ".text.rust_ipv4_output"]
+pub unsafe extern "stdcall" fn rust_ipv4_output(ctx: *mut Ipv4OutputCtx) -> u32 {
+    unsafe { ipv4_output_ptr(ctx) }
 }
 
 /// `stdcall` rust_draw_char(ctx); ret 4.

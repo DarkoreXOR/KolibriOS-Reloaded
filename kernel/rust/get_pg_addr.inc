@@ -24,8 +24,9 @@ endg
 uglobal
 align 4
 ; Compact synthetic PTE table for high-path smoke (os_base=0 indices).
-; Index 0x401 holds a planted PTE for linear 0x401000.
-get_pg_addr_smoke_ptes: rb 0x500*4
+; Highest planted index is 0x405 (linear 0x405000); 0x406 dwords is enough.
+; REG-012: shrunk from 0x500*4 (unused tail never read).
+get_pg_addr_smoke_ptes: rb 0x406*4
 endg
 
 ; Called once from high_code after Cut AP smoke / early enough that
@@ -40,7 +41,7 @@ get_pg_addr_rust_smoke_test:
 
         ; --- Clear synthetic PTE table ---
         mov     edi, get_pg_addr_smoke_ptes
-        mov     ecx, (0x500*4)/4
+        mov     ecx, (0x406*4)/4
         xor     eax, eax
         rep     stosd
 

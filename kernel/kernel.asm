@@ -443,6 +443,8 @@ end if
         call    tcp_set_persist_rust_smoke_test
         ; Cut AC: ipv4_route smoke (Rust when USE_RUST_IPV4_ROUTE=1; FASM path when OFF).
         call    ipv4_route_rust_smoke_test
+        ; Cut CX: ipv4_output smoke (Rust when USE_RUST_IPV4_OUTPUT=1).
+        call    ipv4_output_rust_smoke_test
         ; Cut W: xfs._.get_addr_by_hash smoke (Rust when USE_RUST_XFS_GET_ADDR_BY_HASH=1).
         call    xfs_get_addr_by_hash_rust_smoke_test
         ; Cut Y smoke deferred until after LTR (larger stack; with Cut X).

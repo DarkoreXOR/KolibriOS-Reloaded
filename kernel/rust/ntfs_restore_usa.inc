@@ -21,8 +21,9 @@ endg
 
 uglobal
 align 4
+; Single 1024-byte record. Vectors run sequentially and refill the buffer
+; (REG-012: dropped the duplicate usa_smoke_buf2).
 usa_smoke_buf:  rb 1024
-usa_smoke_buf2: rb 1024
 endg
 
 ; Called once from high_code after Cut I smoke.
@@ -81,11 +82,11 @@ ntfs_restore_usa_rust_smoke_test:
         jne     .fail
 
         ; --- vector 2: USA size mismatch → CF set, buffer unchanged ---
-        mov     edi, usa_smoke_buf2
+        mov     edi, usa_smoke_buf
         mov     ecx, 1024
         mov     al, 0x5A
         rep stosb
-        mov     ebx, usa_smoke_buf2
+        mov     ebx, usa_smoke_buf
         mov     word [ebx+4], 0x0028
         mov     word [ebx+6], 1               ; wrong (want 3)
         mov     word [ebx+0x28], 0x55AA
@@ -94,9 +95,9 @@ ntfs_restore_usa_rust_smoke_test:
         mov     eax, 1024
         call    ntfs_restore_usa
         jnc     .fail
-        cmp     byte [usa_smoke_buf2], 0x5A
+        cmp     byte [usa_smoke_buf], 0x5A
         jne     .fail
-        cmp     word [usa_smoke_buf2+0x1FE], 0x55AA
+        cmp     word [usa_smoke_buf+0x1FE], 0x55AA
         jne     .fail
 
         ; --- vector 3: USN mismatch on 2nd sector → CF set, partial mutate ---

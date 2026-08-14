@@ -661,8 +661,9 @@ end if
 ;                                                                  ;
 ; ipv4_output                                                      ;
 ;                                                                  ;
-;  IN:  al = protocol                                              ;
-;       ah = TTL                                                   ;
+;  LIVE ABI (banner below is historically inverted):               ;
+;  IN:  al = TTL                                                   ;
+;       ah = protocol                                              ;
 ;       ebx = device ptr (or 0 to let IP layer decide)             ;
 ;       ecx = data length                                          ;
 ;       edx = Source IP                                            ;
@@ -675,7 +676,56 @@ end if
 ;       edx = size of complete frame                               ;
 ;       edi = start of IPv4 payload                                ;
 ;                                                                  ;
+; Cut CX: USE_RUST_IPV4_OUTPUT=1 → Rust rust_ipv4_output(ctx).     ;
+; Set USE_RUST_IPV4_OUTPUT=0 to restore the original FASM body.    ;
+; Does not migrate ipv4_output_raw / ARP / eth / route tables.     ;
+; Critical ABI: stdcall rust_ipv4_output(ctx) ret 4 (REG-009);     ;
+; ctx 56 bytes; public ipv4_route / arp_ip_to_mac / eth_output /   ;
+; loop_output callbacks. Marker IPV4.                              ;
 ;------------------------------------------------------------------;
+
+; Production default ON after Cut CX gates.
+USE_RUST_IPV4_OUTPUT = 1
+
+if USE_RUST_IPV4_OUTPUT
+
+; Compatibility trampoline: register ABI → Rust stdcall → outs.
+; Snapshot AX/EBX/ECX/EDX/EDI before ctx pushes (REG-010).
+; Reconstruct ZF: test eax / loopback-OOM continue via payload_ptr.
+align 4
+ipv4_output:
+        push    ebp
+        mov     ebp, esp
+        sub     esp, 56
+        mov     word [ebp-56], ax               ; ttl_proto (+0)
+        mov     [ebp-52], ebx                   ; device_in (+4)
+        mov     [ebp-48], ecx                   ; payload_len (+8)
+        mov     [ebp-44], edx                   ; source_in (+12)
+        mov     [ebp-40], edi                   ; dest_in (+16)
+        mov     dword [ebp-36], ipv4_route      ; (+20)
+        mov     dword [ebp-32], arp_ip_to_mac   ; (+24)
+        mov     dword [ebp-28], eth_output      ; (+28)
+        mov     dword [ebp-24], loop_output     ; (+32)
+        mov     dword [ebp-20], IPv4_packets_tx ; (+36)
+        mov     dword [ebp-16], net_device_list ; (+40)
+        lea     eax, [ebp-56]
+        stdcall rust_ipv4_output, eax           ; ret 4 only (REG-009)
+        mov     ebx, [ebp-12]                   ; out_device (+44)
+        mov     ecx, [ebp-48]                   ; original payload_len
+        mov     edx, [ebp-8]                    ; frame_size (+48)
+        mov     edi, [ebp-4]                    ; payload_ptr (+52)
+        test    eax, eax
+        jnz     .cx_done
+        test    edi, edi                        ; loopback OOM continue (legacy)
+  .cx_done:
+        cld
+        mov     esp, ebp
+        pop     ebp
+        ret
+
+else
+
+; --- original FASM implementation (rollback) ---
 align 4
 ipv4_output:
 
@@ -767,6 +817,8 @@ ipv4_output:
         mov     edi, AF_INET4
         call    loop_output
         jmp     .continue
+
+end if
 
 
 

@@ -4,11 +4,11 @@
 Rust hybrid migration scope. One-time project map; update when a Cut
 completes or the scoped candidate set changes.
 
-**Last inventory baseline:** post-Cut CW (2026-08-14).
-**Cut CS:** **BLOCKED** (historical). Inventory after CW: **105 / 138**.
+**Last inventory baseline:** post-Cut CX (2026-08-14).
+**Cut CS:** **BLOCKED** (historical). Inventory after CX: **106 / 138**.
 
 **Gates source of truth:** `project/build.toml` `[[rust.migrations]]`
-(106 production entries enabled after CW).
+(107 production entries enabled after CX).
 
 ---
 
@@ -168,7 +168,7 @@ leaves. Path A rejections are recorded in cut plans, not as fake completions.
 - [x] `ipv4_route` — Cut AC
 - [x] `net_ptr_to_num4` — Cut AY
 - [x] `socket_check` — Cut AS
-- [ ] `ipv4_output` — deferred: AC deepen
+- [x] `ipv4_output` — Cut CX **COMPLETE** (Path B; gate `USE_RUST_IPV4_OUTPUT`; [`cut-cx-implementation.md`](cut-cx-implementation.md))
 - [ ] `ipv4_output_raw` — deferred: AC deepen / protocol island
 - [ ] `net_ptr_to_num` — thin: wrapper over net_ptr_to_num4
 - [ ] `socket_check_owner` — deferred: socket deepen
@@ -311,10 +311,10 @@ Documented across Cuts AO–AZ plans:
 
 **Functions completed / functions total**
 
-`105 / 138`
+`106 / 138`
 
-(Mechanically: `105` `[x]` + `33` `[ ]` = `138`. Cut CW migrated
-`ntfs_SetFileInfo` as one Path B plugin leaf.)
+(Mechanically: `106` `[x]` + `32` `[ ]` = `138`. Cut CX migrated
+`ipv4_output` as one Path B orchestration leaf.)
 
 When a new Cut completes: mark its `[ ]` → `[x]`, move the note to the Cut id,
 and update this counter so it still matches the checklist.
